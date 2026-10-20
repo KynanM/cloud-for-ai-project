@@ -1,0 +1,8 @@
+# Opmaak en stijl, automatisch. `ruff format .` herschrijft, `ruff check .` zoekt fouten.
+line-length = 100
+
+[lint]
+# E/F: de klassiekers (pycodestyle, pyflakes) · I: importvolgorde · N: naamgeving · B: valkuilen
+select = ["E", "F", "I", "N", "B"]
+# N803/N806: hoofdletter-X voor een featurematrix is ML-conventie, laat die staan.
+ignore = ["N803", "N806"]
