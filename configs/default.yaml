@@ -1,0 +1,29 @@
+# Alles wat je zou willen veranderen zonder code aan te raken, staat hier.
+# Paden zijn relatief ten opzichte van de projectmap.
+
+data:
+  pad: data/telko_klanten.csv
+  id_kolom: klant_id
+
+doel: opgezegd
+
+features:
+  numeriek:
+    - maanden_klant
+    - maandbedrag
+    - data_gb
+    - klantendienst_contacten
+    - toestel_via_telko
+  categorisch:
+    - contract
+  # email_bekend staat hier bewust niet: dat was het lek uit labo 4.
+
+split:
+  test_grootte: 0.2
+  seed: 42
+
+model:
+  pad: models/model.joblib
+  max_iter: 1000
+  # Een model dat slechter doet dan dit, mag niet naar productie.
+  minimum_auc: 0.65
