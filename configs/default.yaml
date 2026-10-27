@@ -2,21 +2,50 @@
 # Paden zijn relatief ten opzichte van de projectmap.
 
 data:
-  pad: data/telko_klanten.csv
-  id_kolom: klant_id
+  # Hotel booking demand (Antonio, Almeida & Nunes, 2019), van Kaggle. Zie de README.
+  pad: data/hotel_bookings.csv
+  voorbeeld: data/nieuwe_boekingen.csv
 
-doel: opgezegd
+# Het label wordt afgeleid, het staat niet als kolom in de csv. Zie maak_label() in src/data.py.
+doel: annuleert_na_beslismoment
+
+label:
+  # Het beslismoment: zoveel dagen vóór de aankomst beslist de revenue manager.
+  horizon_dagen: 30
+
+opschoning:
+  # Buiten scope (deel 1): Non Refund is een bekende datafout, 99 % ervan staat als geannuleerd.
+  uitgesloten_deposit: Non Refund
+  # adr in euro per nacht. Nul of negatief is geen echte verkoop, 1000 of meer is een tikfout.
+  adr_min: 0
+  adr_max: 1000
 
 features:
   numeriek:
-    - maanden_klant
-    - maandbedrag
-    - data_gb
-    - klantendienst_contacten
-    - toestel_via_telko
+    - lead_time
+    - stays_in_weekend_nights
+    - stays_in_week_nights
+    - adults
+    - children
+    - babies
+    - is_repeated_guest
+    - previous_cancellations
+    - previous_bookings_not_canceled
+    - adr
   categorisch:
-    - contract
-  # email_bekend staat hier bewust niet: dat was het lek uit labo 4.
+    - hotel
+    - arrival_date_month
+    - meal
+    - market_segment
+    - distribution_channel
+    - reserved_room_type
+    - deposit_type
+    - customer_type
+    - agent
+  # Bewust niet: reservation_status(_date) is het label zelf; assigned_room_type,
+  # booking_changes, days_in_waiting_list, required_car_parking_spaces en
+  # total_of_special_requests zijn pas na het beslismoment gekend (lek).
+  # country is geen feature: alleen voor de controle per groep.
 
 split:
   test_grootte: 0.2
@@ -25,5 +54,5 @@ split:
 model:
   pad: models/model.joblib
   max_iter: 1000
-  # Een model dat slechter doet dan dit, mag niet naar productie.
+  # Een model dat slechter doet dan dit, mag niet naar productie. Zie de README.
   minimum_auc: 0.65

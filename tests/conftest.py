@@ -3,7 +3,7 @@
 import pytest
 
 from src.config import laad_config
-from src.data import laad_data
+from src.data import bereid_voor, laad_data
 from src.train import train
 
 
@@ -13,8 +13,15 @@ def cfg():
 
 
 @pytest.fixture(scope="session")
-def df(cfg):
+def ruw(cfg):
+    """De export zoals ze in de csv staat, gevalideerd."""
     return laad_data(cfg["data"]["pad"])
+
+
+@pytest.fixture(scope="session")
+def df(ruw, cfg):
+    """Opgeschoond en met label: wat het model ziet."""
+    return bereid_voor(ruw, cfg)
 
 
 @pytest.fixture(scope="session")

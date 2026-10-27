@@ -11,6 +11,7 @@ def laad_config(pad: str | Path = PROJECT / "configs" / "default.yaml") -> dict:
     """Lees de YAML-config en maak de paden absoluut, zodat het niet uitmaakt van waar je draait."""
     cfg = yaml.safe_load(Path(pad).read_text(encoding="utf-8"))
     cfg["data"]["pad"] = PROJECT / cfg["data"]["pad"]
+    cfg["data"]["voorbeeld"] = PROJECT / cfg["data"]["voorbeeld"]
     cfg["model"]["pad"] = PROJECT / cfg["model"]["pad"]
     return cfg
 
