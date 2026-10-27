@@ -32,7 +32,18 @@ def main(argv: list[str]) -> None:
     valideer = None if "--zonder-schema" in argv else schema.INVOER
 
     df = laad_data(pad, valideer_met=valideer)
-    kansen = voorspel(laad_model(cfg["model"]["pad"]), df, cfg)
+    model = laad_model(cfg["model"]["pad"])
+    encoder = model.named_steps["voorbewerking"].named_transformers_["cat"]
+    bekende_contracten = set(encoder.categories_[0])
+    onbekende_contracten = sorted(set(df["contract"]) - bekende_contracten)
+    if onbekende_contracten:
+        print(
+            "Waarschuwing: het model is niet getraind op de contractvorm(en) "
+            f"{', '.join(onbekende_contracten)}; de voorspellingen daarvoor zijn "
+            "minder betrouwbaar."
+        )
+
+    kansen = voorspel(model, df, cfg)
 
     print(f"{len(kansen)} klanten. Gemiddelde kans op opzeggen: {kansen.mean():.1%}")
     print(f"Klanten boven 50%: {(kansen > 0.5).sum()}")

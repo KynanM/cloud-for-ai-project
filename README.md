@@ -12,11 +12,16 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # 11 tests, allemaal groen
+pytest                          # alle tests, allemaal groen
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint, meet de AUC, schrijft models/model.joblib
 python -m src.predict data/nieuwe_maand.csv
+python -m src.predict data/nieuwe_maand.csv --zonder-schema  # alleen voor diagnose
 ```
+
+De voorbeeldinvoer gebruikt euro's en voldoet aan het invoerschema. `prepaid` is toegestaan
+voor voorspellen, maar komt niet voor in de trainingsdata; daarvoor waarschuwt het programma.
+`--zonder-schema` schakelt de invoercontrole uit en is alleen bedoeld voor diagnose.
 
 Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het pakket niet.
 
@@ -33,10 +38,10 @@ src/
   predict.py           model laden, voorspellen
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
-  test_model.py        de zes dingen die je wél kan testen aan een model
+  test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
 data/
   telko_klanten.csv    de trainingsdata uit labo 4
-  nieuwe_maand.csv     de klanten van volgende maand. Er zit iets mis mee
+  nieuwe_maand.csv     geldige voorbeeldinvoer voor voorspellingen
 models/                wordt aangemaakt door src.train. Niet committen
 ```
 

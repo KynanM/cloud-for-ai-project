@@ -8,6 +8,8 @@ import pandera.errors
 import pytest
 
 from src import schema
+from src.config import PROJECT
+from src.data import laad_data
 
 
 def test_echte_data_is_geldig(df):
@@ -37,3 +39,16 @@ def test_onbekend_contract_wordt_geweigerd(df):
 def test_voorspellen_vraagt_geen_doelkolom(df, cfg):
     # Bij het voorspellen ken je het antwoord nog niet. Het invoerschema mag het niet eisen.
     schema.INVOER.validate(df.drop(columns=[cfg["doel"]]))
+
+
+def test_prepaid_is_geldige_invoer_maar_niet_geldig_voor_training(df):
+    prepaid = df.head(1).copy()
+    prepaid["contract"] = "prepaid"
+
+    schema.INVOER.validate(prepaid.drop(columns=["opgezegd"]))
+    with pytest.raises(pandera.errors.SchemaError):
+        schema.TRAINING.validate(prepaid)
+
+
+def test_voorbeeldbestand_is_geldige_invoer():
+    laad_data(PROJECT / "data" / "nieuwe_maand.csv", valideer_met=schema.INVOER)
