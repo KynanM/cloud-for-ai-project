@@ -8,47 +8,63 @@ import pandera.errors
 import pytest
 
 from src import schema
-from src.config import PROJECT
 from src.data import laad_data
 
-
-def test_echte_data_is_geldig(df):
-    schema.TRAINING.validate(df)
+LABELKOLOMMEN = ["reservation_status", "reservation_status_date"]
 
 
-def test_hernoemde_kolom_wordt_geweigerd(df):
-    kapot = df.rename(columns={"maandbedrag": "maandbedrag_eur"})
+def test_echte_data_is_geldig(ruw):
+    schema.TRAINING.validate(ruw)
+
+
+def test_hernoemde_kolom_wordt_geweigerd(ruw):
+    kapot = ruw.rename(columns={"adr": "adr_eur"})
     with pytest.raises(pandera.errors.SchemaError):
         schema.TRAINING.validate(kapot)
 
 
-def test_bedrag_in_cent_wordt_geweigerd(df):
+def test_prijs_in_cent_wordt_geweigerd(ruw):
     # Het stilste soort fout: de kolom bestaat nog, het type klopt nog, de eenheid niet.
-    kapot = df.assign(maandbedrag=df["maandbedrag"] * 100)
+    kapot = ruw.assign(adr=ruw["adr"] * 100)
     with pytest.raises(pandera.errors.SchemaError):
         schema.TRAINING.validate(kapot)
 
 
-def test_onbekend_contract_wordt_geweigerd(df):
-    kapot = df.copy()
-    kapot.loc[0, "contract"] = "prepaid"
+def test_lead_time_in_weken_wordt_geweigerd(ruw):
+    # Per rij valt dit niet op: elke waarde blijft tussen 0 en drie jaar. De mediaan wel.
+    kapot = ruw.assign(lead_time=ruw["lead_time"] // 7)
     with pytest.raises(pandera.errors.SchemaError):
         schema.TRAINING.validate(kapot)
 
 
-def test_voorspellen_vraagt_geen_doelkolom(df, cfg):
-    # Bij het voorspellen ken je het antwoord nog niet. Het invoerschema mag het niet eisen.
-    schema.INVOER.validate(df.drop(columns=[cfg["doel"]]))
-
-
-def test_prepaid_is_geldige_invoer_maar_niet_geldig_voor_training(df):
-    prepaid = df.head(1).copy()
-    prepaid["contract"] = "prepaid"
-
-    schema.INVOER.validate(prepaid.drop(columns=["opgezegd"]))
+def test_onbekend_hotel_wordt_geweigerd(ruw):
+    kapot = ruw.copy()
+    kapot.loc[0, "hotel"] = "Airport Hotel"
     with pytest.raises(pandera.errors.SchemaError):
-        schema.TRAINING.validate(prepaid)
+        schema.TRAINING.validate(kapot)
 
 
-def test_voorbeeldbestand_is_geldige_invoer():
-    laad_data(PROJECT / "data" / "nieuwe_maand.csv", valideer_met=schema.INVOER)
+@pytest.mark.parametrize("kolom", ["hotel", "lead_time", "adr", "deposit_type", "agent"])
+def test_ontbrekende_kolom_wordt_geweigerd(ruw, kolom):
+    with pytest.raises(pandera.errors.SchemaError):
+        schema.TRAINING.validate(ruw.drop(columns=[kolom]))
+
+
+def test_voorspellen_vraagt_geen_eindstatus(ruw):
+    # Bij het voorspellen ken je de afloop nog niet. Het invoerschema mag ze niet eisen.
+    schema.INVOER.validate(ruw.drop(columns=LABELKOLOMMEN))
+
+
+def test_opschoning_laat_alleen_boekingen_binnen_scope_over(df, cfg):
+    regels = cfg["opschoning"]
+    assert (df["deposit_type"] != regels["uitgesloten_deposit"]).all()
+    assert df["adr"].between(regels["adr_min"], regels["adr_max"], inclusive="neither").all()
+    assert (df["stays_in_weekend_nights"] + df["stays_in_week_nights"] > 0).all()
+
+
+def test_label_is_nul_of_een(df, cfg):
+    assert set(df[cfg["doel"]].unique()) == {0, 1}
+
+
+def test_voorbeeldbestand_is_geldige_invoer(cfg):
+    laad_data(cfg["data"]["voorbeeld"], valideer_met=schema.INVOER)

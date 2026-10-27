@@ -1,1 +1,1 @@
-"""Het Telko-opzegmodel, als pakket in plaats van als notebook."""
+"""Annulaties van hotelboekingen voorspellen, als pakket in plaats van als notebook."""

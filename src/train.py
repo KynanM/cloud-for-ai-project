@@ -6,22 +6,37 @@ python -m src.train
 import joblib
 import pandas as pd
 from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
 from .config import alle_features, laad_config
-from .data import laad_data
+from .data import bereid_voor, laad_data
+
+
+def als_tekst(X: pd.DataFrame) -> pd.DataFrame:
+    """Categorieën als tekst, ook `agent`: dat is een id, geen getal. Leeg wordt "geen"."""
+    return X.astype(object).where(X.notna(), "geen").astype(str)
 
 
 def bouw_pijplijn(cfg: dict) -> Pipeline:
     """Alle stappen die iets leren uit de data zitten ín de pijplijn. Zie labo 4."""
+    numeriek = Pipeline(
+        [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
+    )
+    categorisch = Pipeline(
+        [
+            ("tekst", FunctionTransformer(als_tekst)),
+            ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ]
+    )
     voorbewerking = ColumnTransformer(
         [
-            ("num", StandardScaler(), cfg["features"]["numeriek"]),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), cfg["features"]["categorisch"]),
+            ("num", numeriek, cfg["features"]["numeriek"]),
+            ("cat", categorisch, cfg["features"]["categorisch"]),
         ]
     )
     model = LogisticRegression(max_iter=cfg["model"]["max_iter"])
@@ -50,7 +65,8 @@ def train(df: pd.DataFrame, cfg: dict) -> tuple[Pipeline, float]:
 
 def main() -> None:
     cfg = laad_config()
-    df = laad_data(cfg["data"]["pad"])
+    df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
+    print(f"{len(df)} boekingen actief op het beslismoment, basiskans {df[cfg['doel']].mean():.1%}")
     model, auc = train(df, cfg)
     print(f"AUC op de testset: {auc:.3f}")
 
