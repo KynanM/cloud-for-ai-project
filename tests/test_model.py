@@ -14,14 +14,13 @@ vastleggen:
 import joblib
 import numpy as np
 
-from src.config import PROJECT
 from src.data import laad_data
 from src.predict import laad_model, voorspel
 from src.schema import INVOER
 from src.train import train
 
 
-def test_vorm_een_kans_per_klant(model, df, cfg):
+def test_vorm_een_kans_per_boeking(model, df, cfg):
     kansen = voorspel(model, df.head(50), cfg)
     assert kansen.shape == (50,)
     assert kansen.dtype == np.float64
@@ -33,15 +32,23 @@ def test_invariant_kansen_liggen_tussen_0_en_1(model, df, cfg):
 
 
 def test_pijplijn_neemt_ruwe_rijen(model, df, cfg):
-    # Eén ruwe rij, met tekst in `contract` en een kolom die het model niet gebruikt.
-    # Alle voorbewerking moet in de pijplijn zitten, niet in een notebookcel ervoor.
+    # Eén ruwe rij, met tekst in `hotel`, een lege `agent` en `children`, en een kolom die
+    # het model niet gebruikt. Alle voorbewerking moet in de pijplijn zitten, niet in een
+    # notebookcel ervoor.
     ruw = df.head(1).copy()
+    ruw["agent"] = np.nan
+    ruw["children"] = np.nan
     ruw["iets_onverwachts"] = "negeer mij"
     assert voorspel(model, ruw, cfg).shape == (1,)
 
 
+def test_geen_nan_voorspellingen(model, df, cfg):
+    # Een model met lege waarden traint gewoon door. Het faalt stil, dus test je het.
+    assert not np.isnan(voorspel(model, df, cfg)).any()
+
+
 def test_voorbeeldbestand_kan_worden_voorspeld(model, cfg):
-    nieuw = laad_data(PROJECT / "data" / "nieuwe_maand.csv", valideer_met=INVOER)
+    nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
     kansen = voorspel(model, nieuw, cfg)
 
     assert kansen.shape == (len(nieuw),)
