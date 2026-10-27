@@ -14,7 +14,10 @@ vastleggen:
 import joblib
 import numpy as np
 
+from src.config import PROJECT
+from src.data import laad_data
 from src.predict import laad_model, voorspel
+from src.schema import INVOER
 from src.train import train
 
 
@@ -35,6 +38,14 @@ def test_pijplijn_neemt_ruwe_rijen(model, df, cfg):
     ruw = df.head(1).copy()
     ruw["iets_onverwachts"] = "negeer mij"
     assert voorspel(model, ruw, cfg).shape == (1,)
+
+
+def test_voorbeeldbestand_kan_worden_voorspeld(model, cfg):
+    nieuw = laad_data(PROJECT / "data" / "nieuwe_maand.csv", valideer_met=INVOER)
+    kansen = voorspel(model, nieuw, cfg)
+
+    assert kansen.shape == (len(nieuw),)
+    assert np.all((kansen >= 0) & (kansen <= 1))
 
 
 def test_persistentie(model, df, cfg, tmp_path):
