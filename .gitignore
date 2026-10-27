@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Het model wordt gebouwd met python -m src.train, niet gecommit
+models/
