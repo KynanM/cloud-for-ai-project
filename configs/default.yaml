@@ -46,8 +46,9 @@ features:
   # booking_changes, days_in_waiting_list, required_car_parking_spaces en
   # total_of_special_requests zijn pas na het beslismoment gekend (lek).
   # Het land, gegroepeerd tot PRT tegenover de rest, in de pijplijn (land_als_groep in
-  # src/train.py). false: het model met en zonder land vergelijken is deze ene sleutel.
-  gebruik_land: true
+  # src/kenmerken.py). Standaard uit: het land is waarschijnlijk pas na het beslismoment
+  # ingevuld, en dan is het een lek. Zie "Bevindingen" in de README. true: met land.
+  gebruik_land: false
 
 # Een split in de tijd, op aankomstdatum. Een willekeurige split laat de toekomst in de
 # training lekken. Begin en einde zijn inbegrepen.
@@ -71,9 +72,33 @@ vuistregel:
   # Een groep met minder boekingen krijgt het percentage van het hotel.
   minimum_groep: 30
 
+# Van kansen naar het advies per hotel-nacht. Zie src/nachten.py.
+advies:
+  # k = het grootste aantal waarvoor P(minstens k annulaties) >= zekerheid. Met de bedragen
+  # hieronder is dat het punt waarop een extra kamer niet meer loont: W / (r + W) = 0,80.
+  zekerheid: 0.80
+  # Capaciteit per hotel: dit percentiel van de bezette kamers per nacht in de training.
+  capaciteit_percentiel: 0.99
+  # Een nacht telt als volgeboekt vanaf dit aandeel van de capaciteit.
+  volgeboekt_vanaf: 0.95
+  # Nooit meer dan dit aandeel van de capaciteit overboeken: de bescherming voor de gast.
+  max_aandeel: 0.05
+
+# Bedragen, als veelvoud van de prijs per nacht (adr) van die nacht.
+bedragen:
+  # Winst op een extra verkochte kamer.
+  r: 0.5
+  # Kost van een gast die je naar een ander hotel moet doorverwijzen.
+  w: 2.0
+  # Hoe gevoelig is de uitkomst voor die aannames?
+  gevoeligheid:
+    - {r: 0.3, w: 2.0}
+    - {r: 0.5, w: 3.0}
+
 model:
-  # vuistregel | logreg | boosting. Gekozen op de validatie, nooit op de test.
-  soort: logreg
+  # vuistregel | logreg | boosting. Gekozen op de MAE per hotel-nacht op de validatie, nooit op
+  # de test: boosting 4,86, logreg 5,78, vuistregel 6,36. Zie python -m src.evaluate.
+  soort: boosting
   pad: models/model.joblib
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42
@@ -85,6 +110,7 @@ model:
     max_leaf_nodes: 15
     min_samples_leaf: 100
     l2_regularization: 1.0
-  # Een model dat op de validatie slechter doet dan dit, mag niet naar productie. Met de split
-  # in de tijd haalt de logistische regressie 0,63. Zie de README.
+  # Twee poorten vóór het wegschrijven, allebei op de validatie:
+  # - de MAE per hotel-nacht moet lager zijn dan die van de vuistregel (src/train.py)
+  # - de AUC moet minstens dit zijn. Zonder land: logreg 0,63, boosting 0,69. Zie de README.
   minimum_auc: 0.60
