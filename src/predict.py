@@ -13,23 +13,29 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 
 from . import schema
-from .config import alle_features, laad_config
+from .config import invoerkolommen, laad_config
 from .data import laad_data
-from .train import als_tekst
+from .kenmerken import als_tekst
+from .train import Model
 
 
-def laad_model(pad: str | Path) -> Pipeline:
+def laad_model(pad: str | Path) -> Model:
     return joblib.load(pad)
 
 
-def voorspel(model: Pipeline, df: pd.DataFrame, cfg: dict) -> np.ndarray:
+def voorspel(model: Model, df: pd.DataFrame, cfg: dict) -> np.ndarray:
     """De kans dat de boeking alsnog geannuleerd wordt of een no-show wordt, één per boeking."""
-    return model.predict_proba(df[alle_features(cfg)])[:, 1]
+    return model.predict_proba(df[invoerkolommen(cfg)])[:, 1]
 
 
-def onbekende_categorieen(model: Pipeline, df: pd.DataFrame, cfg: dict) -> dict[str, list[str]]:
-    """Per kolom de waarden die het model bij het trainen nooit gezien heeft."""
-    encoder = model.named_steps["voorbewerking"].named_transformers_["cat"]["onehot"]
+def onbekende_categorieen(model: Model, df: pd.DataFrame, cfg: dict) -> dict[str, list[str]]:
+    """Per kolom de waarden die het model bij het trainen nooit gezien heeft.
+
+    De vuistregel valt bij een onbekende groep zelf terug op het hotel: daar is niets te melden.
+    """
+    if not isinstance(model, Pipeline):
+        return {}
+    encoder = model.named_steps["voorbewerking"].named_transformers_["cat"]["encoder"]
     kolommen = cfg["features"]["categorisch"]
     tekst = als_tekst(df[kolommen])
     onbekend = {
