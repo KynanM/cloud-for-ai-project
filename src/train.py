@@ -24,6 +24,7 @@ from .baseline import Vuistregel, maak_vuistregel
 from .config import invoerkolommen, laad_config
 from .data import aankomstdatum, bereid_voor, laad_data
 from .kenmerken import als_tekst, land_als_groep
+from .nachten import per_nacht
 
 # Wat bouw_pijplijn() teruggeeft: een scikit-learn-pijplijn, of de vuistregel.
 Model = Pipeline | Vuistregel
@@ -147,6 +148,22 @@ def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
+def mae_per_hotel_nacht(model: Model, deel: pd.DataFrame, begin, einde, cfg: dict) -> float:
+    """De ML-metriek: gemiddelde |verwacht - echt aantal annulaties| per hotel-nacht."""
+    kansen = model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
+    nachten = per_nacht(deel, kansen, cfg, begin, einde)
+    return float((nachten["verwacht"] - nachten["echt"]).abs().mean())
+
+
+def poort(df: pd.DataFrame, cfg: dict) -> tuple[float, float, float]:
+    """AUC en MAE van het model op de validatie, en de MAE van de vuistregel ernaast."""
+    delen, g = splits(df, cfg), grenzen(cfg)
+    model, auc = train(df, cfg)
+    vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
+    meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg)
+    return auc, mae_per_hotel_nacht(model, *meet), mae_per_hotel_nacht(vuistregel, *meet)
+
+
 def main() -> None:
     cfg = laad_config()
     df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
@@ -165,11 +182,18 @@ def main() -> None:
         else (", met land" if cfg["features"]["gebruik_land"] else ", zonder land")
     )
     print(f"Model: {soort}{land}")
-    _, auc = train(df, cfg)
-    print(f"AUC op de validatie: {auc:.3f}")
+    auc, mae, mae_vuistregel = poort(df, cfg)
+    print(
+        f"Validatie: AUC {auc:.3f}, MAE per hotel-nacht {mae:.2f} (vuistregel {mae_vuistregel:.2f})"
+    )
     minimum = cfg["model"]["minimum_auc"]
     if auc < minimum:
         raise SystemExit(f"AUC {auc:.3f} ligt onder het minimum {minimum}. Niet weggeschreven.")
+    if mae >= mae_vuistregel:
+        raise SystemExit(
+            f"MAE {mae:.2f} is niet lager dan die van de vuistregel ({mae_vuistregel:.2f}). "
+            "Niet weggeschreven."
+        )
 
     model, test_auc = hertrain(df, cfg)
     print(f"AUC op de test, na hertrainen: {test_auc:.3f} (alleen gerapporteerd)")
