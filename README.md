@@ -84,19 +84,42 @@ kans op annuleren, en het hotel zou nooit overboeken.
 Logistische regressie in een scikit-learn-pijplijn. Alles wat iets leert uit de data zit
 erin: lege waarden invullen, schalen en one-hot-encoderen.
 
-`minimum_auc` staat op 0,65. De haalbaarheidstest uit deel 1 gaf een AUC rond 0,67 met een
-split in de tijd. Een model dat daar duidelijk onder zakt, rangschikt de boekingen niet beter
-dan de vuistregel van de revenue manager. Met de willekeurige split van nu haalt het model
-0,726.
+### De split: in de tijd, op aankomstdatum
 
-Nog te doen voor deel 2: een split in de tijd in plaats van een willekeurige, een baseline
-(de vuistregel per hotel, segment en lead time) en de metriek uit deel 1: de MAE van het
-aantal annulaties per hotel-nacht.
+| Deel | Aankomst | Boekingen | Annuleert | Waarvoor |
+|---|---|---|---|---|
+| training | 01-07-2015 tot 30-11-2016 | 31 840 | 14,9 % | het model leren |
+| validatie | 01-01-2017 tot 31-03-2017 | 4 439 | 16,6 % | het model kiezen, de poort |
+| hertraining | 01-07-2015 tot 28-02-2017 | 35 629 | 15,5 % | het gekozen model opnieuw leren |
+| test | 01-04-2017 tot 31-08-2017 | 13 064 | 11,5 % | één keer meten, alleen rapporteren |
+
+Een willekeurige split laat de toekomst in de training lekken: een boeking van augustus 2017
+helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
+
+Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
+afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
+training. Een no-show ken je pas de dag na aankomst, vandaar nog een dag extra. De training
+stopt dus op 30 november. Hetzelfde geldt voor de hertraining vóór de test: die stopt op
+28 februari. De datums staan in `configs/default.yaml`, het embargo rekent `grenzen()` in
+`src/train.py` uit. `tests/test_split.py` controleert het met de aankomstdatums zelf.
+
+Het model wordt gekozen en tegengehouden op de validatie. Daarna wordt het opnieuw getraind
+op de hertraining en één keer op de test gemeten. Op de test kies je niets.
+
+### De ondergrens
+
+`minimum_auc` staat op 0,60, gemeten op de validatie. Met de willekeurige split haalde de
+logistische regressie 0,725. Met de split in de tijd is dat 0,628 op de validatie en 0,626 op
+de test: het verschil was lek. Een model onder 0,60 rangschikt de boekingen nauwelijks beter
+dan toeval en wordt niet weggeschreven.
+
+Nog te doen voor deel 2: een baseline (de vuistregel per hotel, segment en lead time) en de
+metriek uit deel 1: de MAE van het aantal annulaties per hotel-nacht.
 
 ## Wat waar staat
 
 ```
-configs/default.yaml   paden, horizon, opschoning, features, seed, de minimale AUC. Geen code
+configs/default.yaml   paden, horizon, opschoning, features, split, de minimale AUC. Geen code
 ruff.toml              regels voor opmaak en stijl
 src/
   config.py            leest de config
@@ -107,6 +130,7 @@ src/
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
+  test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen

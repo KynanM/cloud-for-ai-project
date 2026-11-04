@@ -48,13 +48,9 @@ def schoon_op(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return df[binnen_scope]
 
 
-def maak_label(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Hou de boekingen die op het beslismoment nog actief zijn, en zet het label erbij.
-
-    Beslismoment T = aankomst min de horizon. Actief op T: geboekt vóór T en dan nog niet
-    geannuleerd. Label 1: die boeking wordt daarna alsnog geannuleerd of een no-show.
-    """
-    aankomst = pd.to_datetime(
+def aankomstdatum(df: pd.DataFrame) -> pd.Series:
+    """De aankomstdatum uit de drie losse kolommen van de export."""
+    return pd.to_datetime(
         df["arrival_date_year"].astype(str)
         + "-"
         + df["arrival_date_month"]
@@ -62,6 +58,15 @@ def maak_label(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         + df["arrival_date_day_of_month"].astype(str),
         format="%Y-%B-%d",
     )
+
+
+def maak_label(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Hou de boekingen die op het beslismoment nog actief zijn, en zet het label erbij.
+
+    Beslismoment T = aankomst min de horizon. Actief op T: geboekt vóór T en dan nog niet
+    geannuleerd. Label 1: die boeking wordt daarna alsnog geannuleerd of een no-show.
+    """
+    aankomst = aankomstdatum(df)
     geboekt = aankomst - pd.to_timedelta(df["lead_time"], unit="D")
     beslismoment = aankomst - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
     status_datum = pd.to_datetime(df["reservation_status_date"], format="%Y-%m-%d")
