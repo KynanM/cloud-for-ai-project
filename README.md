@@ -113,8 +113,22 @@ logistische regressie 0,725. Met de split in de tijd is dat 0,628 op de validati
 de test: het verschil was lek. Een model onder 0,60 rangschikt de boekingen nauwelijks beter
 dan toeval en wordt niet weggeschreven.
 
-Nog te doen voor deel 2: een baseline (de vuistregel per hotel, segment en lead time) en de
-metriek uit deel 1: de MAE van het aantal annulaties per hotel-nacht.
+### De baseline: de vuistregel
+
+`src/baseline.py` doet wat de revenue manager vandaag doet: het annulatiepercentage van het
+afgelopen jaar, per hotel × `market_segment` × klasse van `lead_time` (<60, 60–120, 120–240,
+240+ dagen). Een groep met minder dan 30 boekingen krijgt het percentage van het hotel. De
+instellingen staan onder `vuistregel` in de config. De klasse heeft `fit` en `predict_proba`,
+dus ze past in dezelfde evaluatie als de modellen.
+
+| | AUC validatie | voorspeld/echt validatie |
+|---|---|---|
+| vuistregel, laatste 12 maanden | 0,548 | 1,10 |
+| vuistregel, alle historiek | 0,557 | 1,05 |
+| logistische regressie | 0,628 | |
+
+Nog te doen voor deel 2: de metriek uit deel 1, de MAE van het aantal annulaties per
+hotel-nacht, voor de vuistregel en de modellen naast elkaar.
 
 ## Wat waar staat
 
@@ -125,11 +139,13 @@ src/
   config.py            leest de config
   schema.py            hoe de data eruit hoort te zien (Pandera)
   data.py              inlezen + valideren, opschonen, label afleiden
+  baseline.py          de vuistregel van de revenue manager
   train.py             pijplijn bouwen, trainen, evalueren, wegschrijven
   predict.py           model laden, voorspellen
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
+  test_baseline.py     rekent de vuistregel na op kleine, zelfgemaakte data
   test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
