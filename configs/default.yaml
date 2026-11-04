@@ -45,7 +45,9 @@ features:
   # Bewust niet: reservation_status(_date) is het label zelf; assigned_room_type,
   # booking_changes, days_in_waiting_list, required_car_parking_spaces en
   # total_of_special_requests zijn pas na het beslismoment gekend (lek).
-  # country is geen feature: alleen voor de controle per groep.
+  # Het land, gegroepeerd tot PRT tegenover de rest, in de pijplijn (land_als_groep in
+  # src/train.py). false: het model met en zonder land vergelijken is deze ene sleutel.
+  gebruik_land: true
 
 # Een split in de tijd, op aankomstdatum. Een willekeurige split laat de toekomst in de
 # training lekken. Begin en einde zijn inbegrepen.
@@ -70,8 +72,19 @@ vuistregel:
   minimum_groep: 30
 
 model:
+  # vuistregel | logreg | boosting. Gekozen op de validatie, nooit op de test.
+  soort: logreg
   pad: models/model.joblib
-  max_iter: 1000
+  # Voor het toeval in boosting. Zelfde seed, zelfde model.
+  seed: 42
+  logreg:
+    max_iter: 1000
+  boosting:
+    max_iter: 200
+    learning_rate: 0.05
+    max_leaf_nodes: 15
+    min_samples_leaf: 100
+    l2_regularization: 1.0
   # Een model dat op de validatie slechter doet dan dit, mag niet naar productie. Met de split
   # in de tijd haalt de logistische regressie 0,63. Zie de README.
   minimum_auc: 0.60
