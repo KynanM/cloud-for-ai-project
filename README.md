@@ -31,7 +31,7 @@ pip install -r requirements.txt
 
 pytest                          # alle tests, allemaal groen
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
-python -m src.train             # traint, meet de AUC, schrijft models/model.joblib
+python -m src.train             # traint model.soort, meet de AUC, schrijft models/model.joblib
 python -m src.predict data/nieuwe_boekingen.csv
 python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor diagnose
 ```
@@ -81,8 +81,23 @@ kans op annuleren, en het hotel zou nooit overboeken.
 
 ## Het model en de ondergrens
 
-Logistische regressie in een scikit-learn-pijplijn. Alles wat iets leert uit de data zit
-erin: lege waarden invullen, schalen en one-hot-encoderen.
+Drie soorten, te kiezen met één sleutel in `configs/default.yaml`:
+
+```yaml
+model:
+  soort: logreg        # vuistregel | logreg | boosting
+features:
+  gebruik_land: true   # het land als PRT tegenover de rest, of niet
+```
+
+- `vuistregel`: de baseline, wat de revenue manager vandaag doet (`src/baseline.py`)
+- `logreg`: logistische regressie. Lege waarden invullen, schalen, one-hot-encoderen
+- `boosting`: `HistGradientBoostingClassifier`, met de categorieën als categorieën. Zonder
+  vroege stop, want die zet een willekeurig stuk van de training apart
+
+Alles wat iets leert uit de data zit ín de pijplijn, ook het groeperen van het land
+(`land_als_groep` in `src/kenmerken.py`). Ruwe rijen uit het boekingssysteem gaan er dus
+rechtstreeks in.
 
 ### De split: in de tijd, op aankomstdatum
 
@@ -109,42 +124,76 @@ op de hertraining en één keer op de test gemeten. Op de test kies je niets.
 ### De ondergrens
 
 `minimum_auc` staat op 0,60, gemeten op de validatie. Met de willekeurige split haalde de
-logistische regressie 0,725. Met de split in de tijd is dat 0,628 op de validatie en 0,626 op
-de test: het verschil was lek. Een model onder 0,60 rangschikt de boekingen nauwelijks beter
-dan toeval en wordt niet weggeschreven.
+logistische regressie zonder land 0,725. Met de split in de tijd is dat 0,628 op de validatie
+en 0,626 op de test: het verschil was lek. Een model onder 0,60 rangschikt de boekingen
+nauwelijks beter dan toeval en wordt niet weggeschreven. De vuistregel haalt 0,548 en komt er
+dus niet door. In de volgende stap wordt de poort de MAE per hotel-nacht: beter dan de
+vuistregel, of niet weggeschreven.
 
 ### De baseline: de vuistregel
 
 `src/baseline.py` doet wat de revenue manager vandaag doet: het annulatiepercentage van het
 afgelopen jaar, per hotel × `market_segment` × klasse van `lead_time` (<60, 60–120, 120–240,
 240+ dagen). Een groep met minder dan 30 boekingen krijgt het percentage van het hotel. De
-instellingen staan onder `vuistregel` in de config. De klasse heeft `fit` en `predict_proba`,
-dus ze past in dezelfde evaluatie als de modellen.
+instellingen staan onder `vuistregel` in de config. Met `venster_maanden: null` gebruikt ze
+alle historiek: AUC 0,557 en voorspeld/echt 1,05 op de validatie.
 
-| | AUC validatie | voorspeld/echt validatie |
-|---|---|---|
-| vuistregel, laatste 12 maanden | 0,548 | 1,10 |
-| vuistregel, alle historiek | 0,557 | 1,05 |
-| logistische regressie | 0,628 | |
+### Resultaten op de validatie
 
-Nog te doen voor deel 2: de metriek uit deel 1, de MAE van het aantal annulaties per
-hotel-nacht, voor de vuistregel en de modellen naast elkaar.
+| Model | Land | AUC | voorspeld/echt |
+|---|---|---|---|
+| vuistregel | | 0,548 | 1,10 |
+| logreg | zonder | 0,628 | 0,99 |
+| logreg | met | 0,743 | 0,82 |
+| boosting | zonder | 0,687 | 0,89 |
+| boosting | met | 0,785 | 0,78 |
+
+Gekozen wordt pas in de volgende stap, op de MAE per hotel-nacht. Op de test, na hertrainen,
+haalt logreg met land 0,751 en boosting met land 0,796. Dat is alleen gerapporteerd.
+
+### Het land: mogelijk een lek
+
+Het land doet de AUC met 0,10 stijgen. Dat is te mooi om het zonder controle te geloven. Als
+het land pas bij het inchecken ingevuld wordt, en anders op Portugal blijft staan, dan vertelt
+het niet waar de gast vandaan komt, maar of hij is komen opdagen. Dat is het label zelf.
+
+Wat de data daarover zegt, voor de actieve boekingen:
+
+| | aandeel PRT |
+|---|---|
+| uitgecheckt | 18 % |
+| geannuleerd na het beslismoment | 52 % |
+| no-show | 63 % |
+
+- Een no-show is nooit aangekomen, en is toch voor 63 % Portugees.
+- Van de geannuleerde groepsboekingen is 99 % Portugees, van de uitgecheckte 26 %.
+  Groepsboekingen van buiten Portugal annuleren 0,2 % van de tijd.
+- Hetzelfde patroon bij Offline TA/TO (89 % tegenover 20 %) en Corporate (94 % tegenover
+  52 %). Bij Online TA is het veel zwakker (29 % tegenover 12 %).
+- 14 176 van de 14 587 Non Refund-boekingen zijn Portugees, en 99 % daarvan is geannuleerd.
+  Dat past bij hetzelfde mechanisme.
+
+Dat bewijst het niet, maar het wijst sterk in die richting. Het hoort thuis in de lekcontrole
+per kolom in het exploratienotebook.
 
 ## Wat waar staat
 
 ```
-configs/default.yaml   paden, horizon, opschoning, features, split, de minimale AUC. Geen code
+configs/default.yaml   paden, horizon, opschoning, features, land, split, vuistregel,
+                       model.soort, de minimale AUC. Geen code
 ruff.toml              regels voor opmaak en stijl
 src/
   config.py            leest de config
   schema.py            hoe de data eruit hoort te zien (Pandera)
   data.py              inlezen + valideren, opschonen, label afleiden
   baseline.py          de vuistregel van de revenue manager
-  train.py             pijplijn bouwen, trainen, evalueren, wegschrijven
+  kenmerken.py         bewerkingen ín de pijplijn: categorieën als tekst, het land als groep
+  train.py             split, model.soort bouwen, trainen, evalueren, wegschrijven
   predict.py           model laden, voorspellen
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
+  test_modellen.py     elke soort, met en zonder land: kansen, ruwe rijen, persistentie
   test_baseline.py     rekent de vuistregel na op kleine, zelfgemaakte data
   test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
 data/

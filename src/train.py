@@ -4,42 +4,88 @@ python -m src.train
 """
 
 import joblib
+import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
+from sklearn.preprocessing import (
+    FunctionTransformer,
+    OneHotEncoder,
+    OrdinalEncoder,
+    StandardScaler,
+)
 
-from .config import alle_features, laad_config
+from .baseline import Vuistregel, maak_vuistregel
+from .config import invoerkolommen, laad_config
 from .data import aankomstdatum, bereid_voor, laad_data
+from .kenmerken import als_tekst, land_als_groep
+
+# Wat bouw_pijplijn() teruggeeft: een scikit-learn-pijplijn, of de vuistregel.
+Model = Pipeline | Vuistregel
 
 
-def als_tekst(X: pd.DataFrame) -> pd.DataFrame:
-    """Categorieën als tekst, ook `agent`: dat is een id, geen getal. Leeg wordt "geen"."""
-    return X.astype(object).where(X.notna(), "geen").astype(str)
+def voorbewerking(cfg: dict, numeriek, encoder) -> ColumnTransformer:
+    """Numeriek, categorisch en eventueel het land. Elke kolom die niet genoemd wordt, valt weg."""
+    stappen = [
+        ("num", numeriek, cfg["features"]["numeriek"]),
+        (
+            "cat",
+            Pipeline([("tekst", FunctionTransformer(als_tekst)), ("encoder", encoder)]),
+            cfg["features"]["categorisch"],
+        ),
+    ]
+    if cfg["features"]["gebruik_land"]:
+        land = Pipeline(
+            [("groep", FunctionTransformer(land_als_groep)), ("encoder", clone(encoder))]
+        )
+        stappen.append(("land", land, ["country"]))
+    return ColumnTransformer(stappen)
 
 
-def bouw_pijplijn(cfg: dict) -> Pipeline:
-    """Alle stappen die iets leren uit de data zitten ín de pijplijn. Zie labo 4."""
-    numeriek = Pipeline(
-        [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
-    )
-    categorisch = Pipeline(
-        [
-            ("tekst", FunctionTransformer(als_tekst)),
-            ("onehot", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
-    voorbewerking = ColumnTransformer(
-        [
-            ("num", numeriek, cfg["features"]["numeriek"]),
-            ("cat", categorisch, cfg["features"]["categorisch"]),
-        ]
-    )
-    model = LogisticRegression(max_iter=cfg["model"]["max_iter"])
-    return Pipeline([("voorbewerking", voorbewerking), ("model", model)])
+def bouw_pijplijn(cfg: dict) -> Model:
+    """Het model uit `model.soort`. Alles wat iets leert uit de data zit ín de pijplijn.
+
+    vuistregel  de baseline: het percentage per hotel, segment en lead time (src/baseline.py)
+    logreg      logistische regressie, met schalen en one-hot
+    boosting    HistGradientBoostingClassifier, met de categorieën als categorieën
+    """
+    soort = cfg["model"]["soort"]
+    if soort == "vuistregel":
+        return maak_vuistregel(cfg)
+
+    if soort == "logreg":
+        numeriek = Pipeline(
+            [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
+        )
+        encoder = OneHotEncoder(handle_unknown="ignore")
+        model = LogisticRegression(**cfg["model"]["logreg"])
+        return Pipeline(
+            [("voorbewerking", voorbewerking(cfg, numeriek, encoder)), ("model", model)]
+        )
+
+    if soort == "boosting":
+        # Bomen hoeven niet geschaald te worden, en kunnen zelf met lege waarden om.
+        # Een categorie die het model nooit zag, wordt leeg.
+        encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
+        aantal_categorisch = len(cfg["features"]["categorisch"]) + cfg["features"]["gebruik_land"]
+        categorisch = [False] * len(cfg["features"]["numeriek"]) + [True] * aantal_categorisch
+        model = HistGradientBoostingClassifier(
+            **cfg["model"]["boosting"],
+            categorical_features=categorisch,
+            # Geen vroege stop: die houdt een willekeurig stuk van de training apart.
+            early_stopping=False,
+            random_state=cfg["model"]["seed"],
+        )
+        return Pipeline(
+            [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
+        )
+
+    raise ValueError(f"Onbekend model.soort {soort!r}: kies vuistregel, logreg of boosting")
 
 
 def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
@@ -79,7 +125,7 @@ def splits(df: pd.DataFrame, cfg: dict) -> dict[str, pd.DataFrame]:
 
 
 def kenmerken_en_label(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Series]:
-    return deel[alle_features(cfg)], deel[cfg["doel"]]
+    return deel[invoerkolommen(cfg)], deel[cfg["doel"]]
 
 
 def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
@@ -89,13 +135,13 @@ def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
     return pijplijn, roc_auc_score(y_meet, pijplijn.predict_proba(X_meet)[:, 1])
 
 
-def train(df: pd.DataFrame, cfg: dict) -> tuple[Pipeline, float]:
+def train(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
     """Train op de training, geef het model en de AUC op de validatie terug. Hierop kies je."""
     delen = splits(df, cfg)
     return fit_en_meet(delen["training"], delen["validatie"], cfg)
 
 
-def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Pipeline, float]:
+def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
     """Train opnieuw op de hertraining en meet één keer op de test. Alleen om te rapporteren."""
     delen = splits(df, cfg)
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
@@ -112,6 +158,13 @@ def main() -> None:
             f" tot {aankomst.max():%d-%m-%Y}, basiskans {deel[cfg['doel']].mean():.1%}"
         )
 
+    soort = cfg["model"]["soort"]
+    land = (
+        ""
+        if soort == "vuistregel"
+        else (", met land" if cfg["features"]["gebruik_land"] else ", zonder land")
+    )
+    print(f"Model: {soort}{land}")
     _, auc = train(df, cfg)
     print(f"AUC op de validatie: {auc:.3f}")
     minimum = cfg["model"]["minimum_auc"]
