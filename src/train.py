@@ -1,7 +1,12 @@
 """Het model trainen, evalueren en wegschrijven.
 
 python -m src.train
+python -m src.train --config een/andere/config.yaml
 """
+
+import argparse
+import json
+import sys
 
 import joblib
 import numpy as np
@@ -21,10 +26,10 @@ from sklearn.preprocessing import (
 )
 
 from .baseline import Vuistregel, maak_vuistregel
-from .config import invoerkolommen, laad_config
+from .config import PROJECT, invoerkolommen, laad_config
 from .data import aankomstdatum, bereid_voor, laad_data
 from .kenmerken import als_tekst, land_als_groep
-from .nachten import per_nacht
+from .nachten import bezetting, capaciteit, per_nacht, spreidingsfactor
 
 # Wat bouw_pijplijn() teruggeeft: een scikit-learn-pijplijn, of de vuistregel.
 Model = Pipeline | Vuistregel
@@ -148,25 +153,48 @@ def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
-def mae_per_hotel_nacht(model: Model, deel: pd.DataFrame, begin, einde, cfg: dict) -> float:
-    """De ML-metriek: gemiddelde |verwacht - echt aantal annulaties| per hotel-nacht."""
+def nachten_van(model: Model, deel: pd.DataFrame, begin, einde, cfg: dict) -> pd.DataFrame:
+    """Voorspel en tel per hotel-nacht, tussen begin en einde."""
     kansen = model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
-    nachten = per_nacht(deel, kansen, cfg, begin, einde)
+    return per_nacht(deel, kansen, cfg, begin, einde)
+
+
+def mae(nachten: pd.DataFrame) -> float:
+    """De ML-metriek: gemiddelde |verwacht - echt aantal annulaties| per hotel-nacht."""
     return float((nachten["verwacht"] - nachten["echt"]).abs().mean())
 
 
-def poort(df: pd.DataFrame, cfg: dict) -> tuple[float, float, float]:
-    """AUC en MAE van het model op de validatie, en de MAE van de vuistregel ernaast."""
+def valideer(df: pd.DataFrame, cfg: dict) -> dict:
+    """Alles wat op de validatie gemeten wordt: de poorten, en de spreidingsfactor per hotel.
+
+    auc, mae          van het model, getraind op de training
+    mae_vuistregel    van de vuistregel, op dezelfde nachten
+    factor            de spreidingsfactor per hotel, voor het advies k
+    """
     delen, g = splits(df, cfg), grenzen(cfg)
     model, auc = train(df, cfg)
     vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
     meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg)
-    return auc, mae_per_hotel_nacht(model, *meet), mae_per_hotel_nacht(vuistregel, *meet)
+    nachten = nachten_van(model, *meet)
+    return {
+        "auc": auc,
+        "mae": mae(nachten),
+        "mae_vuistregel": mae(nachten_van(vuistregel, *meet)),
+        "factor": spreidingsfactor(nachten),
+    }
 
 
-def main() -> None:
-    cfg = laad_config()
-    df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
+def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
+    """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
+
+    Twee poorten, op de validatie: de MAE per hotel-nacht lager dan die van de vuistregel, en
+    de AUC minstens `minimum_auc`. Haalt het model ze niet, dan stopt het met SystemExit en
+    wordt er niets weggeschreven.
+
+    Weggeschreven: het model, opnieuw getraind op de hertraining, en in `advies_pad` wat het
+    advies k nodig heeft: de spreidingsfactor (validatie) en de capaciteit (training).
+    """
+    df = bereid_voor(ruw, cfg)
     print(f"{len(df)} boekingen actief op het beslismoment, basiskans {df[cfg['doel']].mean():.1%}")
     for naam, deel in splits(df, cfg).items():
         aankomst = aankomstdatum(deel)
@@ -176,32 +204,49 @@ def main() -> None:
         )
 
     soort = cfg["model"]["soort"]
-    land = (
-        ""
-        if soort == "vuistregel"
-        else (", met land" if cfg["features"]["gebruik_land"] else ", zonder land")
-    )
-    print(f"Model: {soort}{land}")
-    auc, mae, mae_vuistregel = poort(df, cfg)
+    land = ", met land" if cfg["features"]["gebruik_land"] else ", zonder land"
+    print(f"Model: {soort}{'' if soort == 'vuistregel' else land}")
+    v = valideer(df, cfg)
     print(
-        f"Validatie: AUC {auc:.3f}, MAE per hotel-nacht {mae:.2f} (vuistregel {mae_vuistregel:.2f})"
+        f"Validatie: AUC {v['auc']:.3f}, MAE per hotel-nacht {v['mae']:.2f}"
+        f" (vuistregel {v['mae_vuistregel']:.2f})"
     )
     minimum = cfg["model"]["minimum_auc"]
-    if auc < minimum:
-        raise SystemExit(f"AUC {auc:.3f} ligt onder het minimum {minimum}. Niet weggeschreven.")
-    if mae >= mae_vuistregel:
+    if v["auc"] < minimum:
         raise SystemExit(
-            f"MAE {mae:.2f} is niet lager dan die van de vuistregel ({mae_vuistregel:.2f}). "
-            "Niet weggeschreven."
+            f"AUC {v['auc']:.3f} ligt onder het minimum {minimum}. Niet weggeschreven."
+        )
+    if v["mae"] >= v["mae_vuistregel"]:
+        raise SystemExit(
+            f"MAE {v['mae']:.2f} is niet lager dan die van de vuistregel"
+            f" ({v['mae_vuistregel']:.2f}). Niet weggeschreven."
         )
 
     model, test_auc = hertrain(df, cfg)
     print(f"AUC op de test, na hertrainen: {test_auc:.3f} (alleen gerapporteerd)")
 
+    g = grenzen(cfg)
+    cap = capaciteit(bezetting(ruw), g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    advies = {
+        "model": soort,
+        "gebruik_land": cfg["features"]["gebruik_land"],
+        "factor": v["factor"],
+        "capaciteit": cap,
+    }
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, cfg["model"]["pad"])
+    cfg["model"]["advies_pad"].write_text(json.dumps(advies, indent=2), encoding="utf-8")
     print(f"Model weggeschreven naar {cfg['model']['pad']}")
+    print(f"Spreidingsfactor en capaciteit weggeschreven naar {cfg['model']['advies_pad']}")
+    return {**v, "test_auc": test_auc}
+
+
+def main(argv: list[str]) -> None:
+    parser = argparse.ArgumentParser(description="Train model.soort en schrijf het weg.")
+    parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
+    cfg = laad_config(parser.parse_args(argv).config)
+    bouw_en_bewaar(laad_data(cfg["data"]["pad"]), cfg)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

@@ -13,6 +13,7 @@ def laad_config(pad: str | Path = PROJECT / "configs" / "default.yaml") -> dict:
     cfg["data"]["pad"] = PROJECT / cfg["data"]["pad"]
     cfg["data"]["voorbeeld"] = PROJECT / cfg["data"]["voorbeeld"]
     cfg["model"]["pad"] = PROJECT / cfg["model"]["pad"]
+    cfg["model"]["advies_pad"] = PROJECT / cfg["model"]["advies_pad"]
     return cfg
 
 
