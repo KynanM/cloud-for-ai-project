@@ -1,83 +1,252 @@
 """Het model trainen, evalueren en wegschrijven.
 
 python -m src.train
+python -m src.train --config een/andere/config.yaml
 """
 
+import argparse
+import json
+import sys
+
 import joblib
+import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
+from sklearn.preprocessing import (
+    FunctionTransformer,
+    OneHotEncoder,
+    OrdinalEncoder,
+    StandardScaler,
+)
 
-from .config import alle_features, laad_config
-from .data import bereid_voor, laad_data
+from .baseline import Vuistregel, maak_vuistregel
+from .config import PROJECT, invoerkolommen, laad_config
+from .data import aankomstdatum, bereid_voor, laad_data
+from .kenmerken import als_tekst, land_als_groep
+from .nachten import bezetting, capaciteit, per_nacht, spreidingsfactor
 
-
-def als_tekst(X: pd.DataFrame) -> pd.DataFrame:
-    """Categorieën als tekst, ook `agent`: dat is een id, geen getal. Leeg wordt "geen"."""
-    return X.astype(object).where(X.notna(), "geen").astype(str)
-
-
-def bouw_pijplijn(cfg: dict) -> Pipeline:
-    """Alle stappen die iets leren uit de data zitten ín de pijplijn. Zie labo 4."""
-    numeriek = Pipeline(
-        [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
-    )
-    categorisch = Pipeline(
-        [
-            ("tekst", FunctionTransformer(als_tekst)),
-            ("onehot", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
-    voorbewerking = ColumnTransformer(
-        [
-            ("num", numeriek, cfg["features"]["numeriek"]),
-            ("cat", categorisch, cfg["features"]["categorisch"]),
-        ]
-    )
-    model = LogisticRegression(max_iter=cfg["model"]["max_iter"])
-    return Pipeline([("voorbewerking", voorbewerking), ("model", model)])
+# Wat bouw_pijplijn() teruggeeft: een scikit-learn-pijplijn, of de vuistregel.
+Model = Pipeline | Vuistregel
 
 
-def splits(df: pd.DataFrame, cfg: dict):
-    X = df[alle_features(cfg)]
-    y = df[cfg["doel"]]
-    return train_test_split(
-        X,
-        y,
-        test_size=cfg["split"]["test_grootte"],
-        random_state=cfg["split"]["seed"],
-        stratify=y,
-    )
+def voorbewerking(cfg: dict, numeriek, encoder) -> ColumnTransformer:
+    """Numeriek, categorisch en eventueel het land. Elke kolom die niet genoemd wordt, valt weg."""
+    stappen = [
+        ("num", numeriek, cfg["features"]["numeriek"]),
+        (
+            "cat",
+            Pipeline([("tekst", FunctionTransformer(als_tekst)), ("encoder", encoder)]),
+            cfg["features"]["categorisch"],
+        ),
+    ]
+    if cfg["features"]["gebruik_land"]:
+        land = Pipeline(
+            [("groep", FunctionTransformer(land_als_groep)), ("encoder", clone(encoder))]
+        )
+        stappen.append(("land", land, ["country"]))
+    return ColumnTransformer(stappen)
 
 
-def train(df: pd.DataFrame, cfg: dict) -> tuple[Pipeline, float]:
-    """Train op de trainingsset, geef het model en de AUC op de testset terug."""
-    X_train, X_test, y_train, y_test = splits(df, cfg)
+def bouw_pijplijn(cfg: dict) -> Model:
+    """Het model uit `model.soort`. Alles wat iets leert uit de data zit ín de pijplijn.
+
+    vuistregel  de baseline: het percentage per hotel, segment en lead time (src/baseline.py)
+    logreg      logistische regressie, met schalen en one-hot
+    boosting    HistGradientBoostingClassifier, met de categorieën als categorieën
+    """
+    soort = cfg["model"]["soort"]
+    if soort == "vuistregel":
+        return maak_vuistregel(cfg)
+
+    if soort == "logreg":
+        numeriek = Pipeline(
+            [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
+        )
+        encoder = OneHotEncoder(handle_unknown="ignore")
+        model = LogisticRegression(**cfg["model"]["logreg"])
+        return Pipeline(
+            [("voorbewerking", voorbewerking(cfg, numeriek, encoder)), ("model", model)]
+        )
+
+    if soort == "boosting":
+        # Bomen hoeven niet geschaald te worden, en kunnen zelf met lege waarden om.
+        # Een categorie die het model nooit zag, wordt leeg.
+        encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
+        aantal_categorisch = len(cfg["features"]["categorisch"]) + cfg["features"]["gebruik_land"]
+        categorisch = [False] * len(cfg["features"]["numeriek"]) + [True] * aantal_categorisch
+        model = HistGradientBoostingClassifier(
+            **cfg["model"]["boosting"],
+            categorical_features=categorisch,
+            # Geen vroege stop: die houdt een willekeurig stuk van de training apart.
+            early_stopping=False,
+            random_state=cfg["model"]["seed"],
+        )
+        return Pipeline(
+            [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
+        )
+
+    raise ValueError(f"Onbekend model.soort {soort!r}: kies vuistregel, logreg of boosting")
+
+
+def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
+    """De datums van de split, met het embargo uitgerekend. Begin en einde zijn inbegrepen.
+
+    Een boeking mag alleen in de training als haar afloop gekend is op het eerste beslismoment
+    van de periode erna. Dat beslismoment ligt `horizon_dagen` vóór de eerste aankomst: op
+    2 december beslis je voor 1 januari. Een no-show ken je pas de dag na de aankomst, vandaar
+    de extra dag. Zo eindigt de training op 30-11-2016 en de hertraining op 28-02-2017.
+    """
+    s = cfg["split"]
+    embargo = pd.Timedelta(days=cfg["label"]["horizon_dagen"] + 1)
+    g = {sleutel: pd.Timestamp(s[sleutel]) for sleutel in s}
+    g["training_einde"] = g["validatie_start"] - embargo - pd.Timedelta(days=1)
+    g["hertraining_einde"] = g["test_start"] - embargo - pd.Timedelta(days=1)
+
+    volgorde = ["validatie_start", "validatie_einde", "test_start", "test_einde"]
+    if any(g[a] >= g[b] for a, b in zip(volgorde, volgorde[1:], strict=False)):
+        raise ValueError(f"De periodes in de config staan niet na elkaar: {s}")
+    return g
+
+
+def splits(df: pd.DataFrame, cfg: dict) -> dict[str, pd.DataFrame]:
+    """Training, validatie, hertraining en test, op aankomstdatum. Geen toeval.
+
+    De hertraining overlapt met de validatie: als het model gekozen is, mag het hotel ook de
+    recentste data gebruiken. Met de test overlapt niets.
+    """
+    g = grenzen(cfg)
+    aankomst = aankomstdatum(df)
+    return {
+        "training": df[aankomst <= g["training_einde"]],
+        "validatie": df[aankomst.between(g["validatie_start"], g["validatie_einde"])],
+        "hertraining": df[aankomst <= g["hertraining_einde"]],
+        "test": df[aankomst.between(g["test_start"], g["test_einde"])],
+    }
+
+
+def kenmerken_en_label(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Series]:
+    return deel[invoerkolommen(cfg)], deel[cfg["doel"]]
+
+
+def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
+    X_train, y_train = kenmerken_en_label(train_deel, cfg)
+    X_meet, y_meet = kenmerken_en_label(meet_deel, cfg)
     pijplijn = bouw_pijplijn(cfg).fit(X_train, y_train)
-    auc = roc_auc_score(y_test, pijplijn.predict_proba(X_test)[:, 1])
-    return pijplijn, auc
+    return pijplijn, roc_auc_score(y_meet, pijplijn.predict_proba(X_meet)[:, 1])
 
 
-def main() -> None:
-    cfg = laad_config()
-    df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
-    print(f"{len(df)} boekingen actief op het beslismoment, basiskans {df[cfg['doel']].mean():.1%}")
+def train(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
+    """Train op de training, geef het model en de AUC op de validatie terug. Hierop kies je."""
+    delen = splits(df, cfg)
+    return fit_en_meet(delen["training"], delen["validatie"], cfg)
+
+
+def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
+    """Train opnieuw op de hertraining en meet één keer op de test. Alleen om te rapporteren."""
+    delen = splits(df, cfg)
+    return fit_en_meet(delen["hertraining"], delen["test"], cfg)
+
+
+def nachten_van(model: Model, deel: pd.DataFrame, begin, einde, cfg: dict) -> pd.DataFrame:
+    """Voorspel en tel per hotel-nacht, tussen begin en einde."""
+    kansen = model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
+    return per_nacht(deel, kansen, cfg, begin, einde)
+
+
+def mae(nachten: pd.DataFrame) -> float:
+    """De ML-metriek: gemiddelde |verwacht - echt aantal annulaties| per hotel-nacht."""
+    return float((nachten["verwacht"] - nachten["echt"]).abs().mean())
+
+
+def valideer(df: pd.DataFrame, cfg: dict) -> dict:
+    """Alles wat op de validatie gemeten wordt: de poorten, en de spreidingsfactor per hotel.
+
+    auc, mae          van het model, getraind op de training
+    mae_vuistregel    van de vuistregel, op dezelfde nachten
+    factor            de spreidingsfactor per hotel, voor het advies k
+    """
+    delen, g = splits(df, cfg), grenzen(cfg)
     model, auc = train(df, cfg)
-    print(f"AUC op de testset: {auc:.3f}")
+    vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
+    meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg)
+    nachten = nachten_van(model, *meet)
+    return {
+        "auc": auc,
+        "mae": mae(nachten),
+        "mae_vuistregel": mae(nachten_van(vuistregel, *meet)),
+        "factor": spreidingsfactor(nachten),
+    }
 
+
+def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
+    """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
+
+    Twee poorten, op de validatie: de MAE per hotel-nacht lager dan die van de vuistregel, en
+    de AUC minstens `minimum_auc`. Haalt het model ze niet, dan stopt het met SystemExit en
+    wordt er niets weggeschreven.
+
+    Weggeschreven: het model, opnieuw getraind op de hertraining, en in `advies_pad` wat het
+    advies k nodig heeft: de spreidingsfactor (validatie) en de capaciteit (training).
+    """
+    df = bereid_voor(ruw, cfg)
+    print(f"{len(df)} boekingen actief op het beslismoment, basiskans {df[cfg['doel']].mean():.1%}")
+    for naam, deel in splits(df, cfg).items():
+        aankomst = aankomstdatum(deel)
+        print(
+            f"  {naam:<12}{len(deel):>7} boekingen, aankomst {aankomst.min():%d-%m-%Y}"
+            f" tot {aankomst.max():%d-%m-%Y}, basiskans {deel[cfg['doel']].mean():.1%}"
+        )
+
+    soort = cfg["model"]["soort"]
+    land = ", met land" if cfg["features"]["gebruik_land"] else ", zonder land"
+    print(f"Model: {soort}{'' if soort == 'vuistregel' else land}")
+    v = valideer(df, cfg)
+    print(
+        f"Validatie: AUC {v['auc']:.3f}, MAE per hotel-nacht {v['mae']:.2f}"
+        f" (vuistregel {v['mae_vuistregel']:.2f})"
+    )
     minimum = cfg["model"]["minimum_auc"]
-    if auc < minimum:
-        raise SystemExit(f"AUC {auc:.3f} ligt onder het minimum {minimum}. Niet weggeschreven.")
+    if v["auc"] < minimum:
+        raise SystemExit(
+            f"AUC {v['auc']:.3f} ligt onder het minimum {minimum}. Niet weggeschreven."
+        )
+    if v["mae"] >= v["mae_vuistregel"]:
+        raise SystemExit(
+            f"MAE {v['mae']:.2f} is niet lager dan die van de vuistregel"
+            f" ({v['mae_vuistregel']:.2f}). Niet weggeschreven."
+        )
 
+    model, test_auc = hertrain(df, cfg)
+    print(f"AUC op de test, na hertrainen: {test_auc:.3f} (alleen gerapporteerd)")
+
+    g = grenzen(cfg)
+    cap = capaciteit(bezetting(ruw), g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    advies = {
+        "model": soort,
+        "gebruik_land": cfg["features"]["gebruik_land"],
+        "factor": v["factor"],
+        "capaciteit": cap,
+    }
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, cfg["model"]["pad"])
+    cfg["model"]["advies_pad"].write_text(json.dumps(advies, indent=2), encoding="utf-8")
     print(f"Model weggeschreven naar {cfg['model']['pad']}")
+    print(f"Spreidingsfactor en capaciteit weggeschreven naar {cfg['model']['advies_pad']}")
+    return {**v, "test_auc": test_auc}
+
+
+def main(argv: list[str]) -> None:
+    parser = argparse.ArgumentParser(description="Train model.soort en schrijf het weg.")
+    parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
+    cfg = laad_config(parser.parse_args(argv).config)
+    bouw_en_bewaar(laad_data(cfg["data"]["pad"]), cfg)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
