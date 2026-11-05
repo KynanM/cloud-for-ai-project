@@ -61,7 +61,8 @@ Bewust geen feature, omdat ze pas na het beslismoment gekend zijn (lek):
 Twee schema's: `INVOER` (een boeking zoals het boekingssysteem ze exporteert) en `TRAINING`
 (dezelfde export plus de eindstatus). Per kolom ligt het type vast, net als het bereik, de
 toegelaten waarden en of ze leeg mag zijn. `TRAINING` controleert ook de dataset als geheel: de
-mediaan van `adr` en die van `lead_time`.
+mediaan van `adr` en die van `lead_time`, en het aandeel annulaties en no-shows (tussen 20 en
+50 %; in de export is dat 37 %).
 
 Wat het schema tegenhoudt, en wat niet:
 
@@ -71,6 +72,8 @@ Wat het schema tegenhoudt, en wat niet:
 | `adr` in cent | ja | `adr < 10 000` per rij, en de mediaan |
 | `lead_time` in uren | ja | `lead_time` tussen 0 en 3 jaar, en de mediaan |
 | `lead_time` in weken | alleen bij training | de mediaan. Per rij blijft alles binnen het bereik |
+| iedereen op `Canceled` | ja | het aandeel annulaties. Per rij is elke status geldig |
+| alleen wie uitcheckte, of de meeste annulaties eruit gefilterd | ja | het aandeel annulaties |
 | `adr` in dollar | nee | ligt te dicht bij de euro voor een vast bereik |
 | `adr` per verblijf in plaats van per nacht | nee | blijft binnen bereik en mediaan |
 

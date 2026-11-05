@@ -94,6 +94,14 @@ LEAD_TIME_MEDIAAN = pa.Check(
     error="mediaan van lead_time ligt niet tussen 20 en 365 dagen",
 )
 
+# Het label zelf: in de export annuleert 37 %. Een export die per ongeluk alleen de
+# annulaties bevat, of alleen wie uitcheckte, haalt per rij elke controle. Het aandeel niet.
+# Een model getraind op 100 % annulaties adviseert elke nacht het maximum te overboeken.
+AANDEEL_ANNULATIES = pa.Check(
+    lambda s: 0.20 <= (s != "Check-Out").mean() <= 0.50,
+    error="aandeel annulaties en no-shows ligt niet tussen 20 en 50 %",
+)
+
 TRAINING = INVOER.update_columns(
     {
         "adr": {"checks": [*ADR_PER_RIJ, ADR_MEDIAAN]},
@@ -101,7 +109,9 @@ TRAINING = INVOER.update_columns(
     }
 ).add_columns(
     {
-        "reservation_status": pa.Column(str, pa.Check.isin(["Check-Out", "Canceled", "No-Show"])),
+        "reservation_status": pa.Column(
+            str, [pa.Check.isin(["Check-Out", "Canceled", "No-Show"]), AANDEEL_ANNULATIES]
+        ),
         "reservation_status_date": pa.Column(str, pa.Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
     }
 )
