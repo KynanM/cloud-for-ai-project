@@ -38,6 +38,7 @@ def per_nacht(
 
     De eerste nachten van een periode missen de boekingen die vóór de periode aankwamen. Dat
     geldt voor de voorspelling en voor de werkelijkheid, dus de vergelijking blijft eerlijk.
+    Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
     """
     boeking, nacht = _uitgerold(deel)
     p = np.asarray(kansen, dtype=float)[boeking]
@@ -47,23 +48,20 @@ def per_nacht(
             "nacht": nacht,
             "verwacht": p,
             "variantie": p * (1 - p),
-            "echt": deel[cfg["doel"]].to_numpy()[boeking],
             "adr": deel["adr"].to_numpy()[boeking],
         }
     )
+    som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
+    if cfg["doel"] in deel.columns:
+        rijen["echt"] = deel[cfg["doel"]].to_numpy()[boeking]
+        som["echt"] = ("echt", "sum")
     if begin is not None:
         rijen = rijen[rijen["nacht"] >= pd.Timestamp(begin)]
     if einde is not None:
         rijen = rijen[rijen["nacht"] <= pd.Timestamp(einde)]
     return (
         rijen.groupby(["hotel", "nacht"])
-        .agg(
-            verwacht=("verwacht", "sum"),
-            variantie=("variantie", "sum"),
-            echt=("echt", "sum"),
-            adr=("adr", "mean"),
-            boekingen=("verwacht", "size"),
-        )
+        .agg(**som, adr=("adr", "mean"), boekingen=("verwacht", "size"))
         .reset_index()
     )
 
@@ -116,6 +114,25 @@ def advies(verwacht, variantie, factor, zekerheid: float, maximum) -> np.ndarray
     return np.clip(k, 0, maximum).astype(int)
 
 
+def met_advies(
+    nachten: pd.DataFrame,
+    factor: dict[str, float],
+    cap: dict[str, float],
+    cfg: dict,
+    zekerheid: float | None = None,
+) -> pd.DataFrame:
+    """Zet bij elke hotel-nacht het maximum en het advies k. Zelfde regel bij evalueren en
+    voorspellen, zodat wat geëvalueerd wordt ook is wat het hotel te zien krijgt."""
+    a = cfg["advies"]
+    zekerheid = a["zekerheid"] if zekerheid is None else zekerheid
+    uit = nachten.copy()
+    uit["maximum"] = np.floor(a["max_aandeel"] * uit["hotel"].map(cap)).astype(int)
+    uit["k"] = advies(
+        uit["verwacht"], uit["variantie"], uit["hotel"].map(factor), zekerheid, uit["maximum"]
+    )
+    return uit
+
+
 def winst(k, echt, adr, r: float, w: float) -> np.ndarray:
     """Wat k extra verkochte kamers opleveren, in euro.
 
@@ -144,17 +161,9 @@ def beoordeel(
     doorverwezen         doorverwezen gasten per volgeboekte nacht
     """
     a, b = cfg["advies"], cfg["bedragen"]
-    zekerheid = a["zekerheid"] if zekerheid is None else zekerheid
-    n = nachten.merge(bezet, on=["hotel", "nacht"], how="left").fillna({"bezet": 0})
-    hotelcap = n["hotel"].map(cap)
-    n["k"] = advies(
-        n["verwacht"],
-        n["variantie"],
-        n["hotel"].map(factor),
-        zekerheid,
-        np.floor(a["max_aandeel"] * hotelcap),
-    )
-    n["vol"] = n["bezet"] >= a["volgeboekt_vanaf"] * hotelcap
+    n = met_advies(nachten, factor, cap, cfg, zekerheid)
+    n = n.merge(bezet, on=["hotel", "nacht"], how="left").fillna({"bezet": 0})
+    n["vol"] = n["bezet"] >= a["volgeboekt_vanaf"] * n["hotel"].map(cap)
     n["euro"] = winst(n["k"], n["echt"], n["adr"], b["r"], b["w"])
     for variant in b["gevoeligheid"]:
         n[f"euro_r{variant['r']}_w{variant['w']}"] = winst(

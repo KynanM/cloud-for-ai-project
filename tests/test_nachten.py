@@ -13,7 +13,7 @@ from src.nachten import (
     spreidingsfactor,
     winst,
 )
-from src.train import poort
+from src.train import valideer
 
 DOEL = "annuleert_na_beslismoment"
 
@@ -140,5 +140,5 @@ def test_beoordeel_geeft_elk_hotel_en_beide(cfg):
 
 def test_het_model_verslaat_de_vuistregel_op_de_validatie(df, cfg):
     # Dezelfde poort als in src.train: anders heeft het model geen reden om te bestaan
-    _, mae, mae_vuistregel = poort(df, cfg)
-    assert mae < mae_vuistregel
+    v = valideer(df, cfg)
+    assert v["mae"] < v["mae_vuistregel"]

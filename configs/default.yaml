@@ -100,6 +100,8 @@ model:
   # de test: boosting 4,86, logreg 5,78, vuistregel 6,36. Zie python -m src.evaluate.
   soort: boosting
   pad: models/model.joblib
+  # Wat het advies k naast het model nodig heeft: spreidingsfactor en capaciteit per hotel.
+  advies_pad: models/advies.json
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42
   logreg:
