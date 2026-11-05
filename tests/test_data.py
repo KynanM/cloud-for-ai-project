@@ -4,6 +4,7 @@ Elke test hieronder neemt de echte data, maakt er bewust iets aan stuk, en contr
 het schema het tegenhoudt. Een schema dat alles doorlaat, is geen schema.
 """
 
+import pandas as pd
 import pandera.errors
 import pytest
 
@@ -35,6 +36,43 @@ def test_lead_time_in_weken_wordt_geweigerd(ruw):
     kapot = ruw.assign(lead_time=ruw["lead_time"] // 7)
     with pytest.raises(pandera.errors.SchemaError):
         schema.TRAINING.validate(kapot)
+
+
+@pytest.mark.parametrize("status", ["Canceled", "Check-Out"])
+def test_iedereen_dezelfde_afloop_wordt_geweigerd(ruw, status):
+    # Per rij is elke status geldig. Alleen het aandeel over de hele export verraadt het.
+    kapot = ruw.assign(reservation_status=status)
+    with pytest.raises(pandera.errors.SchemaError, match="aandeel annulaties"):
+        schema.TRAINING.validate(kapot)
+
+
+def test_te_weinig_annulaties_wordt_geweigerd(ruw):
+    # Een export waaruit de meeste annulaties gefilterd zijn: nog 10 % over
+    annulaties = ruw[ruw["reservation_status"] != "Check-Out"]
+    kapot = pd.concat(
+        [
+            ruw[ruw["reservation_status"] == "Check-Out"],
+            annulaties.sample(frac=0.15, random_state=0),
+        ]
+    )
+    assert (kapot["reservation_status"] != "Check-Out").mean() < 0.20
+    with pytest.raises(pandera.errors.SchemaError, match="aandeel annulaties"):
+        schema.TRAINING.validate(kapot)
+
+
+def test_laad_data_zegt_welke_controle_faalt(ruw, tmp_path):
+    # Arrange: een csv waarin iedereen geannuleerd heeft
+    pad = tmp_path / "alleen_annulaties.csv"
+    ruw.assign(reservation_status="Canceled").to_csv(pad, index=False)
+
+    # Act en Assert: geen muur tekst, maar de naam van de controle
+    with pytest.raises(SystemExit, match="aandeel annulaties en no-shows ligt niet tussen"):
+        laad_data(pad)
+
+
+def test_voorspellen_controleert_het_aandeel_niet(ruw):
+    # Bij voorspellen is er geen afloop, en een handvol boekingen heeft geen aandeel
+    schema.INVOER.validate(ruw.head(5).drop(columns=LABELKOLOMMEN))
 
 
 def test_onbekend_hotel_wordt_geweigerd(ruw):
