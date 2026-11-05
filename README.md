@@ -32,11 +32,30 @@ pip install -r requirements.txt
 
 pytest                          # alle tests, allemaal groen
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
-python -m src.train             # traint model.soort, test de poorten, schrijft models/model.joblib
+python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.evaluate          # alle modellen per hotel-nacht, schrijft naar resultaten/
-python -m src.predict data/nieuwe_boekingen.csv
+python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
+python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-16
 python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor diagnose
 ```
+
+`src.train` en `src.predict` nemen ook `--config pad/naar/config.yaml`. De systeemtest
+gebruikt dat om in een tijdelijke map te werken.
+
+Wat `src.predict` geeft voor het voorbeeldbestand:
+
+```
+76 boekingen. Gemiddelde kans op annuleren: 12.6%
+Verwacht aantal annulaties: 9.6
+
+Advies voor de nacht van 15-08-2017 (zekerheid 80%):
+  City Hotel     62 boekingen, verwacht 8.5 annulaties: overboek 3 kamer(s) (maximum 11)
+  Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s) (maximum 9)
+```
+
+Het voorbeeldbestand bevat alleen de boekingen die op 15 augustus aankomen. Gasten die
+eerder aankwamen en die nacht nog blijven, zitten er niet in. In productie zou de export van
+het beslismoment alle actieve boekingen van die nacht bevatten.
 
 Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het pakket niet.
 
@@ -195,6 +214,9 @@ model zonder land.
 2. een AUC van minstens 0,60 haalt (`minimum_auc`). Boosting: 0,687
 
 Daarna wordt het opnieuw getraind op de hertraining en één keer op de test gemeten (AUC 0,653).
+Naast `models/model.joblib` komt `models/advies.json`: de spreidingsfactor per hotel (van de
+validatie) en de capaciteit per hotel (van de training). Die heeft `src.predict` nodig voor k.
+De poorten staan in `bouw_en_bewaar()` in `src/train.py`.
 
 ## Bevindingen
 
@@ -303,17 +325,18 @@ src/
   train.py             split, model.soort bouwen, trainen, poorten, wegschrijven
   nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de winst
   evaluate.py          alle modellen naast elkaar, per hotel-nacht, plus de grafieken
-  predict.py           model laden, voorspellen
+  predict.py           model en advies laden, voorspellen, advies k per hotel-nacht
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
   test_modellen.py     elke soort, met en zonder land: kansen, ruwe rijen, persistentie
   test_baseline.py     rekent de vuistregel na op kleine, zelfgemaakte data
   test_nachten.py      per nacht tellen, advies k, winst, capaciteit; de poort
+  test_systeem.py      van csv tot advies k, ook via de opdrachtregel; de poorten
   test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen
-models/                wordt aangemaakt door src.train. Niet committen
+models/                model.joblib en advies.json, gemaakt door src.train. Niet committen
 resultaten/            wordt aangemaakt door src.evaluate. Gecommit, voor het rapport
 ```
