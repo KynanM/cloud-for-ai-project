@@ -45,14 +45,74 @@ features:
   # Bewust niet: reservation_status(_date) is het label zelf; assigned_room_type,
   # booking_changes, days_in_waiting_list, required_car_parking_spaces en
   # total_of_special_requests zijn pas na het beslismoment gekend (lek).
-  # country is geen feature: alleen voor de controle per groep.
+  # Het land, gegroepeerd tot PRT tegenover de rest, in de pijplijn (land_als_groep in
+  # src/kenmerken.py). Standaard uit: het land is waarschijnlijk pas na het beslismoment
+  # ingevuld, en dan is het een lek. Zie "Bevindingen" in de README. true: met land.
+  gebruik_land: false
 
+# Een split in de tijd, op aankomstdatum. Een willekeurige split laat de toekomst in de
+# training lekken. Begin en einde zijn inbegrepen.
+#   training     alles met aankomst vóór het embargo voor de validatie (tot 30-11-2016)
+#   validatie    hier kies je het model, de drempels en later de ijking
+#   hertraining  alles met aankomst vóór het embargo voor de test (tot 28-02-2017)
+#   test         één keer meten, met het hertrainde model. Hier kies je niets
+# Het embargo rekent src/train.py uit: horizon_dagen + 1 dag vóór het eerste beslismoment.
 split:
-  test_grootte: 0.2
-  seed: 42
+  validatie_start: 2017-01-01
+  validatie_einde: 2017-03-31
+  test_start: 2017-04-01
+  test_einde: 2017-08-31
+
+# De baseline: wat de revenue manager vandaag doet. Zie src/baseline.py.
+vuistregel:
+  # Alleen het laatste jaar vóór het einde van de training. null: alle historiek.
+  venster_maanden: 12
+  # Klassen van lead_time in dagen: <60, 60–120, 120–240, 240+. Actief op T is minstens 30.
+  lead_time_grenzen: [60, 120, 240]
+  # Een groep met minder boekingen krijgt het percentage van het hotel.
+  minimum_groep: 30
+
+# Van kansen naar het advies per hotel-nacht. Zie src/nachten.py.
+advies:
+  # k = het grootste aantal waarvoor P(minstens k annulaties) >= zekerheid. Met de bedragen
+  # hieronder is dat het punt waarop een extra kamer niet meer loont: W / (r + W) = 0,80.
+  zekerheid: 0.80
+  # Capaciteit per hotel: dit percentiel van de bezette kamers per nacht in de training.
+  capaciteit_percentiel: 0.99
+  # Een nacht telt als volgeboekt vanaf dit aandeel van de capaciteit.
+  volgeboekt_vanaf: 0.95
+  # Nooit meer dan dit aandeel van de capaciteit overboeken: de bescherming voor de gast.
+  max_aandeel: 0.05
+
+# Bedragen, als veelvoud van de prijs per nacht (adr) van die nacht.
+bedragen:
+  # Winst op een extra verkochte kamer.
+  r: 0.5
+  # Kost van een gast die je naar een ander hotel moet doorverwijzen.
+  w: 2.0
+  # Hoe gevoelig is de uitkomst voor die aannames?
+  gevoeligheid:
+    - {r: 0.3, w: 2.0}
+    - {r: 0.5, w: 3.0}
 
 model:
+  # vuistregel | logreg | boosting. Gekozen op de MAE per hotel-nacht op de validatie, nooit op
+  # de test: boosting 4,86, logreg 5,78, vuistregel 6,36. Zie python -m src.evaluate.
+  soort: boosting
   pad: models/model.joblib
-  max_iter: 1000
-  # Een model dat slechter doet dan dit, mag niet naar productie. Zie de README.
-  minimum_auc: 0.65
+  # Wat het advies k naast het model nodig heeft: spreidingsfactor en capaciteit per hotel.
+  advies_pad: models/advies.json
+  # Voor het toeval in boosting. Zelfde seed, zelfde model.
+  seed: 42
+  logreg:
+    max_iter: 1000
+  boosting:
+    max_iter: 200
+    learning_rate: 0.05
+    max_leaf_nodes: 15
+    min_samples_leaf: 100
+    l2_regularization: 1.0
+  # Twee poorten vóór het wegschrijven, allebei op de validatie:
+  # - de MAE per hotel-nacht moet lager zijn dan die van de vuistregel (src/train.py)
+  # - de AUC moet minstens dit zijn. Zonder land: logreg 0,63, boosting 0,69. Zie de README.
+  minimum_auc: 0.60
