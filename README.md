@@ -37,7 +37,11 @@ python -m src.evaluate          # alle modellen per hotel-nacht, schrijft naar r
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
 python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-16
 python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor diagnose
+jupyter nbconvert --to notebook --execute --inplace notebooks/01_exploratie.ipynb
 ```
+
+Het notebook staat er met de uitvoer in: lezen kan zonder het te draaien, bv. in VS Code of op
+GitHub. De laatste regel draait het opnieuw.
 
 `src.train` en `src.predict` nemen ook `--config pad/naar/config.yaml`. De systeemtest
 gebruikt dat om in een tijdelijke map te werken.
@@ -58,6 +62,24 @@ eerder aankwamen en die nacht nog blijven, zitten er niet in. In productie zou d
 het beslismoment alle actieve boekingen van die nacht bevatten.
 
 Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het pakket niet.
+
+## Exploratie
+
+`notebooks/01_exploratie.ipynb` verantwoordt de keuzes in `src/`: wat er in de data zit, wat er
+stuk aan is en wat eraan gedaan is, Non Refund, het label, een lekcontrole per kolom, het land,
+de capaciteit en waarom annulaties per nacht breder spreiden dan losse annulaties. Het notebook
+verandert zelf niets aan de data: alles gebeurt in de code, zodat training en voorspellen
+dezelfde stappen doorlopen.
+
+Wat eruit kwam en nog niet elders in deze README staat:
+
+- 27 % van de rijen is een exacte kopie van een andere. Zonder boekingsnummer is dat niet te
+  onderscheiden van een tweede kamer in dezelfde groep. Ze blijven staan
+- een parkeerplaats, een andere kamer dan gereserveerd, wijzigingen en speciale wensen worden pas
+  bij aankomst ingevuld. Van de 3 265 actieve boekingen met een parkeerplaats annuleert er niet
+  één. Geen van die kolommen is een feature
+- 22 % van de late annulaties valt samen met minstens vier identieke boekingen, met groepen tot
+  60. Daarom de spreidingsfactor
 
 ## Van ruwe export naar trainingsset
 
@@ -337,6 +359,8 @@ tests/
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen
+notebooks/
+  01_exploratie.ipynb  wat zit erin, wat is stuk, lekcontrole, capaciteit, spreiding
 models/                model.joblib en advies.json, gemaakt door src.train. Niet committen
 resultaten/            wordt aangemaakt door src.evaluate. Gecommit, voor het rapport
 ```
