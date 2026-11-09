@@ -7,6 +7,7 @@ python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor d
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -19,8 +20,13 @@ from . import schema
 from .config import PROJECT, invoerkolommen, laad_config
 from .data import aankomstdatum, laad_data
 from .kenmerken import als_tekst
+from .logboek import zet_logging_op
 from .nachten import met_advies, per_nacht
 from .train import Model
+
+# Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
+# de logregels altijd zeggen uit welke module ze komen.
+logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
 
 def laad_model(pad: str | Path) -> Model:
@@ -79,29 +85,39 @@ def main(argv: list[str]) -> None:
     )
     args = parser.parse_args(argv)
     cfg = laad_config(args.config)
+    zet_logging_op(cfg, "predict")
 
     df = laad_data(args.pad, valideer_met=None if args.zonder_schema else schema.INVOER)
     model = laad_model(cfg["model"]["pad"])
     for kolom, waarden in onbekende_categorieen(model, df, cfg).items():
-        print(
-            f"Waarschuwing: het model is niet getraind op {kolom} = {', '.join(waarden)}; "
-            "de voorspellingen daarvoor zijn minder betrouwbaar."
+        logger.warning(
+            "Het model is niet getraind op %s = %s; de voorspellingen daarvoor zijn minder"
+            " betrouwbaar.",
+            kolom,
+            ", ".join(waarden),
         )
 
     kansen = voorspel(model, df, cfg)
-    print(f"{len(kansen)} boekingen. Gemiddelde kans op annuleren: {kansen.mean():.1%}")
-    print(f"Verwacht aantal annulaties: {kansen.sum():.1f}")
+    logger.info(
+        "%d boekingen. Gemiddelde kans op annuleren: %.1f%%", len(kansen), 100 * kansen.mean()
+    )
+    logger.info("Verwacht aantal annulaties: %.1f", kansen.sum())
 
     nacht = pd.Timestamp(args.nacht) if args.nacht else aankomstdatum(df).min()
     tabel = adviseer(model, laad_advies(cfg["model"]["advies_pad"]), df, cfg, nacht)
-    print(
-        f"\nAdvies voor de nacht van {nacht:%d-%m-%Y} (zekerheid {cfg['advies']['zekerheid']:.0%}):"
+    logger.info(
+        "Advies voor de nacht van %s (zekerheid %.0f%%):",
+        f"{nacht:%d-%m-%Y}",
+        100 * cfg["advies"]["zekerheid"],
     )
     for _, rij in tabel.iterrows():
-        print(
-            f"  {rij['hotel']:<13}{rij['boekingen']:>4} boekingen, verwacht"
-            f" {rij['verwacht']:.1f} annulaties: overboek {rij['k']} kamer(s)"
-            f" (maximum {rij['maximum']})"
+        logger.info(
+            "  %-13s%4d boekingen, verwacht %.1f annulaties: overboek %d kamer(s) (maximum %d)",
+            rij["hotel"],
+            rij["boekingen"],
+            rij["verwacht"],
+            rij["k"],
+            rij["maximum"],
         )
 
 

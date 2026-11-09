@@ -13,6 +13,7 @@ Schrijft naar resultaten/: evaluatie.csv, groepen.csv, winstcurve.png en ijking.
 """
 
 import copy
+import logging
 
 import matplotlib
 
@@ -24,10 +25,15 @@ from sklearn.calibration import calibration_curve  # noqa: E402
 
 from .config import PROJECT, laad_config  # noqa: E402
 from .data import bereid_voor, laad_data  # noqa: E402
+from .logboek import zet_logging_op  # noqa: E402
 from .nachten import beoordeel, bezetting, capaciteit, per_nacht, spreidingsfactor  # noqa: E402
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits  # noqa: E402
 
 UIT = PROJECT / "resultaten"
+
+# Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
+# de logregels altijd zeggen uit welke module ze komen.
+logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
 # (soort, land). De volgorde is ook die van de kleuren in de grafieken.
 VARIANTEN = [
@@ -219,34 +225,40 @@ def toon(tabel: pd.DataFrame, periode: str) -> None:
         "factor": "factor",
     }
     deel = tabel[tabel["periode"] == periode][list(kolommen)].rename(columns=kolommen)
-    print(deel.to_string(index=False, float_format=lambda x: f"{x:.2f}"))
+    kop = periode.upper() + ("" if periode == "validatie" else " (alleen rapporteren)")
+    logger.info("%s\n%s", kop, deel.to_string(index=False, float_format=lambda x: f"{x:.2f}"))
 
 
 def main() -> None:
     cfg = laad_config()
+    zet_logging_op(cfg, "evaluate")
     ruw = laad_data(cfg["data"]["pad"])
     df = bereid_voor(ruw, cfg)
     uitkomst = evalueer(df, ruw, cfg)
     tabel, groepen = uitkomst["tabel"], uitkomst["groepen"]
 
-    print(f"Capaciteit: {', '.join(f'{h} {c:.0f}' for h, c in uitkomst['cap'].items())}")
+    logger.info("Capaciteit: %s", ", ".join(f"{h} {c:.0f}" for h, c in uitkomst["cap"].items()))
     for periode in ["validatie", "test"]:
-        print(f"\n{periode.upper()}" + ("" if periode == "validatie" else " (alleen rapporteren)"))
         toon(tabel, periode)
 
-    print("\nVoorspeld/echt per groep (validatie)")
     val = groepen[groepen["periode"] == "validatie"]
-    print(val.pivot(index="model", columns="groep", values="voorspeld_echt").round(2).to_string())
+    per_groep = val.pivot(index="model", columns="groep", values="voorspeld_echt").round(2)
+    logger.info("Voorspeld/echt per groep (validatie)\n%s", per_groep.to_string())
 
     zekerheid = cfg["advies"]["zekerheid"]
     curve = winstcurve(uitkomst, cfg, np.round(np.arange(0.50, 0.951, 0.025), 3))
-    print("\nHoogste punt van de winstcurve")
+    logger.info("Hoogste punt van de winstcurve")
     for (periode, soort), lijn in curve.groupby(["periode", "soort"], sort=False):
         top = lijn.loc[lijn["euro"].idxmax()]
         bij = lijn.loc[(lijn["zekerheid"] - zekerheid).abs().idxmin(), "euro"]
-        print(
-            f"  {periode:<10}{soort:<12}top bij {top['zekerheid']:.3f}: € {top['euro']:.0f}"
-            f", bij {zekerheid:.2f}: € {bij:.0f}"
+        logger.info(
+            "  %-10s%-12stop bij %.3f: € %.0f, bij %.2f: € %.0f",
+            periode,
+            soort,
+            top["zekerheid"],
+            top["euro"],
+            zekerheid,
+            bij,
         )
 
     UIT.mkdir(exist_ok=True)
@@ -255,7 +267,7 @@ def main() -> None:
     curve.round(4).to_csv(UIT / "winstcurve.csv", index=False)
     teken_winstcurve(curve, zekerheid, UIT / "winstcurve.png")
     teken_ijking(uitkomst, UIT / "ijking.png")
-    print(f"\nWeggeschreven naar {UIT}")
+    logger.info("Weggeschreven naar %s", UIT)
 
 
 if __name__ == "__main__":

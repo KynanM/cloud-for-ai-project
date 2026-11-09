@@ -24,8 +24,9 @@ NACHT = "2017-08-15"
 
 
 def config_in(map_: Path, **model) -> Path:
-    """De standaardconfig, maar het model en het advies in `map_`, en eventueel iets anders."""
+    """De standaardconfig, met model, advies en logs in `map_`, en eventueel iets anders."""
     ruwe = yaml.safe_load((PROJECT / "configs" / "default.yaml").read_text(encoding="utf-8"))
+    ruwe["logs"] = str(map_ / "logs")
     ruwe["model"].update(
         pad=str(map_ / "model.joblib"), advies_pad=str(map_ / "advies.json"), **model
     )
@@ -134,3 +135,9 @@ def test_de_opdrachtregel_van_csv_tot_advies(tmp_path):
     assert predict.returncode == 0, predict.stderr
     assert "Advies voor de nacht van 15-08-2017" in predict.stdout
     assert "City Hotel" in predict.stdout and "Resort Hotel" in predict.stdout
+    # Elke regel is een logregel, met niveau en module. Dezelfde regels staan in het logbestand
+    assert "INFO src.predict: Advies voor de nacht van 15-08-2017" in predict.stdout
+    assert "WARNING src.predict: Het model is niet getraind op agent" in predict.stdout
+    logbestand = (tmp_path / "logs" / "predict.log").read_text(encoding="utf-8")
+    assert "Advies voor de nacht van 15-08-2017" in logbestand
+    assert "Validatie: AUC" in (tmp_path / "logs" / "train.log").read_text(encoding="utf-8")
