@@ -34,7 +34,7 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # 82 tests, allemaal groen, ±30 s
+pytest                          # 83 tests, allemaal groen, ±30 s
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
@@ -44,13 +44,31 @@ python -m src.evaluate          # alle modellen per hotel-nacht, schrijft naar r
 Wat `src.predict` geeft voor het voorbeeldbestand:
 
 ```
-76 boekingen. Gemiddelde kans op annuleren: 12.6%
-Verwacht aantal annulaties: 9.6
-
-Advies voor de nacht van 15-08-2017 (zekerheid 80%):
-  City Hotel     62 boekingen, verwacht 8.5 annulaties: overboek 3 kamer(s) (maximum 11)
-  Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s) (maximum 9)
+2026-11-09 16:32:30,644 WARNING src.predict: Het model is niet getraind op agent = 229.0; de voorspellingen daarvoor zijn minder betrouwbaar.
+2026-11-09 16:32:30,669 INFO src.predict: 76 boekingen. Gemiddelde kans op annuleren: 12.6%
+2026-11-09 16:32:30,669 INFO src.predict: Verwacht aantal annulaties: 9.6
+2026-11-09 16:32:30,691 INFO src.predict: Advies voor de nacht van 15-08-2017 (zekerheid 80%):
+2026-11-09 16:32:30,691 INFO src.predict:   City Hotel     62 boekingen, verwacht 8.5 annulaties: overboek 3 kamer(s) (maximum 11)
+2026-11-09 16:32:30,691 INFO src.predict:   Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s) (maximum 9)
 ```
+
+De waarschuwing is terecht. Agent 229 boekt pas voor aankomsten vanaf april 2017, dus na het
+einde van de hertraining (28-02-2017). Het model heeft die agent nooit gezien en behandelt hem als
+een lege waarde. Het gaat om één van de 76 boekingen.
+
+### Logging
+
+`src.train`, `src.predict` en `src.evaluate` schrijven geen `print` maar logregels: tijd, niveau,
+module en boodschap. Ze komen op het scherm én in `logs/<opdracht>.log` (`train.log`,
+`predict.log`, `evaluate.log`). Dat bestand groeit aan bij elke run, zodat je achteraf terugvindt
+welk model met welke cijfers weggeschreven werd. De map staat in `configs/default.yaml` (`logs`),
+het opzetten in `src/logboek.py`. `logs/` wordt niet gecommit.
+
+| Niveau | Wanneer |
+|---|---|
+| INFO | de normale loop: aantallen, scores, wat weggeschreven werd, het advies |
+| WARNING | `src.predict` krijgt een categorie die het model nooit zag |
+| ERROR | net vóór elke stop: een poort niet gehaald, of een export die niet aan het schema voldoet |
 
 Nog een paar mogelijkheden:
 
@@ -87,7 +105,8 @@ beslismoment alle actieve boekingen van die nacht bevatten.
 
 `notebooks/01_exploratie.ipynb` verantwoordt de keuzes in `src/`: wat er in de data zit, wat er
 stuk aan is en wat eraan gedaan is, Non Refund, het label, een lekcontrole per kolom, het land,
-de capaciteit en waarom annulaties per nacht breder spreiden dan losse annulaties. Het notebook
+de capaciteit, waarom annulaties per nacht breder spreiden dan losse annulaties, of segment en
+agent het land doorgeven, en of `adr` bij een annulatie achteraf aangepast is. Het notebook
 verandert zelf niets aan de data: alles gebeurt in de code, zodat training en voorspellen
 dezelfde stappen doorlopen. Enkele vaststellingen:
 
@@ -102,6 +121,10 @@ dezelfde stappen doorlopen. Enkele vaststellingen:
   parkeerplaats annuleert er niet één. Geen van die kolommen is een feature.
 - **Annulaties komen samen.** 22 % van de late annulaties valt samen met minstens vier
   identieke boekingen, met groepen tot 60. Daarom de spreidingsfactor.
+- **`adr` lekt niet.** Een geannuleerde boeking houdt haar geboekte tarief: het staat niet op 0
+  (0,4 % tegenover 2,3 % bij wie uitcheckte), en de verdeling per hotel, segment en maand is
+  dezelfde. Alleen ronde bedragen komen bij annulaties vaker voor (48 tegenover 42 %), en daar
+  haalt het model niets uit. `adr` blijft een feature. Zie bevinding 6.
 
 ## Van ruwe export naar trainingsset
 
@@ -335,6 +358,17 @@ bevinding 1 klopt, is dat geen eerlijkheidsprobleem van het model, maar van de g
 "Portugees" betekent dan deels "is niet komen opdagen". Een eerlijke controle per groep
 vraagt een land dat bij het boeken gekend is. Die kolom bestaat niet in deze export.
 
+**Kijkt het model via een omweg toch naar het land?** Segment en agent hangen samen met het land.
+Bij wie uitcheckte, is 12 % van Online TA Portugees en 52 % van Corporate, en uit segment of agent
+alleen raad je PRT met een AUC van ongeveer 0,70 (notebook, sectie 9). Het land weglaten maakt
+het model dus niet blind voor het land. Toch volgt het model het land niet: het geeft een
+Portugese boeking op de validatie gemiddeld 12,3 % kans, de rest 15,4 %, terwijl de Portugese
+boekingen 32,7 % annuleren en de rest 13,4 %. De onderschatting van PRT komt dus niet van een
+omweg via segment of agent, maar van de groep zelf. Binnen één agent zie je dat het scherpst:
+bij agent 28 is 7 % van wie uitcheckte Portugees, en 100 % van wie annuleerde. Dat steunt ook
+bevinding 1. Voor een eerlijke controle later volstaat het land weglaten niet: die moet ook
+nagaan wat segment en agent per land doen.
+
 ### 3. De MAE verbetert, de euro's niet
 
 Boosting verslaat de vuistregel op de MAE, op de validatie en op de test. In euro per
@@ -378,6 +412,21 @@ aantal annulaties per nacht op de validatie met 9 % en overschat het op de test 
 de fout van teken wisselt tussen winter en zomer, wijst eerder op het seizoen dan op de
 ijking.
 
+### 6. `adr` is het geboekte tarief, ook bij een annulatie
+
+`adr` is volgens de bron de som van de verblijfstransacties gedeeld door het aantal nachten. Bij
+wie uitcheckte, kan dat dus herrekend zijn na het verblijf. Als het hotel de prijs van een
+annulatie op 0 zou zetten of anders zou invullen, verraadt `adr` de afloop, zoals het land.
+De controle in het notebook (sectie 10):
+
+- adr van 0 of minder komt bij annulaties minder voor (0,4 %) dan bij wie uitcheckte (2,3 %)
+- per hotel liggen de medianen minder dan 2 € uit elkaar, en per maand volgen beide het seizoen
+- binnen hetzelfde hotel, dezelfde maand, segment en kamertype is de mediaan voor beide 1,00
+- annulaties hebben vaker een rond bedrag (48 tegenover 42 %). Met adr afgerond op de euro is
+  de AUC 0,682 in plaats van 0,687 en de MAE 4,83 in plaats van 4,86: het model haalt er niets uit
+
+`adr` blijft dus een feature. Zonder adr stijgt de MAE naar 5,05.
+
 ## Grenzen
 
 Wat dit project niet doet, of vereenvoudigt:
@@ -391,6 +440,11 @@ Wat dit project niet doet, of vereenvoudigt:
   model. Herijken op de validatie zou die twee kunnen scheiden.
 - **De validatie is laagseizoen.** 31 volgeboekte nachten zijn weinig om de euro's op te
   vergelijken. Daarom wordt gekozen op de MAE, die alle 180 hotel-nachten gebruikt.
+- **Segment en agent wijzen naar het land.** Ze blijven features, want ze zijn bij het boeken
+  gekend, maar zo ziet het model het land deels toch. Een eerlijke controle per land kan pas met
+  een land dat bij het boeken ingevuld is.
+- **`adr` van wie uitcheckte is mogelijk herrekend** na het verblijf. Het model leert dus van een
+  prijs die licht kan afwijken van wat er op het beslismoment in het boekingssysteem stond.
 - **Het weeknummer** scoort in de lekcontrole hoger dan de maand en is bij het boeken gekend.
   Het is een kandidaat-feature die nog niet getest is.
 - **Driftbewaking, een API en Docker** horen bij deel 3.
@@ -398,11 +452,13 @@ Wat dit project niet doet, of vereenvoudigt:
 ## Wat waar staat
 
 ```
-configs/default.yaml   paden, horizon, opschoning, features, land, split, vuistregel,
-                       advies, bedragen, model.soort, de minimale AUC. Geen code
+configs/default.yaml   paden (data, resultaten, logs), horizon, opschoning, features, land,
+                       split, vuistregel, advies en winstcurve, bedragen, model.soort,
+                       de minimale AUC. Geen code
 ruff.toml              regels voor opmaak en stijl
 src/
   config.py            leest de config
+  logboek.py           zet de logging op: naar het scherm en naar logs/<opdracht>.log
   schema.py            hoe de data eruit hoort te zien (Pandera)
   data.py              inlezen + valideren, opschonen, label afleiden
   baseline.py          de vuistregel van de revenue manager
@@ -423,7 +479,11 @@ data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen
 notebooks/
-  01_exploratie.ipynb  wat zit erin, wat is stuk, lekcontrole, capaciteit, spreiding
+  01_exploratie.ipynb  wat zit erin, wat is stuk, lekcontrole, land, capaciteit, spreiding,
+                       segment en agent als omweg naar het land, adr als lek
+rapport/
+  rapport.md           concept van het rapport voor deel 2, met de AI-bijlage
 models/                model.joblib en advies.json, gemaakt door src.train. Niet committen
 resultaten/            gemaakt door src.evaluate. Gecommit, voor het rapport
+logs/                  train.log, predict.log, evaluate.log. Niet committen
 ```
