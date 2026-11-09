@@ -24,8 +24,10 @@ manager beslist.
 
 ## Draaien
 
-Python 3.10 of nieuwer (getest met 3.13). Draai alles **vanuit deze map**, niet vanuit `src/`.
-Anders vindt Python het pakket niet.
+Getest met **Python 3.13.18**, in een nieuwe venv met precies de versies uit
+`requirements.txt` (vastgelegd met `==`). Python 3.12 is het minimum: numpy 2.5 en scipy 1.18
+vragen niet minder. Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het
+pakket niet.
 
 ```bash
 python -m venv .venv
