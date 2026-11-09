@@ -219,3 +219,6 @@ __marimo__/
 
 # Het model wordt gebouwd met python -m src.train, niet gecommit
 models/
+
+# Logbestanden van src.train, src.predict en src.evaluate. De logmap staat in de config
+logs/

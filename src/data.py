@@ -1,11 +1,14 @@
 """Data inlezen, en ze meteen valideren. Wat niet klopt, komt hier niet voorbij."""
 
+import logging
 from pathlib import Path
 
 import pandas as pd
 import pandera.pandas as pa
 
 from . import schema
+
+logger = logging.getLogger(__name__)
 
 
 def laad_data(
@@ -23,6 +26,15 @@ def laad_data(
     try:
         return valideer_met.validate(df, lazy=True)
     except pa.errors.SchemaErrors as fouten:
+        # Eerst loggen, zodat de fout ook in het logbestand staat. Daarna stoppen, met de
+        # samenvatting per controle als melding.
+        controles = fouten.failure_cases.groupby(["column", "check"], dropna=False).ngroups
+        logger.error(
+            "%s voldoet niet aan het schema: %d fouten in %d controle(s)",
+            pad,
+            len(fouten.failure_cases),
+            controles,
+        )
         raise SystemExit(samenvatting(fouten, pad)) from None
 
 

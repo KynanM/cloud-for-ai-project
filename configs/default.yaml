@@ -6,6 +6,10 @@ data:
   pad: data/hotel_bookings.csv
   voorbeeld: data/nieuwe_boekingen.csv
 
+# Logbestanden: elke opdracht schrijft naar <logs>/<opdracht>.log en naar de console.
+# Niet gecommit. Zie src/logboek.py.
+logs: logs/
+
 # Het label wordt afgeleid, het staat niet als kolom in de csv. Zie maak_label() in src/data.py.
 doel: annuleert_na_beslismoment
 
