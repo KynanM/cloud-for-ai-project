@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.evaluate import zekerheden_winstcurve
 from src.nachten import (
     advies,
     beoordeel,
@@ -142,3 +143,12 @@ def test_het_model_verslaat_de_vuistregel_op_de_validatie(df, cfg):
     # Dezelfde poort als in src.train: anders heeft het model geen reden om te bestaan
     v = valideer(df, cfg)
     assert v["mae"] < v["mae_vuistregel"]
+
+
+def test_de_zekerheden_van_de_winstcurve_komen_uit_de_config(cfg):
+    z = zekerheden_winstcurve(cfg)
+    w = cfg["advies"]["winstcurve"]
+    # Begin en einde inbegrepen, ook al is de stap geen mooi binair getal
+    assert z[0] == w["van"] and z[-1] == w["tot"]
+    assert len(z) == round((w["tot"] - w["van"]) / w["stap"]) + 1
+    assert cfg["advies"]["zekerheid"] in z
