@@ -9,7 +9,8 @@ Voor elke variant (vuistregel, logreg en boosting, de laatste twee met en zonder
 2. opnieuw leren op de hertraining, één keer meten op de test, met de factor van de
    validatie. Op de test wordt niets gekozen
 
-Schrijft naar resultaten/: evaluatie.csv, groepen.csv, winstcurve.png en ijking.png.
+Schrijft naar de map `resultaten` uit de config: evaluatie.csv, groepen.csv, winstcurve.csv,
+winstcurve.png en ijking.png.
 """
 
 import copy
@@ -23,13 +24,11 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.calibration import calibration_curve  # noqa: E402
 
-from .config import PROJECT, laad_config  # noqa: E402
+from .config import laad_config  # noqa: E402
 from .data import bereid_voor, laad_data  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
 from .nachten import beoordeel, bezetting, capaciteit, per_nacht, spreidingsfactor  # noqa: E402
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits  # noqa: E402
-
-UIT = PROJECT / "resultaten"
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -115,6 +114,13 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
         "cap": cap,
         "bezet": bezet,
     }
+
+
+def zekerheden_winstcurve(cfg: dict) -> np.ndarray:
+    """De zekerheden voor de winstcurve, uit `advies.winstcurve`. Begin en einde inbegrepen."""
+    w = cfg["advies"]["winstcurve"]
+    # Een halve stap voorbij het einde, zodat het einde er zeker in zit ondanks afronding.
+    return np.round(np.arange(w["van"], w["tot"] + w["stap"] / 2, w["stap"]), 3)
 
 
 def winstcurve(uitkomst: dict, cfg: dict, zekerheden: np.ndarray) -> pd.DataFrame:
@@ -246,7 +252,7 @@ def main() -> None:
     logger.info("Voorspeld/echt per groep (validatie)\n%s", per_groep.to_string())
 
     zekerheid = cfg["advies"]["zekerheid"]
-    curve = winstcurve(uitkomst, cfg, np.round(np.arange(0.50, 0.951, 0.025), 3))
+    curve = winstcurve(uitkomst, cfg, zekerheden_winstcurve(cfg))
     logger.info("Hoogste punt van de winstcurve")
     for (periode, soort), lijn in curve.groupby(["periode", "soort"], sort=False):
         top = lijn.loc[lijn["euro"].idxmax()]
@@ -261,13 +267,14 @@ def main() -> None:
             bij,
         )
 
-    UIT.mkdir(exist_ok=True)
-    tabel.round(4).to_csv(UIT / "evaluatie.csv", index=False)
-    groepen.round(4).to_csv(UIT / "groepen.csv", index=False)
-    curve.round(4).to_csv(UIT / "winstcurve.csv", index=False)
-    teken_winstcurve(curve, zekerheid, UIT / "winstcurve.png")
-    teken_ijking(uitkomst, UIT / "ijking.png")
-    logger.info("Weggeschreven naar %s", UIT)
+    uit = cfg["resultaten"]
+    uit.mkdir(parents=True, exist_ok=True)
+    tabel.round(4).to_csv(uit / "evaluatie.csv", index=False)
+    groepen.round(4).to_csv(uit / "groepen.csv", index=False)
+    curve.round(4).to_csv(uit / "winstcurve.csv", index=False)
+    teken_winstcurve(curve, zekerheid, uit / "winstcurve.png")
+    teken_ijking(uitkomst, uit / "ijking.png")
+    logger.info("Weggeschreven naar %s", uit)
 
 
 if __name__ == "__main__":

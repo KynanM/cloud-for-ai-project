@@ -6,6 +6,9 @@ data:
   pad: data/hotel_bookings.csv
   voorbeeld: data/nieuwe_boekingen.csv
 
+# Waar src.evaluate de tabellen en grafieken voor het rapport wegschrijft. Gecommit.
+resultaten: resultaten/
+
 # Logbestanden: elke opdracht schrijft naar <logs>/<opdracht>.log en naar de console.
 # Niet gecommit. Zie src/logboek.py.
 logs: logs/
@@ -87,6 +90,11 @@ advies:
   volgeboekt_vanaf: 0.95
   # Nooit meer dan dit aandeel van de capaciteit overboeken: de bescherming voor de gast.
   max_aandeel: 0.05
+  # De zekerheden waarvoor src.evaluate de winstcurve tekent. Begin en einde zijn inbegrepen.
+  winstcurve:
+    van: 0.50
+    tot: 0.95
+    stap: 0.025
 
 # Bedragen, als veelvoud van de prijs per nacht (adr) van die nacht.
 bedragen:
