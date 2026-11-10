@@ -46,13 +46,15 @@ def config_hash(cfg: dict) -> str:
 
 
 def commit() -> str:
-    """De git-commit van de code, met `+gewijzigd` als er niet-gecommitte wijzigingen zijn."""
+    """De git-commit van de code, met `+gewijzigd` als `src/` of `configs/` niet-gecommitte
+    wijzigingen hebben. Documentatie en resultaten tellen niet mee: die veranderen niets aan
+    wat het model doet."""
     try:
         sha = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=PROJECT, capture_output=True, text=True, check=True
         ).stdout.strip()
         vuil = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=no"],
+            ["git", "status", "--porcelain", "--untracked-files=no", "--", "src", "configs"],
             cwd=PROJECT,
             capture_output=True,
             text=True,
