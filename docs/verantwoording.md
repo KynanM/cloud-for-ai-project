@@ -121,7 +121,7 @@ Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,37, boosting **5,11**.
 |---|---|
 | Keuze | boosting zonder land |
 | Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. Het kost 0,3 s om te leren en 5 ms per 1 000 boekingen: geen reden om het eenvoudigere model te nemen |
-| Wat het niet doet | meer euro opleveren: zie de foutenanalyse. Op de test haalt de vuistregel 638 €, boosting 633 € |
+| Euro's | met het maximum van 5 % gelijk (test: vuistregel 638 €, boosting 633 €), omdat het maximum in City op 98 % van de nachten bindt. Zonder maximum: boosting 480 € tegenover 328 € (validatie) en 715 € tegenover 540 € (test), en alleen boosting en logreg blijven binnen de risicogrens. Zie sectie 13 |
 | Bewijs | `modelvergelijking.csv`, `resultaten/evaluatie.csv` |
 
 ## 9. Hyperparameters
@@ -177,11 +177,18 @@ MAE en lagere AUC: minder data weegt zwaarder dan recentere data. Bewijs: `exper
 | Waarom | geen kandidaat is aantoonbaar beter op 30 volle nachten. Het empirische optimum blijft op 0,825 staan, welke r en w je ook neemt (`scenario_optimum.csv`): de curve reageert niet op de bedragen, dus ze kan de keuze niet dragen. De drempel volgt uit de kosten, zoals in de les |
 | Bewijs | `drempel.csv`, `scenario_optimum.csv`, `resultaten/winstcurve.png` |
 
-## 13. Maximum per nacht
+## 13. Maximum per nacht en de remmen op het advies
 
-Geen keuze van het model maar van het hotel. 5 % blijft staan zoals in deel 1. Wat een hoger
-maximum zou opleveren en kosten, staat in [business_aannames.md](business_aannames.md) en
-`maximum.csv`.
+| | |
+|---|---|
+| Vraag | houden het maximum van 5 % en de spreidingsfactor het model tegen? |
+| Opties | met en zonder maximum, met en zonder spreidingsfactor, voor elk model, zelfde beslisregel |
+| Resultaat, € per volle nacht | met maximum: vuistregel 352 / 638, boosting 357 / 633 (validatie / test). Zonder maximum: vuistregel 328 / 540, logreg 343 / 666, **boosting 480 / 715**. Zonder maximum en zonder factor: boosting 466 / 518 |
+| Risico zonder maximum (test) | overschrijding vuistregel 31 %, logreg 10 %, boosting 16 %; zonder factor 33 % |
+| Conclusie | **het maximum is de rem**: het verbergt zowel de waarde van het model als de fout van de vuistregel. **De spreidingsfactor is geen rem**: zonder factor verliest het model geld en gaat het over de risicogrens |
+| Zekerheid zonder maximum | opnieuw getoetst op de validatie: onder 0,70 buiten de risicogrens, en geen zekerheid aantoonbaar beter dan 0,80 (0,725: +14 €, interval −35 tot +57) |
+| Keuze | modellen worden in euro's vergeleken zonder maximum (`zonder_rem.csv`). Het maximum zelf blijft 5 %, zoals in deel 1: het is een keuze van het hotel om de gast te beschermen (0,09 tegenover 0,54 doorverwezen gasten per volle nacht op de test), niet van het model |
+| Bewijs | `zonder_rem.csv`, `drempel_zonder_maximum.csv`, `maximum.csv` |
 
 ## 14. Poorten vóór het wegschrijven
 
@@ -209,7 +216,9 @@ en zonder maximum te halen was: r × adr × elke kamer die vrijkomt.
 | logreg | 1 232 € | 592 € | 570 € | 57 € | 14 € |
 | boosting | 1 232 € | 633 € | 570 € | 9 € | 21 € |
 
-Het maximum laat 46 % liggen, voor elk model hetzelfde. Wat een model kan beïnvloeden, is de rest:
+Het maximum laat 46 % liggen, voor elk model hetzelfde. Zonder maximum haalt boosting 715 € en de
+vuistregel 540 € (sectie 13): het maximum is de reden waarom de modellen hier gelijk lijken. Met
+maximum kan een model alleen de rest beïnvloeden:
 voorzichtigheid en doorverwijzen samen, 25 à 71 € (boosting 29 €). Daarom verandert een betere MAE
 de europroxy nauwelijks. In City bindt het maximum op de test op 98 % van de nachten.
 

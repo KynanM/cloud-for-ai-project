@@ -63,22 +63,23 @@ lichtere varianten vergeleken. 100 iteraties was aantoonbaar beter (bootstrap pe
 overgenomen. Gewogen klassen en een korter trainingsvenster zijn getest en afgewezen: de weging
 verdrievoudigt het voorspelde aantal annulaties.
 
-De kanttekening hoort erbij: **in euro's is boosting niet beter.** Op de test haalt de vuistregel
-638 € per volgeboekte nacht, boosting 633 €. Met perfecte kennis was 1 232 € te halen. Daarvan
-laat het maximum van 5 % 570 € liggen, voor elk model hetzelfde. Wat een model nog kan
-beïnvloeden, is 25 à 71 €. In het stadshotel raakt het advies op de test op 98 % van de nachten
-het maximum. Daarnaast is het advies voorzichtig: bedoeld is dat op hoogstens 20 % van de nachten
-minder kamers vrijkomen dan k, gemeten is dat 5 %. De spreidingsfactor vangt ook de seizoensbias
-van het model op (januari −8 annulaties per nacht in City, juni +6).
+**Met het maximum van 5 % verdwijnt het verschil in euro's.** Op de test haalt de vuistregel
+638 € per volgeboekte nacht, boosting 633 €. In het stadshotel raakt het advies op 98 % van de
+testnachten het maximum, voor elk model: dan beslist het maximum en niet het model. Zonder
+maximum, met dezelfde beslisregel, haalt boosting 480 € op de validatie tegenover 328 € voor de
+vuistregel (test: 715 € tegenover 540 €). De vuistregel overschat het aantal annulaties en
+adviseert dan op 31 % van de testnachten te veel kamers, ver boven de risicogrens van 20 %;
+boosting blijft er met 16 % onder. Het maximum verbergt dus de fout van de vuistregel en de
+waarde van het model.
 
-De drempel van 0,80 volgt uit de bedragen. Op de validatie levert 0,825 4,6 € meer op, maar het
-90 %-bootstrapinterval loopt van −3,4 tot +14,5 €: niet aantoonbaar, dus 0,80 blijft. Bij andere
-bedragen (r 0,3 à 0,7, w 1 à 3) blijft het advies altijd beter dan niet overboeken.
+De spreidingsfactor remt het model niet: zonder factor zakt boosting zonder maximum op de test
+naar 518 € en gaat het over de risicogrens. De drempel van 0,80 volgt uit de bedragen en is met
+en zonder maximum opnieuw getoetst op de validatie: geen andere zekerheid is aantoonbaar beter
+(bootstrap per nacht), onder 0,70 wordt de risicogrens overschreden.
 
-Het model voorspelt dus beter hoeveel kamers vrijkomen, en dat heeft de revenue manager nodig om
-zelf te beslissen. Of dat geld oplevert, hangt vooral af van het maximum per nacht: met 7,5 % zou
-het op de test 705 € halen, met vier keer zoveel doorverwezen gasten. Die afweging is aan het
-hotel.
+Het maximum blijft een keuze van het hotel om de gast te beschermen: zonder maximum worden op de
+test 0,54 gasten per volle nacht doorverwezen in plaats van 0,09. Het model bewijst zijn waarde op
+de europroxy zonder maximum; welk maximum het hotel aanhoudt, beslist de revenue manager.
 
 ## 5. Data leakage
 
@@ -113,7 +114,8 @@ andere waarde tonen dan op het beslismoment (`docs/feature_beschikbaarheid.csv`)
   echte aantal annulaties gemiddeld 1,0 à 1,6).
 - De euro's zijn een proxy; de capaciteit is geschat als het 99ste percentiel van de bezette
   kamers (226 en 184).
-- De zekerheid van 0,80 is nominaal; gemeten is het advies voorzichtiger.
+- De zekerheid van 0,80 is nominaal; gemeten is het advies voorzichtiger, vooral met het
+  maximum (5 % overschrijding, zonder maximum 16 %).
 - De controle per groep (Portugal tegenover de rest) kan met deze export niet eerlijk, omdat de
   groep zelf met de lekkende kolom gemaakt is.
 - Code, tests en alle cijfers staan in de repository. `README.md` legt uit hoe je ze opnieuw maakt,

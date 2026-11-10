@@ -21,8 +21,10 @@ manager beslist.
   5 % van de capaciteit
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
   dus een lek. Het staat uit. Zie [Bevindingen](#bevindingen)
-- **In euro's** is het model niet beter dan de vuistregel: het maximum van 5 % laat op de test
-  570 € van de 1 232 € per volle nacht liggen, voor elk model. Zie bevinding 3
+- **In euro's** wint het model pas zichtbaar als het maximum van 5 % het niet afremt: zonder
+  maximum haalt boosting op de validatie 480 € per volle nacht tegenover 328 € voor de
+  vuistregel (test: 715 € tegenover 540 €), en het is het enige model dat dan binnen de
+  risicogrens blijft. Met het maximum halen alle modellen ongeveer hetzelfde. Zie bevinding 3
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien
@@ -405,33 +407,46 @@ bij agent 28 is 7 % van wie uitcheckte Portugees, en 100 % van wie annuleerde. D
 bevinding 1. Voor een eerlijke controle later volstaat het land weglaten niet: die moet ook
 nagaan wat segment en agent per land doen.
 
-### 3. De MAE verbetert, de euro's niet
+### 3. Het maximum verbergt wat het model waard is
 
-Boosting verslaat de vuistregel op de MAE, op de validatie en op de test. In euro per
-volgeboekte nacht is er nauwelijks verschil, en op de test haalt de vuistregel zelfs iets meer
-(638 tegenover 633). Waar de euro's blijven liggen, per volle nacht op de test
-(`resultaten/audit/verlies.csv`):
+Met het maximum van 5 % halen alle modellen ongeveer hetzelfde: op de test 638 € per volgeboekte
+nacht voor de vuistregel, 633 € voor boosting. Dat komt niet door het model. In City raakt het
+advies op 98 % van de testnachten het maximum van 11 kamers, voor elk model. Dan beslist het
+maximum, en is er niets meer te onderscheiden.
 
-| Model | perfect | gehaald | door het maximum | door voorzichtigheid | door doorverwijzen |
-|---|---|---|---|---|---|
-| vuistregel | 1 232 € | 638 € | 570 € | 2 € | 23 € |
-| logreg | 1 232 € | 592 € | 570 € | 57 € | 14 € |
-| boosting | 1 232 € | 633 € | 570 € | 9 € | 21 € |
+Dezelfde beslisregel zonder maximum, en met en zonder spreidingsfactor
+(`resultaten/audit/zonder_rem.csv`):
 
-"Perfect" is wat met perfecte kennis en zonder maximum te halen was.
+| € per volle nacht | validatie | test | overschrijding test | doorverwezen per volle nacht, test |
+|---|---|---|---|---|
+| vuistregel, max 5 % | 352 | 638 | 5 % | 0,10 |
+| boosting, max 5 % | 357 | 633 | 5 % | 0,09 |
+| vuistregel, geen maximum | 328 | 540 | **31 %** | 1,76 |
+| logreg, geen maximum | 343 | 666 | 10 % | 0,34 |
+| **boosting, geen maximum** | **480** | **715** | 16 % | 0,54 |
+| boosting, geen maximum, geen spreidingsfactor | 466 | 518 | **33 %** | 1,88 |
 
-- **Het maximum van 5 % beslist, niet het model.** Het laat 46 % liggen, voor elk model
-  hetzelfde. In City raakt het advies van boosting op de test op 98 % van de nachten het maximum
-  van 11 kamers. Wat een model kan beïnvloeden, is de rest: 25 à 71 €.
-- **Het advies is voorzichtig.** Het doel is dat op hoogstens 20 % van de nachten minder
-  annulaties zijn dan k. In werkelijkheid is dat 4 à 9 %. De spreidingsfactor vangt ook de bias
-  van het model op, en niet alleen groepen die samen annuleren. Een factor zonder die bias is
-  getest en faalt, omdat de bias met het seizoen van teken wisselt (`spreiding.csv`).
+Drie dingen vallen op:
 
-Het maximum per nacht is de grootste hefboom op de opbrengst, en het is een keuze om de gast
-te beschermen, geen technisch gegeven. Met 7,5 % zou boosting op de test 705 € per volle nacht
-halen, met 0,36 in plaats van 0,09 doorverwezen gasten (`maximum.csv`). Die afweging is aan het
-hotel.
+- **Zonder maximum is boosting duidelijk het beste**, ook in euro's: +152 € per volle nacht
+  tegenover de vuistregel op de validatie, +175 € op de test. Het betere voorspellen vertaalt zich
+  dus wel in geld, zodra het niet afgetopt wordt.
+- **De vuistregel kan niet zonder maximum.** Ze overschat het aantal annulaties, adviseert te veel
+  kamers en gaat ver over de risicogrens van 20 % (31 % van de nachten te veel geadviseerd). Met
+  het maximum wordt die fout weggewerkt, en daarom lijkt ze even goed.
+- **De spreidingsfactor remt niet, ze beschermt.** Zonder factor zakt boosting op de test van
+  715 naar 518 € en gaat het over de risicogrens. Wat bij het maximum op "voorzichtigheid" leek
+  (gemeten 5 % overschrijding in plaats van 20 %), komt doordat het maximum het advies afkapt.
+  Zonder maximum ligt de overschrijding op 11 à 16 %, dicht bij wat 0,80 belooft.
+
+De zekerheid is zonder maximum opnieuw gekozen op de validatie
+(`drempel_zonder_maximum.csv`): onder 0,70 gaat het advies over de risicogrens, en geen zekerheid
+is aantoonbaar beter dan 0,80. 0,80 blijft dus, met en zonder maximum.
+
+Het maximum zelf is een keuze van het hotel om de gast te beschermen, geen technisch gegeven. Het
+staat nog op 5 % zoals in deel 1. Zonder maximum worden op de test 0,54 gasten per volle nacht
+doorverwezen in plaats van 0,09. Die afweging is aan het hotel; het model bewijst zijn waarde
+op de europroxy zonder maximum.
 
 ### 4. Het hoogste punt van de winstcurve ligt dicht bij 0,80, maar de curve is vlak
 
@@ -493,8 +508,8 @@ Wat dit project niet doet, of vereenvoudigt:
   beslismoment ([docs/business_aannames.md](docs/business_aannames.md)).
 - **De capaciteit is geschat.** De dataset zegt niet hoeveel kamers er zijn. Kamers die nooit
   verkocht werden, zie je niet.
-- **De zekerheid van 0,80 is nominaal.** Gemeten komen er op 4 à 9 % van de nachten minder
-  kamers vrij dan k, niet op 20 %. De spreidingsfactor vangt ook de bias van het model op.
+- **De zekerheid van 0,80 is nominaal.** Met het maximum komen er op 4 à 9 % van de nachten
+  minder kamers vrij dan k, zonder maximum op 11 à 16 %, niet op 20 %.
 - **Features zoals ze in de export staan.** 20 % van de actieve boekingen werd ooit gewijzigd, en
   wanneer staat niet in de export. Hun waarde op het beslismoment kan anders geweest zijn
   ([docs/feature_beschikbaarheid.csv](docs/feature_beschikbaarheid.csv)).

@@ -65,11 +65,12 @@ er op hoogstens 20 % van de nachten minder kamers vrij dan k. Gemeten (`te_veel`
 
 | | validatie | test |
 |---|---|---|
-| boosting, huidig | 6,1 % | 4,8 % |
+| boosting, huidig (met maximum) | 6,1 % | 4,8 % |
+| boosting, zonder maximum | 11 % | 16 % |
 | zonder spreidingsfactor (factor 1) | 16 % (maart, buiten de afstemming) | 5,4 % |
 
-Het advies is dus voorzichtiger dan nominaal. Dat komt doordat de spreidingsfactor ook de bias van
-het model opvangt, niet alleen groepen die samen annuleren. Zie `spreiding.csv` en de bewijskaart
+Met het maximum is het advies voorzichtiger dan nominaal, omdat het maximum k afkapt. Zonder
+maximum ligt de overschrijding dicht bij de belofte van 0,80. Zie `spreiding.csv` en de bewijskaart
 "Spreidingscorrectie" in [verantwoording.md](verantwoording.md).
 
 ## Gevoeligheid
@@ -97,6 +98,10 @@ gast. Wat het kost (`maximum.csv`, boosting):
 | 5 % | 357 | 633 | 0,09 |
 | 7,5 % | 476 | 705 | 0,36 |
 | 10 % | 479 | 721 | 0,50 |
+
+Zonder maximum, met dezelfde regel: boosting 480 € (validatie) en 715 € (test), de vuistregel
+328 € en 540 €; de vuistregel adviseert dan op 31 % van de testnachten te veel en zit ver boven de
+risicogrens (`zonder_rem.csv`). Het maximum maakt de modellen dus kunstmatig gelijk.
 
 Op de test laat het maximum 570 € per volle nacht liggen, van de 1 232 € die met perfecte kennis te
 halen waren (`verlies.csv`). Dit is de grootste hefboom op de proxy. Het is geen technisch
