@@ -61,17 +61,17 @@ kamers in de training: City 226, Resort 184).
 ## Nominale zekerheid tegenover gemeten overschrijding
 
 0,80 is een **nominaal** zekerheidsniveau: als de verdeling van het aantal annulaties klopt, komen
-er op hoogstens 20 % van de nachten minder kamers vrij dan k. Gemeten (`te_veel`):
+er op hoogstens 20 % van de nachten minder kamers vrij dan k. Gemeten (`te_veel`), zonder maximum:
 
 | | validatie | test |
 |---|---|---|
-| boosting, huidig (met maximum) | 6,1 % | 4,8 % |
-| boosting, zonder maximum | 11 % | 16 % |
-| zonder spreidingsfactor (factor 1) | 16 % (maart, buiten de afstemming) | 5,4 % |
+| boosting, met spreidingsfactor | 11 % | 16 % |
+| boosting, zonder spreidingsfactor (factor 1) | 16 % | 33 % |
+| vuistregel, met spreidingsfactor | 23 % | 31 % |
 
-Met het maximum is het advies voorzichtiger dan nominaal, omdat het maximum k afkapt. Zonder
-maximum ligt de overschrijding dicht bij de belofte van 0,80. Zie `spreiding.csv` en de bewijskaart
-"Spreidingscorrectie" in [verantwoording.md](verantwoording.md).
+Met de spreidingsfactor houdt boosting de belofte. Zonder factor niet: groepen annuleren samen, en
+de spreiding is breder dan die van losse annulaties. Met het oude maximum van 5 % lag de
+overschrijding op 5 %, maar dat kwam doordat het maximum k afkapte, niet door de zekerheid.
 
 ## Gevoeligheid
 
@@ -80,32 +80,32 @@ Twee verschillende vragen, twee tabellen.
 **Robuustheid: het beleid ligt vast (zekerheid 0,80), de bedragen veranderen**
 (`robuustheid.csv`). Bij alle negen combinaties van r ∈ {0,3; 0,5; 0,7} en w ∈ {1; 2; 3} blijft
 het beleid beter dan niets doen (k = 0), op de validatie en op de test. Op de test ligt het tussen
-362 € (r 0,3, w 3) en 905 € (r 0,7, w 1) per volle nacht.
+307 € (r 0,3, w 3) en 1 122 € (r 0,7, w 1) per volle nacht.
 
 **Scenario-optimum: per r en w mag het beleid opnieuw gekozen worden** (`scenario_optimum.csv`).
-De theorie geeft w / (r + w); het beste punt op de validatie ligt bij bijna elke combinatie op
-0,825. Dat het empirische optimum niet meebeweegt met de bedragen, zegt dat de validatiecurve met
-30 volle nachten de bedragen niet kan onderscheiden. Daarom wordt de zekerheid niet op de curve
-gekozen maar uit de bedragen afgeleid, met een bootstrap als controle (zie verantwoording.md).
+De theorie geeft w / (r + w). Zonder maximum volgt het beste punt op de validatie de theorie:
+r 0,5 en w 1 geeft 0,67 in theorie en 0,65 op de validatie, r 0,7 en w 1 geeft 0,59 en 0,60. Met
+het oude maximum bleef het beste punt op 0,825 staan, welke bedragen je ook nam: het maximum
+maakte de curve ongevoelig voor de kosten. De drempel wordt uit de bedragen afgeleid, met een
+bootstrap als controle (zie verantwoording.md).
 
-## Het maximum per nacht: een keuze van het hotel
+## Het maximum per nacht: weggehaald
 
-Nooit meer dan 5 % van de capaciteit overboeken (`advies.max_aandeel`): de bescherming voor de
-gast. Wat het kost (`maximum.csv`, boosting):
+In deel 1 mocht het hotel nooit meer dan 5 % van de capaciteit overboeken. Dat maximum bond in
+City op 98 % van de testnachten en maakte de modellen in euro's kunstmatig gelijk
+(`zonder_rem.csv`). Het is weggehaald (`advies.max_aandeel: null`). Wat een maximum zou kosten
+en opleveren (`maximum.csv`, boosting):
 
 | max_aandeel | € per volle nacht, validatie | test | doorverwezen per volle nacht, test |
 |---|---|---|---|
-| 5 % | 357 | 633 | 0,09 |
+| 5 % (deel 1) | 357 | 633 | 0,09 |
 | 7,5 % | 476 | 705 | 0,36 |
 | 10 % | 479 | 721 | 0,50 |
+| **geen (huidig)** | **480** | **715** | 0,54 |
 
-Zonder maximum, met dezelfde regel: boosting 480 € (validatie) en 715 € (test), de vuistregel
-328 € en 540 €; de vuistregel adviseert dan op 31 % van de testnachten te veel en zit ver boven de
-risicogrens (`zonder_rem.csv`). Het maximum maakt de modellen dus kunstmatig gelijk.
-
-Op de test laat het maximum 570 € per volle nacht liggen, van de 1 232 € die met perfecte kennis te
-halen waren (`verlies.csv`). Dit is de grootste hefboom op de proxy. Het is geen technisch
-gegeven en geen keuze voor het model: het hotel weegt meer euro af tegen meer doorverwezen gasten.
+Tussen 10 % en geen maximum is er nauwelijks verschil: daar bindt een maximum bijna nooit meer.
+Wil het hotel de gast extra beschermen, dan kan het met `max_aandeel` een maximum terugzetten; de
+afweging tussen euro's en doorverwezen gasten staat in deze tabel.
 
 ## Wat niet mag worden beweerd
 
