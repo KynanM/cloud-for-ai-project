@@ -23,6 +23,9 @@ spreiding.csv          geen, de huidige en een herijkte spreidingscorrectie (G4)
 robuustheid.csv        het vaste beleid (zekerheid 0,80) bij andere r en w (R11)
 scenario_optimum.csv   welke zekerheid bij welke r en w past (R11)
 maximum.csv            het maximum per nacht als beleidskeuze van het hotel (R11)
+zonder_rem.csv         de modellen zonder maximum en zonder spreidingsfactor: wat is het model
+                       zelf waard, en wat kost elke rem?
+drempel_zonder_maximum.csv  de zekerheid opnieuw gekozen zonder maximum
 """
 
 import copy
@@ -640,6 +643,77 @@ def maximum(bewaard: dict, o: Opzet) -> pd.DataFrame:
     return pd.DataFrame(rijen)
 
 
+ZONDER_MAX = 1.0  # max_aandeel 1: k mag tot de volle capaciteit, het maximum bindt nooit
+
+
+def zonder_rem(bewaard: dict, o: Opzet) -> pd.DataFrame:
+    """De modellen vergeleken op de europroxy zonder de remmen van het beleid.
+
+    Het maximum van 5 % bindt in City op bijna elke testnacht. Dan beslist het maximum, niet het
+    model, en lijken alle modellen even goed. Hier dezelfde beslisregel, met en zonder maximum,
+    en met en zonder spreidingsfactor. Zo is te zien wat het model zelf waard is, en welke rem wat
+    kost. Een variant is alleen verantwoord als ze binnen de risicogrens blijft.
+    """
+    rijen = []
+    for soort, land in VARIANTEN:
+        if land:
+            continue
+        for periode, _, _ in RG:
+            b = bewaard[(soort, land, periode)]
+            for maximum_naam, aandeel in [
+                ("max 5 %", o.cfg["advies"]["max_aandeel"]),
+                ("geen maximum", ZONDER_MAX),
+            ]:
+                for spreiding_naam, factor in [
+                    ("spreidingsfactor", b["factor"]),
+                    ("factor 1", {h: 1.0 for h in b["factor"]}),
+                ]:
+                    c = variant(b["cfg"], advies__max_aandeel=aandeel)
+                    t = beide(beoordeel(b["nachten"], factor, o.cap, o.bezet, c))
+                    rijen.append(
+                        {
+                            "periode": periode,
+                            "model": naam(soort, land),
+                            "maximum": maximum_naam,
+                            "spreiding": spreiding_naam,
+                            "gem_k": t["gem_k"],
+                            "te_veel": t["te_veel"],
+                            "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+                            "doorverwezen": t["doorverwezen"],
+                            "binnen_risicogrens": t["te_veel"] <= o.cfg["advies"]["risicogrens"],
+                        }
+                    )
+    return pd.DataFrame(rijen)
+
+
+def drempel_zonder_maximum(bewaard: dict, o: Opzet) -> pd.DataFrame:
+    """De zekerheid opnieuw, op de validatie, nu zonder maximum: bindt de drempel dan wel?"""
+    b = bewaard[(*GEKOZEN, "validatie")]
+    c = variant(b["cfg"], advies__max_aandeel=ZONDER_MAX)
+    huidig = o.cfg["advies"]["zekerheid"]
+    basis = euro_per_nacht(b, o, huidig, c)
+    rijen = []
+    for z in zekerheden_winstcurve(o.cfg):
+        t = beide(beoordeel(b["nachten"], b["factor"], o.cap, o.bezet, c, z))
+        laag, hoog = bootstrap(euro_per_nacht(b, o, z, c) - basis, o.cfg["model"]["seed"])
+        rijen.append(
+            {
+                "zekerheid": z,
+                "gem_k": t["gem_k"],
+                "te_veel": t["te_veel"],
+                "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+                "doorverwezen": t["doorverwezen"],
+                "verschil_met_huidig": t["euro_per_volle_nacht"] - basis.mean(),
+                "interval_laag": laag,
+                "interval_hoog": hoog,
+                "binnen_risicogrens": t["te_veel"] <= o.cfg["advies"]["risicogrens"],
+            }
+        )
+    uit = pd.DataFrame(rijen)
+    uit["aantoonbaar_beter"] = uit["binnen_risicogrens"] & (uit["interval_laag"] > 0)
+    return uit
+
+
 def main() -> None:
     cfg = laad_config()
     zet_logging_op(cfg, "experimenten")
@@ -680,6 +754,8 @@ def main() -> None:
     schrijf(robuustheid(bewaard, o), "robuustheid.csv")
     schrijf(scenario_optimum(bewaard, o), "scenario_optimum.csv")
     schrijf(maximum(bewaard, o), "maximum.csv")
+    schrijf(zonder_rem(bewaard, o), "zonder_rem.csv")
+    schrijf(drempel_zonder_maximum(bewaard, o), "drempel_zonder_maximum.csv")
     logger.info("Weggeschreven naar %s", uit)
 
 
