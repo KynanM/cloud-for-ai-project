@@ -155,8 +155,11 @@ def met_advies(
     voorspellen, zodat wat geëvalueerd wordt ook is wat het hotel te zien krijgt."""
     a = cfg["advies"]
     zekerheid = a["zekerheid"] if zekerheid is None else zekerheid
+    # Zonder maximum (max_aandeel: null) is de enige grens de capaciteit zelf: meer kamers
+    # dan het hotel heeft, kan er nooit vrijkomen.
+    aandeel = 1.0 if a["max_aandeel"] is None else a["max_aandeel"]
     uit = nachten.copy()
-    uit["maximum"] = np.floor(a["max_aandeel"] * uit["hotel"].map(cap)).astype(int)
+    uit["maximum"] = np.floor(aandeel * uit["hotel"].map(cap)).astype(int)
     uit["k"] = advies(
         uit["verwacht"], uit["variantie"], uit["hotel"].map(factor), zekerheid, uit["maximum"]
     )

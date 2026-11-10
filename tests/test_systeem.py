@@ -68,15 +68,29 @@ def test_van_csv_tot_advies_k(gebouwd):
     assert ((tabel["verwacht"] >= 0) & (tabel["verwacht"] <= tabel["boekingen"])).all()
 
 
-def test_maximum_is_vijf_procent_van_de_capaciteit(gebouwd):
+def test_zonder_maximum_is_de_capaciteit_de_grens(gebouwd):
     cfg, _ = gebouwd
+    assert cfg["advies"]["max_aandeel"] is None
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
     tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg, nacht=NACHT)
 
+    verwacht = {hotel: int(np.floor(cap)) for hotel, cap in instellingen["capaciteit"].items()}
+    assert tabel.set_index("hotel")["maximum"].to_dict() == verwacht
+    # De geschatte capaciteit: City 225,8 en Resort 184 kamers
+    assert verwacht == {"City Hotel": 225, "Resort Hotel": 184}
+
+
+def test_een_maximum_van_vijf_procent_kan_nog_altijd(gebouwd):
+    # Wil het hotel toch een maximum, dan volstaat max_aandeel in de config
+    cfg, _ = gebouwd
+    cfg_5 = {**cfg, "advies": {**cfg["advies"], "max_aandeel": 0.05}}
+    instellingen = laad_advies(cfg["model"]["advies_pad"])
+    nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
+    tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg_5, nacht=NACHT)
+
     verwacht = {
-        hotel: int(np.floor(cfg["advies"]["max_aandeel"] * cap))
-        for hotel, cap in instellingen["capaciteit"].items()
+        hotel: int(np.floor(0.05 * cap)) for hotel, cap in instellingen["capaciteit"].items()
     }
     assert tabel.set_index("hotel")["maximum"].to_dict() == verwacht
     # De capaciteit uit de data, vergeleken met het voorstel: City ±11, Resort ±9
