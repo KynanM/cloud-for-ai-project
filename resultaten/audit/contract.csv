@@ -1,0 +1,6 @@
+selectie,boeking_nachten,annulaties,aandeel_van_a
+A boekingsgebonden,204742,25832,1.0
+B nachtgebonden,207420,25422,1.0131
+in beide,203110,24200,0.992
+alleen A: na T(aankomst) en vóór T(nacht) geannuleerd,1632,1632,0.008
+"alleen B: geboekt na T(aankomst), vóór T(nacht)",4310,1222,0.0211

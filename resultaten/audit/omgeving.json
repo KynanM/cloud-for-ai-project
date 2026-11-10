@@ -1,0 +1,10 @@
+{
+  "commit": "af11740f615d48309f80a49be21db07eff3e8903",
+  "python": "3.13.18",
+  "pandas": "3.1.1",
+  "numpy": "2.5.4",
+  "scikit-learn": "1.9.1",
+  "pandera": "0.35.0",
+  "scipy": "1.18.1",
+  "joblib": "1.6.0"
+}
