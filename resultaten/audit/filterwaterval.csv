@@ -1,0 +1,36 @@
+stap,hotel,jaar,boekingen,aandeel_over,basiskans
+ruwe export,City Hotel,2015,13682,1.0,
+ruwe export,City Hotel,2016,38140,1.0,
+ruwe export,City Hotel,2017,27508,1.0,
+ruwe export,Resort Hotel,2015,8314,1.0,
+ruwe export,Resort Hotel,2016,18567,1.0,
+ruwe export,Resort Hotel,2017,13179,1.0,
+zonder Non Refund,City Hotel,2015,10536,0.7701,
+zonder Non Refund,City Hotel,2016,32230,0.845,
+zonder Non Refund,City Hotel,2017,23696,0.8614,
+zonder Non Refund,Resort Hotel,2015,7793,0.9373,
+zonder Non Refund,Resort Hotel,2016,17683,0.9524,
+zonder Non Refund,Resort Hotel,2017,12865,0.9762,
+adr tussen 0 en 1000,City Hotel,2015,10145,0.7415,
+adr tussen 0 en 1000,City Hotel,2016,31694,0.831,
+adr tussen 0 en 1000,City Hotel,2017,23415,0.8512,
+adr tussen 0 en 1000,Resort Hotel,2015,7598,0.9139,
+adr tussen 0 en 1000,Resort Hotel,2016,17301,0.9318,
+adr tussen 0 en 1000,Resort Hotel,2017,12690,0.9629,
+minstens één nacht,City Hotel,2015,10145,0.7415,
+minstens één nacht,City Hotel,2016,31694,0.831,
+minstens één nacht,City Hotel,2017,23415,0.8512,
+minstens één nacht,Resort Hotel,2015,7598,0.9139,
+minstens één nacht,Resort Hotel,2016,17301,0.9318,
+minstens één nacht,Resort Hotel,2017,12690,0.9629,
+actief 30 dagen vóór aankomst,City Hotel,2015,4632,0.3385,0.1973
+actief 30 dagen vóór aankomst,City Hotel,2016,16676,0.4372,0.1607
+actief 30 dagen vóór aankomst,City Hotel,2017,11999,0.4362,0.136
+actief 30 dagen vóór aankomst,Resort Hotel,2015,3975,0.4781,0.1205
+actief 30 dagen vóór aankomst,Resort Hotel,2016,8038,0.4329,0.1179
+actief 30 dagen vóór aankomst,Resort Hotel,2017,5504,0.4176,0.1116
+ruwe export,beide,alle,119390,1.0,
+zonder Non Refund,beide,alle,104803,0.8778,
+adr tussen 0 en 1000,beide,alle,102843,0.8614,
+minstens één nacht,beide,alle,102843,0.8614,
+actief 30 dagen vóór aankomst,beide,alle,50824,0.4257,0.143

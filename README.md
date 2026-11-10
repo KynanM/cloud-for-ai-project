@@ -12,8 +12,8 @@ manager beslist.
 
 - **Model:** `HistGradientBoostingClassifier`, zonder het land als feature
 - **Gekozen op** de MAE van het aantal annulaties per hotel-nacht, op de validatie (Q1 2017):
-  4,86 tegenover 6,36 voor de vuistregel van de revenue manager. Op de test (april tot
-  augustus 2017, één keer gemeten): 5,11 tegenover 6,04
+  4,72 tegenover 6,36 voor de vuistregel van de revenue manager. Op de test (april tot
+  augustus 2017, alleen gerapporteerd): 5,11 tegenover 6,87
 - **Split** in de tijd, op aankomstdatum, met een embargo van 31 dagen
 - **Poort:** een model wordt alleen weggeschreven als het de vuistregel verslaat op de
   validatie, en een AUC van minstens 0,60 haalt
@@ -21,6 +21,9 @@ manager beslist.
   5 % van de capaciteit
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
   dus een lek. Het staat uit. Zie [Bevindingen](#bevindingen)
+- **In euro's** is het model niet beter dan de vuistregel: het maximum van 5 % laat op de test
+  570 € van de 1 232 € per volle nacht liggen, voor elk model. Zie bevinding 3
+- **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien
 
@@ -34,21 +37,23 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # 83 tests, allemaal groen, ±30 s
+pytest                          # 110 tests, allemaal groen, ±30 s
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
 python -m src.evaluate          # alle modellen per hotel-nacht, schrijft naar resultaten/
+python -m src.audit             # data en besliscontract, schrijft naar resultaten/audit/
+python -m src.experimenten      # het bewijs achter elke keuze, naar resultaten/audit/
 ```
 
 Wat `src.predict` geeft voor het voorbeeldbestand:
 
 ```
 2026-11-09 16:32:30,644 WARNING src.predict: Het model is niet getraind op agent = 229.0; de voorspellingen daarvoor zijn minder betrouwbaar.
-2026-11-09 16:32:30,669 INFO src.predict: 76 boekingen. Gemiddelde kans op annuleren: 12.6%
-2026-11-09 16:32:30,669 INFO src.predict: Verwacht aantal annulaties: 9.6
+2026-11-09 16:32:30,669 INFO src.predict: 76 boekingen. Gemiddelde kans op annuleren: 12.5%
+2026-11-09 16:32:30,669 INFO src.predict: Verwacht aantal annulaties: 9.5
 2026-11-09 16:32:30,691 INFO src.predict: Advies voor de nacht van 15-08-2017 (zekerheid 80%):
-2026-11-09 16:32:30,691 INFO src.predict:   City Hotel     62 boekingen, verwacht 8.5 annulaties: overboek 3 kamer(s) (maximum 11)
+2026-11-09 16:32:30,691 INFO src.predict:   City Hotel     62 boekingen, verwacht 8.4 annulaties: overboek 3 kamer(s) (maximum 11)
 2026-11-09 16:32:30,691 INFO src.predict:   Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s) (maximum 9)
 ```
 
@@ -58,9 +63,10 @@ een lege waarde. Het gaat om één van de 76 boekingen.
 
 ### Logging
 
-`src.train`, `src.predict` en `src.evaluate` schrijven geen `print` maar logregels: tijd, niveau,
+`src.train`, `src.predict`, `src.evaluate`, `src.audit` en `src.experimenten` schrijven geen
+`print` maar logregels: tijd, niveau,
 module en boodschap. Ze komen op het scherm én in `logs/<opdracht>.log` (`train.log`,
-`predict.log`, `evaluate.log`). Dat bestand groeit aan bij elke run, zodat je achteraf terugvindt
+`predict.log`, `evaluate.log`, `audit.log`, `experimenten.log`). Dat bestand groeit aan bij elke run, zodat je achteraf terugvindt
 welk model met welke cijfers weggeschreven werd. De map staat in `configs/default.yaml` (`logs`),
 het opzetten in `src/logboek.py`. `logs/` wordt niet gecommit.
 
@@ -69,6 +75,9 @@ het opzetten in `src/logboek.py`. `logs/` wordt niet gecommit.
 | INFO | de normale loop: aantallen, scores, wat weggeschreven werd, het advies |
 | WARNING | `src.predict` krijgt een categorie die het model nooit zag |
 | ERROR | net vóór elke stop: een poort niet gehaald, of een export die niet aan het schema voldoet |
+
+`src.predict` schrijft ook de run en de commit van het model in het log. Model, advies en config
+horen samen: zie [Het manifest](#het-manifest).
 
 Nog een paar mogelijkheden:
 
@@ -140,7 +149,12 @@ De horizon en de opschoningsgrenzen staan in `configs/default.yaml`.
 Bewust geen feature, omdat ze pas na het beslismoment gekend zijn of dat vermoedelijk zijn:
 `reservation_status(_date)` (het label), `assigned_room_type`, `booking_changes`,
 `required_car_parking_spaces`, `total_of_special_requests`, `days_in_waiting_list` en
-`country`. De lekcontrole per kolom staat in het notebook.
+`country`. De lekcontrole per kolom staat in het notebook, het register per kolom (wanneer
+gekend, kan het later veranderen, wat is beslist) in
+[docs/feature_beschikbaarheid.csv](docs/feature_beschikbaarheid.csv), en wanneer een label
+gekend is in [docs/label_beschikbaarheid.md](docs/label_beschikbaarheid.md).
+
+Hoeveel boekingen elk filter weghaalt, per hotel en jaar: `resultaten/audit/filterwaterval.csv`.
 
 ### Het schema
 
@@ -181,8 +195,8 @@ kans op annuleren, en het hotel zou nooit overboeken.
 
 Een willekeurige split laat de toekomst in de training lekken: een boeking van augustus 2017
 helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
-Met de willekeurige split haalde de logistische regressie een AUC van 0,725, met de split in de
-tijd 0,628. Het verschil was lek.
+Met een willekeurige split haalt de logistische regressie een AUC van 0,756, met de split in de
+tijd 0,628 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil is lek.
 
 Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
 afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
@@ -201,13 +215,13 @@ keer op de test gemeten. Op de test wordt niets gekozen.
 |---|---|
 | `vuistregel` | de baseline, wat de revenue manager vandaag doet (`src/baseline.py`) |
 | `logreg` | logistische regressie: lege waarden invullen, schalen, one-hot-encoderen |
-| `boosting` | `HistGradientBoostingClassifier`, met de categorieën als categorieën. Zonder vroege stop, want die zet een willekeurig stuk van de training apart |
+| `boosting` | `HistGradientBoostingClassifier`, met de categorieën als categorieën, 100 iteraties. Zonder vroege stop, want die zet een willekeurig stuk van de training apart |
 
 De **vuistregel** neemt het annulatiepercentage van het afgelopen jaar, per hotel ×
 `market_segment` × klasse van `lead_time` (<60, 60–120, 120–240, 240+ dagen). Een groep met
-minder dan 30 boekingen krijgt het percentage van het hotel. Met `venster_maanden: null`
-gebruikt ze alle historiek. Op de validatie overschat ze dan minder (1,05 tegenover 1,10), op de
-test meer (1,30 tegenover 1,20). Het venster van 12 maanden is vooraf vastgelegd, niet afgesteld.
+minder dan 30 boekingen krijgt het percentage van het hotel. Ze gebruikt alle historiek
+(`venster_maanden: null`): op de validatie is dat de sterkere baseline (MAE 6,36 tegenover 6,65
+met de laatste 12 maanden). Een sterkere baseline maakt de poort strenger.
 
 Alles wat iets leert uit de data zit ín de pijplijn, ook het groeperen van het land
 (`land_als_groep` in `src/kenmerken.py`). Ruwe rijen uit het boekingssysteem gaan er dus
@@ -239,11 +253,15 @@ draait ze allemaal, met en zonder land.
 
 1. **Per nacht tellen.** Een boeking telt mee in elke nacht van haar verblijf. Per hotel-nacht
    is het verwachte aantal annulaties de som van de kansen, en de variantie de som van
-   p × (1 − p). Het label blijft verankerd op de aankomst: dat is een vereenvoudiging.
+   p × (1 − p). Het label blijft verankerd op de aankomst: dat is een vereenvoudiging, gemeten in
+   [docs/besliscontract.md](docs/besliscontract.md). De eerste nachten van een periode delen hun
+   portefeuille met gasten die vóór de periode aankwamen; een nacht telt pas mee als minstens
+   95 % van haar boeking-nachten in de periode zit (`evaluatie.min_dekking`). Zo vallen er 16 van
+   de 180 nachten op de validatie weg en 11 van de 306 op de test.
 2. **Spreidingsfactor.** Boekingen annuleren niet los van elkaar, want een groep annuleert
    samen. De spreiding wordt daarom vermenigvuldigd met een factor per hotel en per model,
    geschat op de validatie: de wortel uit het gemiddelde van (echt − verwacht)² / variantie,
-   met een minimum van 1. Voor boosting is dat 2,6 voor City en 1,5 voor Resort.
+   met een minimum van 1. Voor boosting is dat 2,5 voor City en 1,5 voor Resort.
 3. **Advies k.** Het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80, met een
    normale benadering. Nooit meer dan 5 % van de capaciteit: de bescherming voor de gast.
 4. **Capaciteit.** De dataset zegt niet hoeveel kamers er zijn. Daarom het 99ste percentiel
@@ -253,7 +271,9 @@ draait ze allemaal, met en zonder land.
 5. **Bedragen.** Elke kamer die echt vrijkomt en die je extra verkocht, levert r × adr op.
    Elke gast te veel kost W × adr: die moet je doorverwijzen naar een ander hotel. Met r = 0,5
    en W = 2 loont de k-de kamer zolang P(minstens k) ≥ W / (r + W) = 0,80. Daar komt de
-   drempel vandaan.
+   drempel vandaan. Dit is een **europroxy**: ze klopt als de nacht op het beslismoment precies
+   volgeboekt is en elke extra kamer verkocht wordt. Zie
+   [docs/business_aannames.md](docs/business_aannames.md).
 
 Dezelfde functie (`met_advies()` in `src/nachten.py`) geeft het advies in de evaluatie en in
 `src.predict`. Wat geëvalueerd wordt, is dus wat het hotel te zien krijgt.
@@ -262,46 +282,52 @@ Dezelfde functie (`met_advies()` in `src/nachten.py`) geeft het advies in de eva
 
 `python -m src.evaluate` schrijft alles naar `resultaten/`: `evaluatie.csv` (per model en per
 hotel, met de gevoeligheid voor r = 0,3 en W = 3), `groepen.csv`, `winstcurve.csv`,
-`winstcurve.png` en `ijking.png`. Hieronder beide hotels samen.
+`winstcurve.png` en `ijking.png`. `python -m src.experimenten` voegt in `resultaten/audit/` de
+vergelijkingen, de foutenanalyse en de gevoeligheid toe. Hieronder beide hotels samen.
 
-Validatie (Q1 2017, 31 volgeboekte nachten). Hier wordt gekozen:
-
-| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht |
-|---|---|---|---|---|
-| vuistregel | 6,36 | 1,13 | 342 | 0,23 |
-| logreg zonder land | 5,78 | 0,94 | 349 | 0,10 |
-| **boosting zonder land** | **4,86** | 0,91 | 345 | 0,16 |
-| logreg met land | 5,16 | 0,80 | 339 | 0,06 |
-| boosting met land | 4,71 | 0,80 | 342 | 0,06 |
-
-Test (april tot augustus 2017, 204 volgeboekte nachten, na hertrainen). Alleen gerapporteerd:
+Validatie (Q1 2017, 164 hotel-nachten, waarvan 30 volgeboekt). Hier wordt gekozen:
 
 | Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht |
 |---|---|---|---|---|
-| vuistregel | 6,04 | 1,24 | 630 | 0,11 |
-| logreg zonder land | 5,41 | 1,06 | 576 | 0,07 |
-| **boosting zonder land** | **5,11** | 1,07 | 617 | 0,08 |
-| logreg met land | 5,03 | 0,87 | 491 | 0,00 |
-| boosting met land | 5,49 | 1,00 | 532 | 0,01 |
+| vuistregel | 6,36 | 1,11 | 352 | 0,17 |
+| logreg zonder land | 5,78 | 0,97 | 356 | 0,10 |
+| **boosting zonder land** | **4,72** | 0,90 | 357 | 0,13 |
+| logreg met land | 4,98 | 0,82 | 360 | 0,00 |
+| boosting met land | 4,58 | 0,82 | 362 | 0,00 |
+
+Test (april tot augustus 2017, 295 hotel-nachten, waarvan 199 volgeboekt, na hertrainen). Alleen
+gerapporteerd:
+
+| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht |
+|---|---|---|---|---|
+| vuistregel | 6,87 | 1,31 | 638 | 0,10 |
+| logreg zonder land | 5,37 | 1,04 | 592 | 0,07 |
+| **boosting zonder land** | **5,11** | 1,07 | 633 | 0,09 |
+| logreg met land | 5,14 | 0,87 | 522 | 0,01 |
+| boosting met land | 5,39 | 1,01 | 590 | 0,03 |
 
 **Gekozen: boosting zonder land**, op de laagste MAE op de validatie van de modellen zonder land.
 Het is ook op de test het beste model zonder land. De modellen met land staan er ter
-vergelijking: waarom ze niet in aanmerking komen, staat in bevinding 1.
+vergelijking: waarom ze niet in aanmerking komen, staat in bevinding 1. Eerst had boosting 200
+iteraties (validatie 4,87). De AUC op de training lag veel hoger dan op de validatie (0,85
+tegenover 0,69); 100 iteraties is op de validatie aantoonbaar beter en is overgenomen. Eén ronde,
+geen zoektocht: zie de bewijskaart "Hyperparameters" in
+[docs/verantwoording.md](docs/verantwoording.md).
 
 | AUC | validatie | test |
 |---|---|---|
-| vuistregel | 0,548 | 0,611 |
+| vuistregel | 0,557 | 0,613 |
 | logreg zonder land | 0,628 | 0,626 |
-| boosting zonder land | 0,687 | 0,653 |
+| boosting zonder land | 0,695 | 0,647 |
 
 ### De poorten vóór het wegschrijven
 
 `python -m src.train` schrijft het model alleen weg als het op de validatie
 
 1. een lagere MAE per hotel-nacht heeft dan de vuistregel. Anders heeft het model geen reden
-   om te bestaan. Boosting: 4,86 tegenover 6,36
+   om te bestaan. Boosting: 4,72 tegenover 6,36
 2. een AUC van minstens 0,60 haalt (`minimum_auc`). Een model daaronder rangschikt de
-   boekingen nauwelijks beter dan toeval. Boosting: 0,687
+   boekingen nauwelijks beter dan toeval. Boosting: 0,695
 
 Haalt het een poort niet, dan stopt `src.train` met een melding en schrijft het niets weg.
 Haalt het ze wel, dan wordt het opnieuw getraind op de hertraining, één keer op de test
@@ -310,12 +336,22 @@ spreidingsfactor per hotel (van de validatie) en de capaciteit per hotel (van de
 Die heeft `src.predict` nodig voor k. De poorten staan in `bouw_en_bewaar()` in `src/train.py`,
 en `tests/test_systeem.py` controleert dat een model dat ze niet haalt niets achterlaat.
 
+### Het manifest
+
+Naast model en advies schrijft `src.train` `models/manifest.json`: run, commit, sha256 van de
+data, een hash van de config, de features, de trainperiode, de zekerheid, de versies van de
+bibliotheken en de sha256 van model en advies (`src/manifest.py`). `src.predict` stopt met een
+duidelijke melding als het model- of adviesbestand niet van die run is, of als de config sinds het
+trainen anders beslist (features, label, split, advies of model). Een andere winstcurve of
+gevoeligheidsanalyse mag wel. Getest in `tests/test_systeem.py`, ook met een bewust verwisseld
+advies.
+
 ## Bevindingen
 
 ### 1. Het land is waarschijnlijk een lek. Daarom staat het uit
 
 In het voorstel stond het land als feature, gegroepeerd tot PRT tegenover de rest. Het doet
-de AUC met 0,10 stijgen (boosting 0,687 → 0,785), en in de lekcontrole is het de sterkste
+de AUC met 0,08 stijgen (boosting 0,695 → 0,777), en in de lekcontrole is het de sterkste
 kolom na het label zelf. Dat is te mooi om het zonder controle te geloven. Als het land pas bij
 het inchecken ingevuld wordt, en anders op Portugal blijft staan, dan vertelt het niet waar de
 gast vandaan komt, maar of hij is komen opdagen. Dat is het label zelf.
@@ -340,8 +376,8 @@ Dat is geen bewijs, want het boekingssysteem zelf kan je niet bevragen. Maar all
 wijzen dezelfde kant op, en een lek kost meer dan een feature die je mist. Daarom staat
 `gebruik_land` op `false`. Met `true` kan je het model met land nog altijd vergelijken.
 
-Op de MAE per hotel-nacht helpt het land trouwens weinig: op de validatie 4,71 tegenover 4,86,
-op de test zelfs slechter (5,49 tegenover 5,11).
+Op de MAE per hotel-nacht helpt het land trouwens weinig: op de validatie 4,58 tegenover 4,72,
+op de test zelfs slechter (5,39 tegenover 5,11).
 
 ### 2. De controle per groep (PRT tegenover de rest) is zelf aangetast
 
@@ -349,9 +385,9 @@ Voorspeld/echt aantal annulaties per groep:
 
 | Model | PRT validatie | rest validatie | PRT test | rest test |
 |---|---|---|---|---|
-| vuistregel | 0,54 | 1,38 | 0,40 | 1,73 |
-| boosting zonder land | 0,38 | 1,15 | 0,32 | 1,58 |
-| boosting met land | 0,86 | 0,74 | 0,73 | 1,22 |
+| vuistregel | 0,53 | 1,31 | 0,45 | 1,86 |
+| boosting zonder land | 0,37 | 1,13 | 0,32 | 1,58 |
+| boosting met land | 0,85 | 0,76 | 0,71 | 1,25 |
 
 Zonder land onderschat elk model de Portugese boekingen sterk en overschat het de rest. Als
 bevinding 1 klopt, is dat geen eerlijkheidsprobleem van het model, maar van de groepsindeling:
@@ -362,7 +398,7 @@ vraagt een land dat bij het boeken gekend is. Die kolom bestaat niet in deze exp
 Bij wie uitcheckte, is 12 % van Online TA Portugees en 52 % van Corporate, en uit segment of agent
 alleen raad je PRT met een AUC van ongeveer 0,70 (notebook, sectie 9). Het land weglaten maakt
 het model dus niet blind voor het land. Toch volgt het model het land niet: het geeft een
-Portugese boeking op de validatie gemiddeld 12,3 % kans, de rest 15,4 %, terwijl de Portugese
+Portugese boeking op de validatie gemiddeld 12,2 % kans, de rest 15,2 %, terwijl de Portugese
 boekingen 32,7 % annuleren en de rest 13,4 %. De onderschatting van PRT komt dus niet van een
 omweg via segment of agent, maar van de groep zelf. Binnen één agent zie je dat het scherpst:
 bij agent 28 is 7 % van wie uitcheckte Portugees, en 100 % van wie annuleerde. Dat steunt ook
@@ -372,19 +408,30 @@ nagaan wat segment en agent per land doen.
 ### 3. De MAE verbetert, de euro's niet
 
 Boosting verslaat de vuistregel op de MAE, op de validatie en op de test. In euro per
-volgeboekte nacht is er nauwelijks verschil, en op de test verdient de vuistregel zelfs het
-meest (630 tegenover 617). Twee oorzaken:
+volgeboekte nacht is er nauwelijks verschil, en op de test haalt de vuistregel zelfs iets meer
+(638 tegenover 633). Waar de euro's blijven liggen, per volle nacht op de test
+(`resultaten/audit/verlies.csv`):
 
-- **Het maximum van 5 % beslist, niet het model.** In City ligt het gemiddelde advies op de
-  test tussen 10,7 en 11,0 van de 11 kamers, voor elk model. Op een volgeboekte nacht in de
-  zomer annuleren er veel meer dan 11. Het model kan daar dus weinig verschil maken.
+| Model | perfect | gehaald | door het maximum | door voorzichtigheid | door doorverwijzen |
+|---|---|---|---|---|---|
+| vuistregel | 1 232 € | 638 € | 570 € | 2 € | 23 € |
+| logreg | 1 232 € | 592 € | 570 € | 57 € | 14 € |
+| boosting | 1 232 € | 633 € | 570 € | 9 € | 21 € |
+
+"Perfect" is wat met perfecte kennis en zonder maximum te halen was.
+
+- **Het maximum van 5 % beslist, niet het model.** Het laat 46 % liggen, voor elk model
+  hetzelfde. In City raakt het advies van boosting op de test op 98 % van de nachten het maximum
+  van 11 kamers. Wat een model kan beïnvloeden, is de rest: 25 à 71 €.
 - **Het advies is voorzichtig.** Het doel is dat op hoogstens 20 % van de nachten minder
-  annulaties zijn dan k. In werkelijkheid is dat 1 à 8 %. De spreidingsfactor vangt ook de
-  fout van het model op, en niet alleen groepen die samen annuleren. De vuistregel overschat,
-  geeft daardoor hogere k, en dat loont net omdat het advies zo voorzichtig is.
+  annulaties zijn dan k. In werkelijkheid is dat 4 à 9 %. De spreidingsfactor vangt ook de bias
+  van het model op, en niet alleen groepen die samen annuleren. Een factor zonder die bias is
+  getest en faalt, omdat de bias met het seizoen van teken wisselt (`spreiding.csv`).
 
 Het maximum per nacht is de grootste hefboom op de opbrengst, en het is een keuze om de gast
-te beschermen, geen technisch gegeven.
+te beschermen, geen technisch gegeven. Met 7,5 % zou boosting op de test 705 € per volle nacht
+halen, met 0,36 in plaats van 0,09 doorverwezen gasten (`maximum.csv`). Die afweging is aan het
+hotel.
 
 ### 4. Het hoogste punt van de winstcurve ligt dicht bij 0,80, maar de curve is vlak
 
@@ -392,13 +439,16 @@ te beschermen, geen technisch gegeven.
 
 | Model | top validatie | top test |
 |---|---|---|
-| vuistregel | 0,825 | 0,800 |
-| logreg | 0,725 | 0,600 |
-| boosting | 0,850 | 0,725 |
+| vuistregel | 0,800 | 0,800 |
+| logreg | 0,650 | 0,600 |
+| boosting | 0,825 | 0,775 |
 
 Tussen 0,6 en 0,85 verandert de winst weinig, omdat het maximum per nacht vaak bindt. Boven
-0,85 zakt ze snel. 0,80 blijft dus een verdedigbare keuze. Het punt wordt niet op de test
-gekozen.
+0,85 zakt ze snel. De zekerheid volgt uit de bedragen (W / (r + W) = 0,80), en wordt alleen
+vervangen als een andere op de validatie binnen de risicogrens blijft én aantoonbaar meer
+oplevert. 0,825 haalt 4,6 € meer per volle nacht, met een 90 %-bootstrapinterval van −3,4 tot
++14,5 €: niet aantoonbaar. 0,80 blijft (`resultaten/audit/drempel.csv`). Het punt wordt niet op
+de test gekozen.
 
 ### 5. IJking: ruwweg juist, met ruis
 
@@ -408,9 +458,11 @@ Elk punt is een tiende van de validatie, ongeveer 440 boekingen. Logreg en boost
 diagonaal ruwweg tussen 5 en 30 %, met uitschieters. Logreg is bovenaan te zeker: in de
 hoogste tiende voorspelt het 37 % en annuleert 20 %. De vuistregel heeft maar een handvol
 verschillende kansen en volgt de diagonaal het slechtst. In totaal onderschat boosting het
-aantal annulaties per nacht op de validatie met 9 % en overschat het op de test met 7 %. Dat
+aantal annulaties per nacht op de validatie met 10 % en overschat het op de test met 7 %. Dat
 de fout van teken wisselt tussen winter en zomer, wijst eerder op het seizoen dan op de
-ijking.
+ijking. Per maand is dat duidelijk: in City −8,3 annulaties per nacht in januari, +6,4 in juni
+(`resultaten/audit/segment_nacht.csv`). Een korter trainingsvenster (12 maanden) en herijken per
+hotel zijn getest en afgewezen (`experimenten.csv`, `spreiding.csv`).
 
 ### 6. `adr` is het geboekte tarief, ook bij een annulatie
 
@@ -423,38 +475,47 @@ De controle in het notebook (sectie 10):
 - per hotel liggen de medianen minder dan 2 € uit elkaar, en per maand volgen beide het seizoen
 - binnen hetzelfde hotel, dezelfde maand, segment en kamertype is de mediaan voor beide 1,00
 - annulaties hebben vaker een rond bedrag (48 tegenover 42 %). Met adr afgerond op de euro is
-  de AUC 0,682 in plaats van 0,687 en de MAE 4,83 in plaats van 4,86: het model haalt er niets uit
+  de AUC 0,696 in plaats van 0,695 en de MAE 4,64 in plaats van 4,72: het model haalt er niets uit
 
-`adr` blijft dus een feature. Zonder adr stijgt de MAE naar 5,05.
+`adr` blijft dus een feature. Zonder adr is de MAE ook 4,72: weglaten is niet aantoonbaar beter
+(met 200 iteraties hielp adr wel: 4,87 tegenover 5,08).
 
 ## Grenzen
 
 Wat dit project niet doet, of vereenvoudigt:
 
-- **Het label hangt aan de aankomst.** Het beslismoment ligt 30 dagen vóór de aankomst, niet
-  30 dagen vóór elke nacht. Voor de latere nachten van een lang verblijf beslist het model dus
-  met informatie van iets vroeger dan nodig.
+- **Het label hangt aan de aankomst** (contract A), niet aan elke nacht. Voor de latere nachten
+  van een lang verblijf beslist het model met informatie van iets vroeger dan nodig. Per nacht
+  scheelt het echte aantal annulaties gemiddeld 1,0 à 1,6 met een nachtgebonden contract
+  ([docs/besliscontract.md](docs/besliscontract.md)).
+- **De euro's zijn een proxy.** Ze kloppen als de nacht op het beslismoment precies volgeboekt
+  is en elke extra kamer verkocht wordt. "Volgeboekt" is achteraf gemeten, niet op het
+  beslismoment ([docs/business_aannames.md](docs/business_aannames.md)).
 - **De capaciteit is geschat.** De dataset zegt niet hoeveel kamers er zijn. Kamers die nooit
   verkocht werden, zie je niet.
-- **De spreidingsfactor meet twee dingen.** Groepen die samen annuleren, en de fout van het
-  model. Herijken op de validatie zou die twee kunnen scheiden.
-- **De validatie is laagseizoen.** 31 volgeboekte nachten zijn weinig om de euro's op te
-  vergelijken. Daarom wordt gekozen op de MAE, die alle 180 hotel-nachten gebruikt.
+- **De zekerheid van 0,80 is nominaal.** Gemeten komen er op 4 à 9 % van de nachten minder
+  kamers vrij dan k, niet op 20 %. De spreidingsfactor vangt ook de bias van het model op.
+- **Features zoals ze in de export staan.** 20 % van de actieve boekingen werd ooit gewijzigd, en
+  wanneer staat niet in de export. Hun waarde op het beslismoment kan anders geweest zijn
+  ([docs/feature_beschikbaarheid.csv](docs/feature_beschikbaarheid.csv)).
+- **De validatie is laagseizoen.** 30 volgeboekte nachten zijn weinig om de euro's op te
+  vergelijken. Daarom wordt gekozen op de MAE (164 hotel-nachten) en volgt de drempel uit de
+  bedragen.
+- **Seizoensbias.** De fout wisselt van teken tussen winter en zomer. Met twee jaar data is dat
+  binnen dit project niet op te lossen; een korter venster en herijken zijn getest en afgewezen.
 - **Segment en agent wijzen naar het land.** Ze blijven features, want ze zijn bij het boeken
   gekend, maar zo ziet het model het land deels toch. Een eerlijke controle per land kan pas met
   een land dat bij het boeken ingevuld is.
 - **`adr` van wie uitcheckte is mogelijk herrekend** na het verblijf. Het model leert dus van een
   prijs die licht kan afwijken van wat er op het beslismoment in het boekingssysteem stond.
-- **Het weeknummer** scoort in de lekcontrole hoger dan de maand en is bij het boeken gekend.
-  Het is een kandidaat-feature die nog niet getest is.
-- **Driftbewaking, een API en Docker** horen bij deel 3.
+- **Driftbewaking, een API, Docker en shadow mode** horen bij deel 3.
 
 ## Wat waar staat
 
 ```
 configs/default.yaml   paden (data, resultaten, logs), horizon, opschoning, features, land,
-                       split, vuistregel, advies en winstcurve, bedragen, model.soort,
-                       de minimale AUC. Geen code
+                       split, dekking, vuistregel, advies, risicogrens en winstcurve,
+                       bedragen, model.soort, de minimale AUC. Geen code
 ruff.toml              regels voor opmaak en stijl
 src/
   config.py            leest de config
@@ -466,7 +527,10 @@ src/
   train.py             split, model.soort bouwen, trainen, poorten, wegschrijven
   nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de winst
   evaluate.py          alle modellen naast elkaar, per hotel-nacht, plus de grafieken
-  predict.py           model en advies laden, voorspellen, advies k per hotel-nacht
+  predict.py           model en advies laden, manifest controleren, advies k per hotel-nacht
+  manifest.py          model, advies, config en data aan één run binden
+  audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
+  experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
@@ -474,7 +538,9 @@ tests/
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
   test_modellen.py     elke soort, met en zonder land: kansen, ruwe rijen, persistentie
   test_nachten.py      per nacht tellen, advies k, winst, capaciteit; de poort
-  test_systeem.py      van csv tot advies k, ook via de opdrachtregel; de poorten
+  test_systeem.py      van csv tot advies k, ook via de opdrachtregel; de poorten; het manifest
+  test_businessrekening.py  de europroxy met de hand nagerekend, en waar ze afwijkt
+  test_tijdcontract.py contract A tegenover B, verliesrekening, bootstrap
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen
@@ -483,7 +549,17 @@ notebooks/
                        segment en agent als omweg naar het land, adr als lek
 rapport/
   rapport.md           concept van het rapport voor deel 2, met de AI-bijlage
-models/                model.joblib en advies.json, gemaakt door src.train. Niet committen
+docs/
+  verantwoording.md    elke keuze: opties, cijfers, keuze, waarom. Plus de foutenanalyse
+  besliscontract.md    wat het hotel wanneer weet, en waar het label over gaat
+  business_aannames.md de europroxy, haar aannames en de gevoeligheid
+  feature_beschikbaarheid.csv  per kolom: gekend op het beslismoment? later gewijzigd?
+  label_beschikbaarheid.md     wanneer een label gekend is, en het embargo
+  bewijsregister.csv   elk cijfer in README en rapport, met zijn bron
+  audit_scope.md       wat de audit onderzocht, op welke versie
+models/                model.joblib, advies.json en manifest.json, gemaakt door src.train.
+                       Niet committen
 resultaten/            gemaakt door src.evaluate. Gecommit, voor het rapport
+  audit/               gemaakt door src.audit en src.experimenten. Gecommit
 logs/                  train.log, predict.log, evaluate.log. Niet committen
 ```

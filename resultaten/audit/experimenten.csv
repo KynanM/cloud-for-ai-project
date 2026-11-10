@@ -1,0 +1,10 @@
+vraag,variant,mae,bias,voorspeld_echt,te_veel,gem_k,euro_per_volle_nacht,doorverwezen,auc,brier,train_auc,mae_verschil,interval_laag,interval_hoog,aantoonbaar_beter,factor_city,factor_resort
+referentie,boosting zonder land,4.7190,-1.5915,0.8978,0.0610,6.8963,357.2573,0.1333,0.6954,0.1302,0.8275,0.0000,0.0000,0.0000,False,2.4503,1.4555
+trainingsvenster,"boosting, alleen de laatste 12 maanden",5.0413,-0.2177,0.9860,0.0915,7.2317,344.2237,0.2667,0.6618,0.1337,0.8201,0.3223,0.0551,0.6027,False,2.4696,1.6181
+baseline-venster,"vuistregel, venster 12 maanden",6.6529,2.4436,1.1569,0.0854,7.4451,354.5767,0.1667,0.5480,0.1432,0.6305,1.9339,1.3148,2.5427,False,2.2501,2.1967
+baseline-venster,"vuistregel, alle historiek",6.3566,1.6890,1.1085,0.0854,7.2805,351.8607,0.1667,0.5573,0.1398,0.6450,1.6377,1.1459,2.1382,False,2.0965,2.1685
+feature: weeknummer,boosting + arrival_date_week_number,4.7734,-1.3567,0.9129,0.0610,6.7500,358.1889,0.1333,0.6820,0.1312,0.8277,0.0544,-0.0439,0.1502,False,2.6733,1.4362
+feature: adr,boosting zonder adr,4.7196,-1.3050,0.9162,0.0549,6.9329,360.0380,0.1000,0.6907,0.1304,0.8190,0.0006,-0.0957,0.0966,False,2.3226,1.5740
+regularisatie,"boosting, 200 iteraties (eerste instelling)",4.8714,-1.1408,0.9267,0.0671,6.7500,353.5810,0.1667,0.6869,0.1307,0.8536,0.1524,0.0024,0.3047,False,2.5884,1.4822
+regularisatie,"boosting, 200 iteraties, 7 bladeren, minstens 300 per blad",4.6940,-1.1244,0.9278,0.0854,7.0976,351.7108,0.2000,0.6843,0.1319,0.8142,-0.0250,-0.1699,0.1188,False,2.3799,1.4902
+weging,"boosting, class_weight balanced",27.0275,26.9505,2.7306,0.0976,8.1707,325.4590,0.4333,0.6882,0.2155,0.8268,22.3085,19.9898,24.6788,False,6.5756,5.4253

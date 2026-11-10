@@ -1,21 +1,21 @@
 periode,model,groep,boekingen,voorspeld,echt,voorspeld_echt
-validatie,vuistregel,PRT,750,131.3569,245,0.5362
-validatie,vuistregel,rest,3689,679.4955,494,1.3755
-test,vuistregel,PRT,1839,242.3321,600,0.4039
-test,vuistregel,rest,11225,1572.0975,907,1.7333
+validatie,vuistregel,PRT,750,128.9881,245,0.5265
+validatie,vuistregel,rest,3689,649.0347,494,1.3138
+test,vuistregel,PRT,1839,268.4267,600,0.4474
+test,vuistregel,rest,11225,1683.4055,907,1.856
 validatie,logreg zonder land,PRT,750,98.5827,245,0.4024
 validatie,logreg zonder land,rest,3689,636.6904,494,1.2888
 test,logreg zonder land,PRT,1839,176.4319,600,0.2941
 test,logreg zonder land,rest,11225,1439.5486,907,1.5872
-validatie,boosting zonder land,PRT,750,92.5908,245,0.3779
-validatie,boosting zonder land,rest,3689,568.159,494,1.1501
-test,boosting zonder land,PRT,1839,191.5045,600,0.3192
-test,boosting zonder land,rest,11225,1436.2129,907,1.5835
+validatie,boosting zonder land,PRT,750,91.2062,245,0.3723
+validatie,boosting zonder land,rest,3689,560.1456,494,1.1339
+test,boosting zonder land,PRT,1839,193.6385,600,0.3227
+test,boosting zonder land,rest,11225,1437.5739,907,1.585
 validatie,logreg met land,PRT,750,211.9614,245,0.8651
 validatie,logreg met land,rest,3689,396.8273,494,0.8033
 test,logreg met land,PRT,1839,402.5968,600,0.671
 test,logreg met land,rest,11225,929.3279,907,1.0246
-validatie,boosting met land,PRT,750,210.5097,245,0.8592
-validatie,boosting met land,rest,3689,364.163,494,0.7372
-test,boosting met land,PRT,1839,438.578,600,0.731
-test,boosting met land,rest,11225,1109.2696,907,1.223
+validatie,boosting met land,PRT,750,207.6721,245,0.8476
+validatie,boosting met land,rest,3689,375.1834,494,0.7595
+test,boosting met land,PRT,1839,424.1705,600,0.707
+test,boosting met land,rest,11225,1129.598,907,1.2454
