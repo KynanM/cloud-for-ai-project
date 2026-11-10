@@ -135,7 +135,9 @@ model:
   logreg:
     max_iter: 1000
   boosting:
-    max_iter: 200
+    # Eerst 200. 100 is op de validatie aantoonbaar beter (MAE per nacht, bootstrap): zie
+    # experimenten.csv en docs/verantwoording.md. De rest is niet afgesteld.
+    max_iter: 100
     learning_rate: 0.05
     max_leaf_nodes: 15
     min_samples_leaf: 100

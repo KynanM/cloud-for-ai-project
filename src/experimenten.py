@@ -100,6 +100,7 @@ class Opzet:
             c["evaluatie"]["min_dekking"],
         )
         return {
+            "train_auc": roc_auc_score(y, model.predict_proba(X)[:, 1]),
             "p": p,
             "y": ym.to_numpy(),
             "nachten": nachten,
@@ -306,7 +307,12 @@ def variant(cfg: dict, **wijzig) -> dict:
 
 
 def experimenten(o: Opzet) -> pd.DataFrame:
-    """Elke variant beantwoordt één vraag, tegenover een vaste referentie, op de validatie."""
+    """Elke variant beantwoordt één vraag, tegenover een vaste referentie, op de validatie.
+
+    Een variant vervangt de referentie alleen als ze aantoonbaar beter is: de bovengrens van
+    het 90 %-bootstrapinterval van het verschil in absolute fout per nacht ligt onder 0.
+    Dezelfde regel als voor de zekerheid (zie `drempel()`).
+    """
     basis = met(o.cfg, *GEKOZEN)
     num = basis["features"]["numeriek"]
     proeven = [
@@ -336,6 +342,28 @@ def experimenten(o: Opzet) -> pd.DataFrame:
             "boosting zonder adr",
             variant(basis, features__numeriek=[k for k in num if k != "adr"]),
         ),
+        # Eén ronde, gestart omdat de AUC op de training (0,85) ver boven die op de validatie
+        # lag (0,69), verder dan bij de vuistregel (0,65 tegenover 0,56). De eerste instelling
+        # had 200 iteraties; 100 iteraties was aantoonbaar beter en is overgenomen. Geen
+        # tweede ronde: anders wordt het een zoektocht op de validatie.
+        (
+            "regularisatie",
+            "boosting, 200 iteraties (eerste instelling)",
+            variant(basis, model__boosting={**basis["model"]["boosting"], "max_iter": 200}),
+        ),
+        (
+            "regularisatie",
+            "boosting, 200 iteraties, 7 bladeren, minstens 300 per blad",
+            variant(
+                basis,
+                model__boosting={
+                    **basis["model"]["boosting"],
+                    "max_iter": 200,
+                    "max_leaf_nodes": 7,
+                    "min_samples_leaf": 300,
+                },
+            ),
+        ),
         (
             "weging",
             "boosting, class_weight balanced",
@@ -344,10 +372,15 @@ def experimenten(o: Opzet) -> pd.DataFrame:
             ),
         ),
     ]
-    rijen = []
+    rijen, referentie = [], None
     for vraag, omschrijving, c in proeven:
         venster = c.pop("_venster", None) if "_venster" in c else None
         r = o.draai(c, "validatie", "training", "validatie", venster_maanden=venster)
+        fout = r["nachten"].set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
+        if referentie is None:
+            referentie = fout
+        # Per nacht: |fout variant| − |fout referentie|. Negatief: de variant doet het beter.
+        laag, hoog = bootstrap((fout - referentie).dropna(), o.cfg["model"]["seed"])
         factor = spreidingsfactor(r["nachten"])
         t = beide(beoordeel(r["nachten"], factor, o.cap, o.bezet, c))
         rijen.append(
@@ -366,6 +399,11 @@ def experimenten(o: Opzet) -> pd.DataFrame:
                     for k, v in boekingsdiagnostiek(r["y"], r["p"]).items()
                     if k in ("auc", "brier")
                 },
+                "train_auc": r["train_auc"],
+                "mae_verschil": t["mae"] - referentie.mean(),
+                "interval_laag": laag,
+                "interval_hoog": hoog,
+                "aantoonbaar_beter": hoog < 0,
                 "factor_city": factor.get("City Hotel"),
                 "factor_resort": factor.get("Resort Hotel"),
             }
