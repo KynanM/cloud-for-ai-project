@@ -16,6 +16,7 @@ verlies.csv            waar de euro's blijven liggen: het maximum, voorzichtighe
                        doorverwijzen, per model en hotel (R8)
 segment_nacht.csv      fout en verlies per hotel en maand (R8)
 segment_boeking.csv    voorspeld tegenover echt per segment van boekingen (R8)
+split.csv              willekeurige split tegenover de split in de tijd (AUC)
 experimenten.csv       gerichte varianten tegenover de referentie, op de validatie (R9)
 drempel.csv            de zekerheid, met k = 0 als nulbeleid, op de validatie (R10)
 spreiding.csv          geen, de huidige en een herijkte spreidingscorrectie (G4)
@@ -289,6 +290,36 @@ def segment_boeking(bewaard: dict, o: Opzet) -> pd.DataFrame:
                             "verschil": groep["p"].sum() - groep["y"].sum(),
                         }
                     )
+    return pd.DataFrame(rijen)
+
+
+def willekeurige_split(o: Opzet) -> pd.DataFrame:
+    """Waarom de split in de tijd: dezelfde modellen met een willekeurige split.
+
+    Willekeurig: 80/20 over training en validatie samen (de test blijft erbuiten). In de tijd:
+    leren op de training, meten op de validatie. Het verschil in AUC is de toekomst die bij een
+    willekeurige split in de training lekt.
+    """
+    from sklearn.model_selection import train_test_split
+
+    samen = pd.concat([o.delen["training"], o.delen["validatie"]])
+    leer, meet = train_test_split(samen, test_size=0.2, random_state=o.cfg["model"]["seed"])
+    rijen = []
+    for soort in ["logreg", "boosting"]:
+        c = met(o.cfg, soort, False)
+        for split, a, b in [
+            ("willekeurig", leer, meet),
+            ("in de tijd", o.delen["training"], o.delen["validatie"]),
+        ]:
+            model = bouw_pijplijn(c).fit(*kenmerken_en_label(a, c))
+            X, y = kenmerken_en_label(b, c)
+            rijen.append(
+                {
+                    "model": soort,
+                    "split": split,
+                    "auc": roc_auc_score(y, model.predict_proba(X)[:, 1]),
+                }
+            )
     return pd.DataFrame(rijen)
 
 
@@ -641,6 +672,7 @@ def main() -> None:
     segment_boeking(bewaard, o).to_csv(
         uit / "segment_boeking.csv", index=False, float_format="%.4f"
     )
+    schrijf(willekeurige_split(o), "split.csv")
     logger.info("Experimenten (validatie)")
     schrijf(experimenten(o), "experimenten.csv")
     schrijf(drempel(bewaard, o), "drempel.csv")
