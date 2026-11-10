@@ -32,3 +32,7 @@ capaciteit,City / Resort,226 / 184,logs/evaluate.log; models/advies.json,uitgevo
 foutenanalyse,voorspeld/echt januari / maart / juni,0.68 / 1.22 / 1.21,resultaten/audit/segment_boeking.csv,uitgevoerd en reproduceerbaar
 foutenanalyse,bias City januari / juni,−8.3 / +6.4,resultaten/audit/segment_nacht.csv,uitgevoerd en reproduceerbaar
 software,leren / voorspellen boosting,0.3 s / 5 ms per 1 000 boekingen,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht zonder maximum vuistregel / boosting (validatie),328 / 480,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht zonder maximum vuistregel / boosting (test),540 / 715,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+business,overschrijding zonder maximum vuistregel / boosting (test),31 % / 16 %,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+drempel,zekerheid zonder maximum,0.80 blijft; onder 0.70 buiten de risicogrens,resultaten/audit/drempel_zonder_maximum.csv,uitgevoerd en reproduceerbaar
