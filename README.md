@@ -17,14 +17,13 @@ manager beslist.
 - **Split** in de tijd, op aankomstdatum, met een embargo van 31 dagen
 - **Poort:** een model wordt alleen weggeschreven als het de vuistregel verslaat op de
   validatie, en een AUC van minstens 0,60 haalt
-- **Advies k:** het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80, nooit meer dan
-  5 % van de capaciteit
+- **Advies k:** het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80. Geen maximum per
+  nacht meer: het maximum van 5 % uit deel 1 is weggehaald (zie bevinding 3)
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
   dus een lek. Het staat uit. Zie [Bevindingen](#bevindingen)
-- **In euro's** wint het model pas zichtbaar als het maximum van 5 % het niet afremt: zonder
-  maximum haalt boosting op de validatie 480 € per volle nacht tegenover 328 € voor de
-  vuistregel (test: 715 € tegenover 540 €), en het is het enige model dat dan binnen de
-  risicogrens blijft. Met het maximum halen alle modellen ongeveer hetzelfde. Zie bevinding 3
+- **In euro's** is het model nu duidelijk beter: 480 € per volgeboekte nacht op de validatie
+  tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). Het blijft binnen de
+  risicogrens, de vuistregel niet. Zie bevinding 3
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien
@@ -55,8 +54,8 @@ Wat `src.predict` geeft voor het voorbeeldbestand:
 2026-11-09 16:32:30,669 INFO src.predict: 76 boekingen. Gemiddelde kans op annuleren: 12.5%
 2026-11-09 16:32:30,669 INFO src.predict: Verwacht aantal annulaties: 9.5
 2026-11-09 16:32:30,691 INFO src.predict: Advies voor de nacht van 15-08-2017 (zekerheid 80%):
-2026-11-09 16:32:30,691 INFO src.predict:   City Hotel     62 boekingen, verwacht 8.4 annulaties: overboek 3 kamer(s) (maximum 11)
-2026-11-09 16:32:30,691 INFO src.predict:   Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s) (maximum 9)
+2026-11-09 16:32:30,691 INFO src.predict:   City Hotel     62 boekingen, verwacht 8.4 annulaties: overboek 3 kamer(s)
+2026-11-09 16:32:30,691 INFO src.predict:   Resort Hotel   14 boekingen, verwacht 1.1 annulaties: overboek 0 kamer(s)
 ```
 
 De waarschuwing is terecht. Agent 229 boekt pas voor aankomsten vanaf april 2017, dus na het
@@ -265,11 +264,11 @@ draait ze allemaal, met en zonder land.
    geschat op de validatie: de wortel uit het gemiddelde van (echt − verwacht)² / variantie,
    met een minimum van 1. Voor boosting is dat 2,5 voor City en 1,5 voor Resort.
 3. **Advies k.** Het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80, met een
-   normale benadering. Nooit meer dan 5 % van de capaciteit: de bescherming voor de gast.
+   normale benadering. Er is geen maximum per nacht (`advies.max_aandeel: null`); de
+   bescherming voor de gast is de zekerheid zelf, en de risicogrens waartegen ze getoetst is.
 4. **Capaciteit.** De dataset zegt niet hoeveel kamers er zijn. Daarom het 99ste percentiel
    van de bezette kamers per nacht in de training, uit alle uitgecheckte boekingen. City komt
-   op 226 kamers, Resort op 184. Het maximum per nacht is dus 11 en 9 kamers. Een nacht telt
-   als volgeboekt vanaf 95 % van de capaciteit.
+   op 226 kamers, Resort op 184. Een nacht telt als volgeboekt vanaf 95 % van de capaciteit.
 5. **Bedragen.** Elke kamer die echt vrijkomt en die je extra verkocht, levert r × adr op.
    Elke gast te veel kost W × adr: die moet je doorverwijzen naar een ander hotel. Met r = 0,5
    en W = 2 loont de k-de kamer zolang P(minstens k) ≥ W / (r + W) = 0,80. Daar komt de
@@ -287,26 +286,27 @@ hotel, met de gevoeligheid voor r = 0,3 en W = 3), `groepen.csv`, `winstcurve.cs
 `winstcurve.png` en `ijking.png`. `python -m src.experimenten` voegt in `resultaten/audit/` de
 vergelijkingen, de foutenanalyse en de gevoeligheid toe. Hieronder beide hotels samen.
 
-Validatie (Q1 2017, 164 hotel-nachten, waarvan 30 volgeboekt). Hier wordt gekozen:
+Validatie (Q1 2017, 164 hotel-nachten, waarvan 30 volgeboekt). Hier wordt gekozen. "Te veel":
+aandeel nachten met minder annulaties dan k; de risicogrens is 20 %.
 
-| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht |
-|---|---|---|---|---|
-| vuistregel | 6,36 | 1,11 | 352 | 0,17 |
-| logreg zonder land | 5,78 | 0,97 | 356 | 0,10 |
-| **boosting zonder land** | **4,72** | 0,90 | 357 | 0,13 |
-| logreg met land | 4,98 | 0,82 | 360 | 0,00 |
-| boosting met land | 4,58 | 0,82 | 362 | 0,00 |
+| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht | te veel |
+|---|---|---|---|---|---|
+| vuistregel | 6,36 | 1,11 | 328 | 2,23 | **23 %** |
+| logreg zonder land | 5,78 | 0,97 | 343 | 1,37 | 12 % |
+| **boosting zonder land** | **4,72** | 0,90 | **480** | 0,43 | 11 % |
+| logreg met land | 4,98 | 0,82 | 495 | 0,03 | 2 % |
+| boosting met land | 4,58 | 0,82 | 484 | 0,00 | 2 % |
 
 Test (april tot augustus 2017, 295 hotel-nachten, waarvan 199 volgeboekt, na hertrainen). Alleen
 gerapporteerd:
 
-| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht |
-|---|---|---|---|---|
-| vuistregel | 6,87 | 1,31 | 638 | 0,10 |
-| logreg zonder land | 5,37 | 1,04 | 592 | 0,07 |
-| **boosting zonder land** | **5,11** | 1,07 | 633 | 0,09 |
-| logreg met land | 5,14 | 0,87 | 522 | 0,01 |
-| boosting met land | 5,39 | 1,01 | 590 | 0,03 |
+| Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht | te veel |
+|---|---|---|---|---|---|
+| vuistregel | 6,87 | 1,31 | 540 | 1,76 | **31 %** |
+| logreg zonder land | 5,37 | 1,04 | 666 | 0,34 | 10 % |
+| **boosting zonder land** | **5,11** | 1,07 | **715** | 0,54 | 16 % |
+| logreg met land | 5,14 | 0,87 | 578 | 0,03 | 2 % |
+| boosting met land | 5,39 | 1,01 | 700 | 0,23 | 9 % |
 
 **Gekozen: boosting zonder land**, op de laagste MAE op de validatie van de modellen zonder land.
 Het is ook op de test het beste model zonder land. De modellen met land staan er ter
@@ -407,17 +407,18 @@ bij agent 28 is 7 % van wie uitcheckte Portugees, en 100 % van wie annuleerde. D
 bevinding 1. Voor een eerlijke controle later volstaat het land weglaten niet: die moet ook
 nagaan wat segment en agent per land doen.
 
-### 3. Het maximum verbergt wat het model waard is
+### 3. Het maximum verborg wat het model waard is. Het is weggehaald
 
-Met het maximum van 5 % halen alle modellen ongeveer hetzelfde: op de test 638 € per volgeboekte
-nacht voor de vuistregel, 633 € voor boosting. Dat komt niet door het model. In City raakt het
-advies op 98 % van de testnachten het maximum van 11 kamers, voor elk model. Dan beslist het
-maximum, en is er niets meer te onderscheiden.
+In deel 1 mocht het hotel nooit meer dan 5 % van de capaciteit overboeken. Met dat maximum
+haalden alle modellen ongeveer hetzelfde: op de test 638 € per volgeboekte nacht voor de
+vuistregel, 633 € voor boosting. Dat kwam niet door het model. In City raakte het advies op 98 %
+van de testnachten het maximum van 11 kamers, voor elk model. Dan beslist het maximum, niet het
+model.
 
-Dezelfde beslisregel zonder maximum, en met en zonder spreidingsfactor
+Dezelfde beslisregel, met en zonder maximum, en met en zonder spreidingsfactor
 (`resultaten/audit/zonder_rem.csv`):
 
-| € per volle nacht | validatie | test | overschrijding test | doorverwezen per volle nacht, test |
+| € per volle nacht | validatie | test | te veel (test) | doorverwezen per volle nacht, test |
 |---|---|---|---|---|
 | vuistregel, max 5 % | 352 | 638 | 5 % | 0,10 |
 | boosting, max 5 % | 357 | 633 | 5 % | 0,09 |
@@ -426,43 +427,40 @@ Dezelfde beslisregel zonder maximum, en met en zonder spreidingsfactor
 | **boosting, geen maximum** | **480** | **715** | 16 % | 0,54 |
 | boosting, geen maximum, geen spreidingsfactor | 466 | 518 | **33 %** | 1,88 |
 
-Drie dingen vallen op:
-
 - **Zonder maximum is boosting duidelijk het beste**, ook in euro's: +152 € per volle nacht
   tegenover de vuistregel op de validatie, +175 € op de test. Het betere voorspellen vertaalt zich
-  dus wel in geld, zodra het niet afgetopt wordt.
-- **De vuistregel kan niet zonder maximum.** Ze overschat het aantal annulaties, adviseert te veel
-  kamers en gaat ver over de risicogrens van 20 % (31 % van de nachten te veel geadviseerd). Met
-  het maximum wordt die fout weggewerkt, en daarom lijkt ze even goed.
-- **De spreidingsfactor remt niet, ze beschermt.** Zonder factor zakt boosting op de test van
-  715 naar 518 € en gaat het over de risicogrens. Wat bij het maximum op "voorzichtigheid" leek
-  (gemeten 5 % overschrijding in plaats van 20 %), komt doordat het maximum het advies afkapt.
-  Zonder maximum ligt de overschrijding op 11 à 16 %, dicht bij wat 0,80 belooft.
+  in geld zodra het niet afgetopt wordt.
+- **De vuistregel kan niet zonder maximum.** Ze overschat het aantal annulaties en adviseert op
+  31 % van de testnachten te veel kamers, boven de risicogrens van 20 %. Het maximum verborg die
+  fout.
+- **De spreidingsfactor remt niet, ze beschermt.** Zonder factor zakt boosting op de test van 715
+  naar 518 € en gaat het over de risicogrens. Ook binnen de validatie (afstemmen op januari en
+  februari, meten op maart) blijft het zonder factor niet binnen de grens (36 %), met factor wel
+  (19 %).
 
-De zekerheid is zonder maximum opnieuw gekozen op de validatie
-(`drempel_zonder_maximum.csv`): onder 0,70 gaat het advies over de risicogrens, en geen zekerheid
-is aantoonbaar beter dan 0,80. 0,80 blijft dus, met en zonder maximum.
+**Daarom is het maximum weggehaald** (`advies.max_aandeel: null`) en is het model opnieuw
+getraind. Het advies wordt nu begrensd door de zekerheid van 0,80 en de risicogrens, niet door
+een vast aantal kamers. De prijs: op de test worden 0,54 gasten per volle nacht doorverwezen in
+plaats van 0,09, in City 0,86. Dat zit in de europroxy (W = 2 × adr per gast) en blijft binnen de
+risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de config;
+`resultaten/audit/maximum.csv` toont wat 5, 7,5 en 10 % kosten.
 
-Het maximum zelf is een keuze van het hotel om de gast te beschermen, geen technisch gegeven. Het
-staat nog op 5 % zoals in deel 1. Zonder maximum worden op de test 0,54 gasten per volle nacht
-doorverwezen in plaats van 0,09. Die afweging is aan het hotel; het model bewijst zijn waarde
-op de europroxy zonder maximum.
-
-### 4. Het hoogste punt van de winstcurve ligt dicht bij 0,80, maar de curve is vlak
+### 4. De winstcurve: 0,80 blijft, ook zonder maximum
 
 ![Winstcurve](resultaten/winstcurve.png)
 
 | Model | top validatie | top test |
 |---|---|---|
-| vuistregel | 0,800 | 0,800 |
-| logreg | 0,650 | 0,600 |
-| boosting | 0,825 | 0,775 |
+| vuistregel | 0,925 | 0,875 |
+| logreg | 0,875 | 0,775 |
+| boosting | 0,725 | 0,825 |
 
-Tussen 0,6 en 0,85 verandert de winst weinig, omdat het maximum per nacht vaak bindt. Boven
-0,85 zakt ze snel. De zekerheid volgt uit de bedragen (W / (r + W) = 0,80), en wordt alleen
+Zonder maximum is de curve van boosting niet meer vlak: onder 0,70 gaat het advies op de
+validatie over de risicogrens (meer dan 20 % van de nachten te veel) en zakt de winst snel. Boven
+0,85 zakt ze ook. De zekerheid volgt uit de bedragen (W / (r + W) = 0,80), en wordt alleen
 vervangen als een andere op de validatie binnen de risicogrens blijft én aantoonbaar meer
-oplevert. 0,825 haalt 4,6 € meer per volle nacht, met een 90 %-bootstrapinterval van −3,4 tot
-+14,5 €: niet aantoonbaar. 0,80 blijft (`resultaten/audit/drempel.csv`). Het punt wordt niet op
+oplevert. 0,725 haalt 13,9 € meer per volle nacht, met een 90 %-bootstrapinterval van −34,9 tot
++56,6 €: niet aantoonbaar. 0,80 blijft (`resultaten/audit/drempel.csv`). Het punt wordt niet op
 de test gekozen.
 
 ### 5. IJking: ruwweg juist, met ruis
@@ -508,8 +506,10 @@ Wat dit project niet doet, of vereenvoudigt:
   beslismoment ([docs/business_aannames.md](docs/business_aannames.md)).
 - **De capaciteit is geschat.** De dataset zegt niet hoeveel kamers er zijn. Kamers die nooit
   verkocht werden, zie je niet.
-- **De zekerheid van 0,80 is nominaal.** Met het maximum komen er op 4 à 9 % van de nachten
-  minder kamers vrij dan k, zonder maximum op 11 à 16 %, niet op 20 %.
+- **De zekerheid van 0,80 is nominaal.** Gemeten komen er op 11 % (validatie) en 16 % (test) van
+  de nachten minder kamers vrij dan k, binnen de belofte van 20 %.
+- **Geen maximum per nacht.** Het advies wordt alleen begrensd door de zekerheid. Of het hotel
+  0,54 doorverwezen gasten per volle nacht aanvaardt, is aan de revenue manager.
 - **Features zoals ze in de export staan.** 20 % van de actieve boekingen werd ooit gewijzigd, en
   wanneer staat niet in de export. Hun waarde op het beslismoment kan anders geweest zijn
   ([docs/feature_beschikbaarheid.csv](docs/feature_beschikbaarheid.csv)).

@@ -1,25 +1,25 @@
 periode,model,maximum,spreiding,gem_k,te_veel,euro_per_volle_nacht,doorverwezen,binnen_risicogrens
-validatie,vuistregel,max 5 %,spreidingsfactor,7.2805,0.0854,351.8607,0.1667,True
-validatie,vuistregel,max 5 %,factor 1,8.5183,0.1402,321.7827,0.4667,True
+validatie,vuistregel,max 5 % (deel 1),spreidingsfactor,7.2805,0.0854,351.8607,0.1667,True
+validatie,vuistregel,max 5 % (deel 1),factor 1,8.5183,0.1402,321.7827,0.4667,True
 validatie,vuistregel,geen maximum,spreidingsfactor,10.8537,0.2317,327.5722,2.2333,False
 validatie,vuistregel,geen maximum,factor 1,14.2927,0.3963,4.5004,4.8667,False
-test,vuistregel,max 5 %,spreidingsfactor,9.8475,0.0508,638.0273,0.1005,True
-test,vuistregel,max 5 %,factor 1,10.0034,0.0712,631.2182,0.1558,True
+test,vuistregel,max 5 % (deel 1),spreidingsfactor,9.8475,0.0508,638.0273,0.1005,True
+test,vuistregel,max 5 % (deel 1),factor 1,10.0034,0.0712,631.2182,0.1558,True
 test,vuistregel,geen maximum,spreidingsfactor,16.3017,0.3085,539.8986,1.7638,False
 test,vuistregel,geen maximum,factor 1,20.5254,0.5695,144.6082,3.9196,False
-validatie,logreg zonder land,max 5 %,spreidingsfactor,6.3780,0.0488,356.3012,0.1000,True
-validatie,logreg zonder land,max 5 %,factor 1,7.7744,0.0732,360.9697,0.1000,True
+validatie,logreg zonder land,max 5 % (deel 1),spreidingsfactor,6.3780,0.0488,356.3012,0.1000,True
+validatie,logreg zonder land,max 5 % (deel 1),factor 1,7.7744,0.0732,360.9697,0.1000,True
 validatie,logreg zonder land,geen maximum,spreidingsfactor,8.6707,0.1220,342.5105,1.3667,True
 validatie,logreg zonder land,geen maximum,factor 1,12.3963,0.2073,114.8055,3.4000,False
-test,logreg zonder land,max 5 %,spreidingsfactor,9.1186,0.0373,591.6496,0.0653,True
-test,logreg zonder land,max 5 %,factor 1,9.7966,0.0542,628.1435,0.1156,True
+test,logreg zonder land,max 5 % (deel 1),spreidingsfactor,9.1186,0.0373,591.6496,0.0653,True
+test,logreg zonder land,max 5 % (deel 1),factor 1,9.7966,0.0542,628.1435,0.1156,True
 test,logreg zonder land,geen maximum,spreidingsfactor,11.4678,0.0983,665.9339,0.3367,True
 test,logreg zonder land,geen maximum,factor 1,15.9559,0.3051,500.4820,1.7889,False
-validatie,boosting zonder land,max 5 %,spreidingsfactor,6.8963,0.0610,357.2573,0.1333,True
-validatie,boosting zonder land,max 5 %,factor 1,8.0427,0.0732,350.7791,0.2000,True
+validatie,boosting zonder land,max 5 % (deel 1),spreidingsfactor,6.8963,0.0610,357.2573,0.1333,True
+validatie,boosting zonder land,max 5 % (deel 1),factor 1,8.0427,0.0732,350.7791,0.2000,True
 validatie,boosting zonder land,geen maximum,spreidingsfactor,8.4329,0.1098,480.1901,0.4333,True
 validatie,boosting zonder land,geen maximum,factor 1,11.2439,0.1585,465.6805,1.2333,True
-test,boosting zonder land,max 5 %,spreidingsfactor,9.6508,0.0475,633.3838,0.0905,True
-test,boosting zonder land,max 5 %,factor 1,9.8542,0.0542,635.2343,0.1206,True
+test,boosting zonder land,max 5 % (deel 1),spreidingsfactor,9.6508,0.0475,633.3838,0.0905,True
+test,boosting zonder land,max 5 % (deel 1),factor 1,9.8542,0.0542,635.2343,0.1206,True
 test,boosting zonder land,geen maximum,spreidingsfactor,12.9153,0.1593,714.5775,0.5377,True
 test,boosting zonder land,geen maximum,factor 1,16.4136,0.3288,518.0408,1.8844,False

@@ -8,7 +8,7 @@ Een hotel beslist 30 dagen vóór elke nacht hoeveel kamers het extra mag verkop
 voorspelt per boeking die op dat moment nog actief is, de kans dat ze alsnog geannuleerd wordt
 of een no-show wordt. Opgeteld per hotel-nacht geeft dat het verwachte aantal kamers dat
 vrijkomt. Daaruit volgt het advies k: het grootste aantal waarvoor P(minstens k annulaties)
-≥ 0,80, met een maximum van 5 % van de capaciteit.
+≥ 0,80. Het maximum van 5 % van de capaciteit uit deel 1 is weggehaald: zie paragraaf 4.
 
 De ML-metriek uit deel 1 is de **MAE van het aantal annulaties per hotel-nacht**. De
 businessmetriek is een **europroxy** per volgeboekte nacht: een extra verkochte kamer die echt
@@ -41,11 +41,11 @@ historiek: op de validatie sterker dan alleen het laatste jaar, 6,36 tegenover 6
 
 | Model | MAE validatie | MAE test | AUC validatie | AUC test | € per volle nacht, test |
 |---|---|---|---|---|---|
-| vuistregel | 6,36 | 6,87 | 0,557 | 0,613 | 638 |
-| logistische regressie | 5,78 | 5,37 | 0,628 | 0,626 | 592 |
-| **boosting** | **4,72** | **5,11** | **0,695** | **0,647** | 633 |
-| *logistische regressie met land* | *4,98* | *5,14* | *0,743* | *0,751* | *522* |
-| *boosting met land* | *4,58* | *5,39* | *0,777* | *0,792* | *590* |
+| vuistregel | 6,36 | 6,87 | 0,557 | 0,613 | 540 |
+| logistische regressie | 5,78 | 5,37 | 0,628 | 0,626 | 666 |
+| **boosting** | **4,72** | **5,11** | **0,695** | **0,647** | **715** |
+| *logistische regressie met land* | *4,98* | *5,14* | *0,743* | *0,751* | *578* |
+| *boosting met land* | *4,58* | *5,39* | *0,777* | *0,792* | *700* |
 
 De modellen met land staan er ter vergelijking. Waarom ze niet in aanmerking komen, staat in
 paragraaf 5. De validatie telt 30 volgeboekte nachten, de test 199. Elke andere keuze (features,
@@ -63,23 +63,23 @@ lichtere varianten vergeleken. 100 iteraties was aantoonbaar beter (bootstrap pe
 overgenomen. Gewogen klassen en een korter trainingsvenster zijn getest en afgewezen: de weging
 verdrievoudigt het voorspelde aantal annulaties.
 
-**Met het maximum van 5 % verdwijnt het verschil in euro's.** Op de test haalt de vuistregel
-638 € per volgeboekte nacht, boosting 633 €. In het stadshotel raakt het advies op 98 % van de
-testnachten het maximum, voor elk model: dan beslist het maximum en niet het model. Zonder
-maximum, met dezelfde beslisregel, haalt boosting 480 € op de validatie tegenover 328 € voor de
-vuistregel (test: 715 € tegenover 540 €). De vuistregel overschat het aantal annulaties en
-adviseert dan op 31 % van de testnachten te veel kamers, ver boven de risicogrens van 20 %;
-boosting blijft er met 16 % onder. Het maximum verbergt dus de fout van de vuistregel en de
-waarde van het model.
+**Het maximum van 5 % verborg de waarde van het model, en is weggehaald.** Met dat maximum haalde
+de vuistregel op de test 638 € per volgeboekte nacht en boosting 633 €: in het stadshotel raakte
+het advies op 98 % van de testnachten het maximum, voor elk model, dus besliste het maximum en
+niet het model. Zonder maximum, met dezelfde beslisregel, haalt boosting 480 € op de validatie
+tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). De vuistregel overschat het
+aantal annulaties en adviseert dan op 31 % van de testnachten te veel kamers, boven de risicogrens
+van 20 %; boosting blijft er met 16 % onder. Het maximum is daarom uit de config gehaald en het
+model is opnieuw getraind.
 
-De spreidingsfactor remt het model niet: zonder factor zakt boosting zonder maximum op de test
-naar 518 € en gaat het over de risicogrens. De drempel van 0,80 volgt uit de bedragen en is met
-en zonder maximum opnieuw getoetst op de validatie: geen andere zekerheid is aantoonbaar beter
-(bootstrap per nacht), onder 0,70 wordt de risicogrens overschreden.
+De spreidingsfactor remt het model niet, ze beschermt: zonder factor zakt boosting op de test naar
+518 € en gaat het over de risicogrens. De drempel van 0,80 volgt uit de bedragen en is zonder
+maximum opnieuw getoetst op de validatie: geen andere zekerheid is aantoonbaar beter (bootstrap
+per nacht), onder 0,70 wordt de risicogrens overschreden.
 
-Het maximum blijft een keuze van het hotel om de gast te beschermen: zonder maximum worden op de
-test 0,54 gasten per volle nacht doorverwezen in plaats van 0,09. Het model bewijst zijn waarde op
-de europroxy zonder maximum; welk maximum het hotel aanhoudt, beslist de revenue manager.
+De prijs van geen maximum: op de test worden 0,54 gasten per volle nacht doorverwezen in plaats
+van 0,09. Dat zit in de europroxy en blijft binnen de risicogrens. Het model adviseert, de revenue
+manager beslist; wil het hotel toch een maximum, dan staat het in de config.
 
 ## 5. Data leakage
 
@@ -114,8 +114,8 @@ andere waarde tonen dan op het beslismoment (`docs/feature_beschikbaarheid.csv`)
   echte aantal annulaties gemiddeld 1,0 à 1,6).
 - De euro's zijn een proxy; de capaciteit is geschat als het 99ste percentiel van de bezette
   kamers (226 en 184).
-- De zekerheid van 0,80 is nominaal; gemeten is het advies voorzichtiger, vooral met het
-  maximum (5 % overschrijding, zonder maximum 16 %).
+- De zekerheid van 0,80 is nominaal; gemeten adviseert het model op 11 % (validatie) en 16 %
+  (test) van de nachten te veel, binnen de belofte van 20 %.
 - De controle per groep (Portugal tegenover de rest) kan met deze export niet eerlijk, omdat de
   groep zelf met de lekkende kolom gemaakt is.
 - Code, tests en alle cijfers staan in de repository. `README.md` legt uit hoe je ze opnieuw maakt,
@@ -139,13 +139,13 @@ vrij. [IN TE VULLEN: hoe het plan tot stand kwam, en in hoeverre met AI.]
 |---|---|---|
 | refactor naar het pakket | de code uit deel 1 omzetten naar `src/`, met config en tests | [IN TE VULLEN] |
 | split, vuistregel, modellen | code en tests schrijven, cijfers berekenen | de periodes, het embargo, de drie modellen |
-| evaluatie per hotel-nacht | `src/nachten.py`, `src/evaluate.py`, grafieken | de metriek, r en W, de drempel, het maximum van 5 % |
+| evaluatie per hotel-nacht | `src/nachten.py`, `src/evaluate.py`, grafieken | de metriek, r en W, de drempel, het maximum van 5 % (na de audit weggehaald) |
 | schema en tests | controles, unit- en systeemtests schrijven | de grenzen van 20 en 50 % |
 | exploratienotebook | analyses en tekst | welke vragen beantwoord moesten worden |
 | README en dit rapport | eerste versie van de tekst | [IN TE VULLEN: wat je herschreef] |
 | review van 9 november | de repository nalezen tegen les 5 en de checklist van labo 5 | welke punten aangepast werden |
 | aanpassingen na de review | logging in plaats van print, paden en parameters naar de config, versies vastgelegd, de analyses van segment en agent en van `adr` | [IN TE VULLEN] |
-| audit van 10 november | een onderzoeksplan (zelf met AI opgesteld op basis van het lesmateriaal) uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | [IN TE VULLEN: welke keuzes je overnam: dekkingsregel, vuistregel met alle historiek, 100 iteraties, 0,80 behouden] |
+| audit van 10 november | een onderzoeksplan (zelf met AI opgesteld op basis van het lesmateriaal) uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | [IN TE VULLEN: welke keuzes je overnam: dekkingsregel, vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen] |
 
 **Waar de AI mijn plan bijstuurde.** De AI merkte op dat het land waarschijnlijk een lek is, en
 legde de cijfers voor in plaats van het zelf te schrappen. Ik besliste het land uit te zetten.

@@ -21,12 +21,12 @@ model,AUC validatie / test boosting,0.695 / 0.647,resultaten/audit/modelvergelij
 hyperparameters,200 / 100 iteraties,MAE 4.87 / 4.72; interval +0.002 tot +0.31,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
 weging,class_weight balanced,MAE 27.0; voorspeld/echt 2.73,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
 trainingsvenster,laatste 12 maanden,MAE 5.04,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
-spreiding,overschrijding huidig / factor 1 (maart),15 % / 16 %,resultaten/audit/spreiding.csv,uitgevoerd en reproduceerbaar
-drempel,beste kandidaat tegenover 0.80,0.825: +4.6 € (−3.4 tot +14.5),resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
-business,€ per volle nacht test vuistregel / boosting,638 / 633,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
-business,verlies door het maximum (test),570 € van 1 232 €,resultaten/audit/verlies.csv,uitgevoerd en reproduceerbaar
+spreiding,te veel huidig / factor 1 (maart; zonder maximum),19 % / 36 %,resultaten/audit/spreiding.csv,uitgevoerd en reproduceerbaar
+drempel,beste kandidaat tegenover 0.80 (zonder maximum),0.725: +13.9 € (−34.9 tot +56.6),resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht test vuistregel / boosting (zonder maximum),540 / 715,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+business,verlies door het oude maximum van 5 % (test),570 € van 1 232 € (zonder maximum: 0),resultaten/audit/verlies.csv,uitgevoerd en reproduceerbaar
 business,maximum 7.5 % (test),705 €; 0.36 doorverwezen,resultaten/audit/maximum.csv,uitgevoerd en reproduceerbaar
-business,robuustheid r en w (test),362 tot 905 €; altijd beter dan k = 0,resultaten/audit/robuustheid.csv,uitgevoerd en reproduceerbaar
+business,robuustheid r en w (test),307 tot 1 122 €; altijd beter dan k = 0,resultaten/audit/robuustheid.csv,uitgevoerd en reproduceerbaar
 business,proxy tegenover fysieke rekening,exact bij geboekt = capaciteit,tests/test_businessrekening.py,uitgevoerd en reproduceerbaar
 capaciteit,City / Resort,226 / 184,logs/evaluate.log; models/advies.json,uitgevoerd en reproduceerbaar
 foutenanalyse,voorspeld/echt januari / maart / juni,0.68 / 1.22 / 1.21,resultaten/audit/segment_boeking.csv,uitgevoerd en reproduceerbaar
@@ -35,4 +35,5 @@ software,leren / voorspellen boosting,0.3 s / 5 ms per 1 000 boekingen,resultate
 business,€ per volle nacht zonder maximum vuistregel / boosting (validatie),328 / 480,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
 business,€ per volle nacht zonder maximum vuistregel / boosting (test),540 / 715,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
 business,overschrijding zonder maximum vuistregel / boosting (test),31 % / 16 %,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
-drempel,zekerheid zonder maximum,0.80 blijft; onder 0.70 buiten de risicogrens,resultaten/audit/drempel_zonder_maximum.csv,uitgevoerd en reproduceerbaar
+drempel,risicogrens zonder maximum,onder 0.70 meer dan 20 % te veel,resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
+business,maximum weggehaald,max_aandeel: null; 0.54 doorverwezen per volle nacht (test),configs/default.yaml; resultaten/audit/maximum.csv,uitgevoerd en reproduceerbaar
