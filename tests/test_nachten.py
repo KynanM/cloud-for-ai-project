@@ -197,7 +197,8 @@ def test_beoordeel_meldt_bias_nul_en_maximum_adviezen(cfg):
     bezet = nachten[["hotel", "nacht"]].assign(bezet=[0, 0])
 
     # Act
-    tabel = beoordeel(nachten, {"City Hotel": 1.0}, {"City Hotel": 200}, bezet, cfg)
+    cfg_5 = {**cfg, "advies": {**cfg["advies"], "max_aandeel": 0.05}}
+    tabel = beoordeel(nachten, {"City Hotel": 1.0}, {"City Hotel": 200}, bezet, cfg_5)
     beide = tabel.set_index("hotel").loc["beide"]
 
     # Assert: bias = gemiddelde van (+3, -0,8); maximum = 5 % van 200 = 10

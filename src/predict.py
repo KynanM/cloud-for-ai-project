@@ -113,14 +113,15 @@ def main(argv: list[str]) -> None:
         f"{nacht:%d-%m-%Y}",
         100 * cfg["advies"]["zekerheid"],
     )
+    met_maximum = cfg["advies"]["max_aandeel"] is not None
     for _, rij in tabel.iterrows():
         logger.info(
-            "  %-13s%4d boekingen, verwacht %.1f annulaties: overboek %d kamer(s) (maximum %d)",
+            "  %-13s%4d boekingen, verwacht %.1f annulaties: overboek %d kamer(s)%s",
             rij["hotel"],
             rij["boekingen"],
             rij["verwacht"],
             rij["k"],
-            rij["maximum"],
+            f" (maximum {rij['maximum']})" if met_maximum else "",
         )
 
 
