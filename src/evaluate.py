@@ -23,11 +23,20 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.calibration import calibration_curve  # noqa: E402
+from sklearn.metrics import brier_score_loss, roc_auc_score  # noqa: E402
 
 from .config import laad_config  # noqa: E402
 from .data import bereid_voor, laad_data  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
-from .nachten import beoordeel, bezetting, capaciteit, per_nacht, spreidingsfactor  # noqa: E402
+from .nachten import (  # noqa: E402
+    alleen_volledig,
+    beoordeel,
+    bezetting,
+    capaciteit,
+    dekking,
+    per_nacht,
+    spreidingsfactor,
+)
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits  # noqa: E402
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
@@ -79,14 +88,22 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
         ]:
             model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
             p = kansen(model, delen[meet], c)
-            nachten = per_nacht(delen[meet], p, c, g[f"{periode}_start"], g[f"{periode}_einde"])
+            begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
+            nachten = alleen_volledig(
+                per_nacht(delen[meet], p, c, begin, einde),
+                dekking(df, begin, einde),
+                c["evaluatie"]["min_dekking"],
+            )
             if periode == "validatie":
                 factor = spreidingsfactor(nachten)
+            y = delen[meet][c["doel"]].to_numpy()
             tabel = beoordeel(nachten, factor, cap, bezet, c)
             tabel["factor"] = tabel["hotel"].map(factor)
+            # Diagnostiek per boeking, voor beide hotels samen: niet de ML-metriek uit deel 1.
+            tabel["auc"] = roc_auc_score(y, p)
+            tabel["brier"] = brier_score_loss(y, p)
             rijen.append(tabel.assign(periode=periode, model=naam(soort, land)))
 
-            y = delen[meet][c["doel"]].to_numpy()
             prt = (delen[meet]["country"] == "PRT").to_numpy()
             for groep, masker in [("PRT", prt), ("rest", ~prt)]:
                 groepen.append(
@@ -222,6 +239,7 @@ def toon(tabel: pd.DataFrame, periode: str) -> None:
         "model": "model",
         "hotel": "hotel",
         "mae": "MAE",
+        "bias": "bias",
         "voorspeld_echt": "voorsp/echt",
         "te_veel": "nachten c<k",
         "gem_k": "gem. k",

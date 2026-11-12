@@ -1,0 +1,19 @@
+periode,model,hotel,volle_nachten,perfect,euro,door_maximum,door_voorzicht,door_doorverw,aandeel_gehaald
+validatie,vuistregel,City Hotel,17,1092.5357,612.3361,0.0000,130.7516,349.4480,0.5605
+validatie,vuistregel,Resort Hotel,13,346.6560,-44.8113,0.0000,97.7401,293.7272,-0.1293
+validatie,vuistregel,beide,30,769.3212,327.5722,0.0000,116.4466,325.3024,0.4258
+test,vuistregel,City Hotel,100,1442.2301,434.4374,0.0000,186.8356,820.9571,0.3012
+test,vuistregel,Resort Hotel,99,1020.2572,646.4250,0.0000,309.8354,63.9968,0.6336
+test,vuistregel,beide,199,1232.3039,539.8986,0.0000,248.0265,444.3789,0.4381
+validatie,logreg zonder land,City Hotel,17,1092.5357,477.0682,0.0000,272.2441,343.2234,0.4367
+validatie,logreg zonder land,Resort Hotel,13,346.6560,166.5504,0.0000,113.7507,66.3549,0.4804
+validatie,logreg zonder land,beide,30,769.3212,342.5105,0.0000,203.5637,223.2471,0.4452
+test,logreg zonder land,City Hotel,100,1442.2301,815.5111,0.0000,482.1194,144.5996,0.5655
+test,logreg zonder land,Resort Hotel,99,1020.2572,514.8458,0.0000,488.5082,16.9031,0.5046
+test,logreg zonder land,beide,199,1232.3039,665.9339,0.0000,485.2978,81.0722,0.5404
+validatie,boosting zonder land,City Hotel,17,1092.5357,696.4844,0.0000,323.1881,72.8633,0.6375
+validatie,boosting zonder land,Resort Hotel,13,346.6560,197.3438,0.0000,99.1860,50.1263,0.5693
+validatie,boosting zonder land,beide,30,769.3212,480.1901,0.0000,226.1205,63.0106,0.6242
+test,boosting zonder land,City Hotel,100,1442.2301,822.2841,0.0000,400.4275,219.5186,0.5701
+test,boosting zonder land,Resort Hotel,99,1020.2572,605.7831,0.0000,365.1450,49.3291,0.5938
+test,boosting zonder land,beide,199,1232.3039,714.5775,0.0000,382.8749,134.8515,0.5799

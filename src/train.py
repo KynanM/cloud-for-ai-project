@@ -31,7 +31,16 @@ from .config import PROJECT, invoerkolommen, laad_config
 from .data import aankomstdatum, bereid_voor, laad_data
 from .kenmerken import als_tekst, land_als_groep
 from .logboek import zet_logging_op
-from .nachten import bezetting, capaciteit, per_nacht, spreidingsfactor
+from .manifest import bestand_hash as manifest_hash
+from .manifest import maak_manifest
+from .nachten import (
+    alleen_volledig,
+    bezetting,
+    capaciteit,
+    dekking,
+    per_nacht,
+    spreidingsfactor,
+)
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -159,10 +168,20 @@ def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
-def nachten_van(model: Model, deel: pd.DataFrame, begin, einde, cfg: dict) -> pd.DataFrame:
-    """Voorspel en tel per hotel-nacht, tussen begin en einde."""
+def nachten_van(
+    model: Model, deel: pd.DataFrame, begin, einde, cfg: dict, alle: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Voorspel en tel per hotel-nacht, tussen begin en einde.
+
+    Met `alle` (alle actieve boekingen) vallen de nachten weg waarvan de portefeuille
+    onvolledig is: gasten die vóór `begin` aankwamen en dan nog blijven. Zie
+    `evaluatie.min_dekking` in de config en `dekking()` in src/nachten.py.
+    """
     kansen = model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
-    return per_nacht(deel, kansen, cfg, begin, einde)
+    nachten = per_nacht(deel, kansen, cfg, begin, einde)
+    if alle is None:
+        return nachten
+    return alleen_volledig(nachten, dekking(alle, begin, einde), cfg["evaluatie"]["min_dekking"])
 
 
 def mae(nachten: pd.DataFrame) -> float:
@@ -180,7 +199,7 @@ def valideer(df: pd.DataFrame, cfg: dict) -> dict:
     delen, g = splits(df, cfg), grenzen(cfg)
     model, auc = train(df, cfg)
     vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
-    meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg)
+    meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg, df)
     nachten = nachten_van(model, *meet)
     return {
         "auc": auc,
@@ -247,7 +266,9 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
 
     g = grenzen(cfg)
     cap = capaciteit(bezetting(ruw), g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    manifest = maak_manifest(cfg, ruw, g)
     advies = {
+        "run_id": manifest["run_id"],
         "model": soort,
         "gebruik_land": cfg["features"]["gebruik_land"],
         "factor": v["factor"],
@@ -256,9 +277,17 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, cfg["model"]["pad"])
     cfg["model"]["advies_pad"].write_text(json.dumps(advies, indent=2), encoding="utf-8")
+    manifest["bestanden"] = {
+        "model": manifest_hash(cfg["model"]["pad"]),
+        "advies": manifest_hash(cfg["model"]["advies_pad"]),
+    }
+    cfg["model"]["manifest_pad"].write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     logger.info("Model weggeschreven naar %s", cfg["model"]["pad"])
     logger.info("Spreidingsfactor en capaciteit weggeschreven naar %s", cfg["model"]["advies_pad"])
-    return {**v, "test_auc": test_auc}
+    logger.info(
+        "Manifest (run %s) weggeschreven naar %s", manifest["run_id"], cfg["model"]["manifest_pad"]
+    )
+    return {**v, "test_auc": test_auc, "run_id": manifest["run_id"]}
 
 
 def main(argv: list[str]) -> None:

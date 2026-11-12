@@ -1,0 +1,39 @@
+beslispunt,bewering,waarde,bron,status
+data,boekingen in de export,119 390,resultaten/audit/filterwaterval.csv,uitgevoerd en reproduceerbaar
+data,actief op het beslismoment,50 824 (basiskans 14.3 %),resultaten/audit/filterwaterval.csv; logs/train.log,uitgevoerd en reproduceerbaar
+data,exacte kopieën,27 % van de rijen,notebook sectie 2,uitgevoerd en reproduceerbaar
+data,Non Refund geannuleerd en Portugees,99.4 % en 97 %,notebook sectie 3,uitgevoerd en reproduceerbaar
+data,parkeerplaats en annulaties,0 van 3 265,notebook sectie 5,uitgevoerd en reproduceerbaar
+contract,boeking-nachten alleen in A / alleen in B,0.8 % / 2.1 %,resultaten/audit/contract.csv,uitgevoerd en reproduceerbaar
+contract,verschil echt per nacht A tegenover B,1.55 (validatie) / 1.02 (test),resultaten/audit/contract_nacht.csv,uitgevoerd en reproduceerbaar
+periodegrenzen,weggelaten nachten,16 van 180 (validatie) / 11 van 306 (test),resultaten/audit/dekking.csv,uitgevoerd en reproduceerbaar
+split,AUC logreg willekeurig tegenover in de tijd,0.756 / 0.628,resultaten/audit/split.csv,uitgevoerd en reproduceerbaar
+split,embargo,training tot 30-11-2016; hertraining tot 28-02-2017,src/train.py grenzen(); tests/test_split.py,uitgevoerd en reproduceerbaar
+features,land: MAE en AUC zonder / met,4.72 / 4.58; 0.695 / 0.777,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+features,land als lek: PRT bij no-show / uitgecheckt,63 % / 18 %,notebook sectie 6,uitgevoerd en reproduceerbaar
+features,adr met / zonder,MAE 4.72 / 4.72,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+features,weeknummer,MAE 4.77 tegenover 4.72,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+imputatie,numerieke lege waarden in actieve boekingen,0,docs/verantwoording.md sectie 6,niet uitgevoerd (afgewezen op theorie)
+baseline,vuistregel alle historiek / 12 maanden,MAE 6.36 / 6.65,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+model,MAE validatie vuistregel / logreg / boosting,6.36 / 5.78 / 4.72,resultaten/evaluatie.csv; resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+model,MAE test vuistregel / logreg / boosting,6.87 / 5.37 / 5.11,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+model,AUC validatie / test boosting,0.695 / 0.647,resultaten/audit/modelvergelijking.csv; logs/train.log,uitgevoerd en reproduceerbaar
+hyperparameters,200 / 100 iteraties,MAE 4.87 / 4.72; interval +0.002 tot +0.31,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+weging,class_weight balanced,MAE 27.0; voorspeld/echt 2.73,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+trainingsvenster,laatste 12 maanden,MAE 5.04,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
+spreiding,te veel huidig / factor 1 (maart; zonder maximum),19 % / 36 %,resultaten/audit/spreiding.csv,uitgevoerd en reproduceerbaar
+drempel,beste kandidaat tegenover 0.80 (zonder maximum),0.725: +13.9 € (−34.9 tot +56.6),resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht test vuistregel / boosting (zonder maximum),540 / 715,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+business,verlies door het oude maximum van 5 % (test),570 € van 1 232 € (zonder maximum: 0),resultaten/audit/verlies.csv,uitgevoerd en reproduceerbaar
+business,maximum 7.5 % (test),705 €; 0.36 doorverwezen,resultaten/audit/maximum.csv,uitgevoerd en reproduceerbaar
+business,robuustheid r en w (test),307 tot 1 122 €; altijd beter dan k = 0,resultaten/audit/robuustheid.csv,uitgevoerd en reproduceerbaar
+business,proxy tegenover fysieke rekening,exact bij geboekt = capaciteit,tests/test_businessrekening.py,uitgevoerd en reproduceerbaar
+capaciteit,City / Resort,226 / 184,logs/evaluate.log; models/advies.json,uitgevoerd en reproduceerbaar
+foutenanalyse,voorspeld/echt januari / maart / juni,0.68 / 1.22 / 1.21,resultaten/audit/segment_boeking.csv,uitgevoerd en reproduceerbaar
+foutenanalyse,bias City januari / juni,−8.3 / +6.4,resultaten/audit/segment_nacht.csv,uitgevoerd en reproduceerbaar
+software,leren / voorspellen boosting,0.3 s / 5 ms per 1 000 boekingen,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht zonder maximum vuistregel / boosting (validatie),328 / 480,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+business,€ per volle nacht zonder maximum vuistregel / boosting (test),540 / 715,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+business,overschrijding zonder maximum vuistregel / boosting (test),31 % / 16 %,resultaten/audit/zonder_rem.csv,uitgevoerd en reproduceerbaar
+drempel,risicogrens zonder maximum,onder 0.70 meer dan 20 % te veel,resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
+business,maximum weggehaald,max_aandeel: null; 0.54 doorverwezen per volle nacht (test),configs/default.yaml; resultaten/audit/maximum.csv,uitgevoerd en reproduceerbaar

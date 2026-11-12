@@ -36,9 +36,10 @@ def per_nacht(
 ) -> pd.DataFrame:
     """Eén rij per hotel-nacht, alleen de nachten tussen begin en einde (inbegrepen).
 
-    De eerste nachten van een periode missen de boekingen die vóór de periode aankwamen. Dat
-    geldt voor de voorspelling en voor de werkelijkheid, dus de vergelijking blijft eerlijk.
-    Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
+    De eerste nachten van een periode missen de boekingen die vóór de periode aankwamen en dan
+    nog blijven. Hun portefeuille is onvolledig: het advies is dan te laag, en de nacht kan toch
+    als volgeboekt tellen. Zie `dekking()` en `alleen_volledig()`: de evaluatie laat die nachten
+    weg. Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
     """
     boeking, nacht = _uitgerold(deel)
     p = np.asarray(kansen, dtype=float)[boeking]
@@ -64,6 +65,35 @@ def per_nacht(
         .agg(**som, adr=("adr", "mean"), boekingen=("verwacht", "size"))
         .reset_index()
     )
+
+
+def dekking(alle: pd.DataFrame, begin, einde) -> pd.DataFrame:
+    """Per hotel-nacht tussen begin en einde: welk deel van de portefeuille in de periode zit.
+
+    `alle` zijn alle boekingen die actief zijn op hun beslismoment, uit alle periodes. Een
+    boeking die vóór `begin` aankwam en dan nog blijft, hoort bij de portefeuille van die nacht,
+    maar zit niet in de periode. Dekking 1: de nacht is volledig. Alleen aankomstdatums en
+    verblijfsduur worden gebruikt, nooit het label.
+    """
+    boeking, nacht = _uitgerold(alle)
+    rijen = pd.DataFrame(
+        {
+            "hotel": alle["hotel"].to_numpy()[boeking],
+            "nacht": nacht,
+            "binnen": aankomstdatum(alle).to_numpy()[boeking] >= np.datetime64(pd.Timestamp(begin)),
+        }
+    )
+    rijen = rijen[rijen["nacht"].between(pd.Timestamp(begin), pd.Timestamp(einde))]
+    return rijen.groupby(["hotel", "nacht"])["binnen"].mean().rename("dekking").reset_index()
+
+
+def alleen_volledig(nachten: pd.DataFrame, dek: pd.DataFrame, minimum: float) -> pd.DataFrame:
+    """Laat de hotel-nachten weg waarvan minder dan `minimum` van de portefeuille in de periode zit.
+
+    Een nacht zonder dekkingsgegevens telt als volledig: er blijft dan niemand van vroeger.
+    """
+    n = nachten.merge(dek, on=["hotel", "nacht"], how="left").fillna({"dekking": 1.0})
+    return n[n["dekking"] >= minimum].drop(columns="dekking").reset_index(drop=True)
 
 
 def bezetting(ruw: pd.DataFrame) -> pd.DataFrame:
@@ -125,8 +155,11 @@ def met_advies(
     voorspellen, zodat wat geëvalueerd wordt ook is wat het hotel te zien krijgt."""
     a = cfg["advies"]
     zekerheid = a["zekerheid"] if zekerheid is None else zekerheid
+    # Zonder maximum (max_aandeel: null) is de enige grens de capaciteit zelf: meer kamers
+    # dan het hotel heeft, kan er nooit vrijkomen.
+    aandeel = 1.0 if a["max_aandeel"] is None else a["max_aandeel"]
     uit = nachten.copy()
-    uit["maximum"] = np.floor(a["max_aandeel"] * uit["hotel"].map(cap)).astype(int)
+    uit["maximum"] = np.floor(aandeel * uit["hotel"].map(cap)).astype(int)
     uit["k"] = advies(
         uit["verwacht"], uit["variantie"], uit["hotel"].map(factor), zekerheid, uit["maximum"]
     )
@@ -134,14 +167,39 @@ def met_advies(
 
 
 def winst(k, echt, adr, r: float, w: float) -> np.ndarray:
-    """Wat k extra verkochte kamers opleveren, in euro.
+    """De europroxy: wat k extra verkochte kamers opleveren, in euro.
 
     Elke kamer die echt vrijkomt, levert r × adr op. Elke gast te veel kost w × adr: je moet
     hem doorverwijzen naar een ander hotel. De k-de kamer loont zolang
     P(minstens k annulaties) >= w / (r + w).
+
+    Een proxy, geen gerealiseerde winst. Ze klopt alleen als de nacht op het beslismoment
+    precies volgeboekt is en elke extra kamer ook echt verkocht wordt: dan is ze gelijk aan
+    `winst_fysiek()` met geboekt = capaciteit. Zie docs/business_aannames.md.
     """
     k, echt, adr = (np.asarray(x, dtype=float) for x in (k, echt, adr))
     return adr * (r * np.minimum(k, echt) - w * np.maximum(k - echt, 0))
+
+
+def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float) -> np.ndarray:
+    """De referentie voor `winst()`: rekent met de echte kamers in plaats van alleen met k en echt.
+
+    Op het beslismoment zijn er `geboekt` kamers verkocht, het hotel heeft er `cap`. Het hotel
+    verkoopt k kamers extra, en er komen `echt` vrij. Een kamer die bovenop de capaciteit
+    verkocht is en vrijkomt, levert r × adr op; elke gast boven de capaciteit kost w × adr.
+
+    Bij geboekt = cap is dit precies `winst()`. Staat het hotel al boven de capaciteit, of
+    blijven er kamers leeg, dan wijkt `winst()` af. Alleen voor de tests en de aannames: de
+    dataset zegt niet hoeveel kamers er op het beslismoment verkocht waren.
+    """
+    k, echt, geboekt, cap, adr = (np.asarray(x, dtype=float) for x in (k, echt, geboekt, cap, adr))
+    nodig = geboekt - echt + k
+    doorverwezen = np.maximum(nodig - cap, 0)
+    # Extra verkochte kamers die een plaats vinden: k min wie doorverwezen wordt, maar niet meer
+    # dan de kamers die zonder overboeking leeg zouden blijven.
+    leeg_zonder = np.maximum(cap - (geboekt - echt), 0)
+    gevuld = np.minimum(k, leeg_zonder)
+    return adr * (r * gevuld - w * doorverwezen)
 
 
 def beoordeel(
@@ -151,13 +209,20 @@ def beoordeel(
     bezet: pd.DataFrame,
     cfg: dict,
     zekerheid: float | None = None,
-) -> pd.DataFrame:
+    detail: bool = False,
+) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """De ML-metriek en de businessmetriek, per hotel en voor beide samen.
 
+    Met `detail=True` ook de tabel per hotel-nacht, voor de foutenanalyse.
+
     mae                  gemiddelde |verwacht - echt| per hotel-nacht. De ML-metriek
+    bias                 gemiddelde (verwacht - echt) per hotel-nacht. Negatief: onderschat
     voorspeld_echt       som verwacht / som echt. 1 is goed geijkt
-    te_veel              aandeel nachten met minder annulaties dan k. Doel: 1 - zekerheid
-    euro_per_volle_nacht winst per volgeboekte nacht, met r en w uit de config
+    te_veel              aandeel nachten met minder annulaties dan k: de gemeten overschrijding.
+                         Nominaal hoogstens 1 - zekerheid
+    nul_advies           aandeel nachten met k = 0
+    max_advies           aandeel nachten waarop k het maximum per nacht raakt
+    euro_per_volle_nacht europroxy per volgeboekte nacht, met r en w uit de config
     doorverwezen         doorverwezen gasten per volgeboekte nacht
     """
     a, b = cfg["advies"], cfg["bedragen"]
@@ -176,9 +241,12 @@ def beoordeel(
         uit = {
             "nachten": len(groep),
             "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
+            "bias": (groep["verwacht"] - groep["echt"]).mean(),
             "voorspeld_echt": groep["verwacht"].sum() / groep["echt"].sum(),
             "te_veel": (groep["echt"] < groep["k"]).mean(),
             "gem_k": groep["k"].mean(),
+            "nul_advies": (groep["k"] == 0).mean(),
+            "max_advies": ((groep["k"] == groep["maximum"]) & (groep["maximum"] > 0)).mean(),
             "volle_nachten": len(vol),
             "euro_per_volle_nacht": vol["euro"].mean(),
             "doorverwezen": vol["doorverwezen"].mean(),
@@ -190,4 +258,5 @@ def beoordeel(
 
     per_hotel = {hotel: samenvatting(groep) for hotel, groep in n.groupby("hotel")}
     per_hotel["beide"] = samenvatting(n)
-    return pd.DataFrame(per_hotel).T.rename_axis("hotel").reset_index()
+    tabel = pd.DataFrame(per_hotel).T.rename_axis("hotel").reset_index()
+    return (tabel, n) if detail else tabel
