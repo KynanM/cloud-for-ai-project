@@ -1,0 +1,32 @@
+kolom,rol,betekenis,bekend_op_T,kan_later_wijzigen,historisch_bewijs,beslissing
+lead_time,feature,dagen tussen boeking en aankomst,ja,nee,vast na het boeken; de export toont geen tweede waarde,behouden
+stays_in_weekend_nights,feature,weekendnachten van het verblijf,ja (geboekt),ja (wijziging of vroeger vertrek),20 % van de actieve boekingen heeft booking_changes > 0; wanneer staat er niet in,behouden met beperking
+stays_in_week_nights,feature,weeknachten van het verblijf,ja (geboekt),ja (wijziging of vroeger vertrek),zie stays_in_weekend_nights,behouden met beperking
+adults,feature,aantal volwassenen,ja,ja (wijziging),zie booking_changes,behouden met beperking
+children,feature,aantal kinderen,ja,ja (wijziging),zie booking_changes,behouden met beperking
+babies,feature,aantal baby's,ja,ja (wijziging),zie booking_changes,behouden met beperking
+is_repeated_guest,feature,eerder al gast,ja,nee,profiel bij het boeken,behouden
+previous_cancellations,feature,eerdere annulaties van deze klant,ja,ja (latere boekingen van dezelfde klant),telt alleen boekingen vóór deze; niet na te gaan per datum,behouden met beperking
+previous_bookings_not_canceled,feature,eerdere niet-geannuleerde boekingen,ja,ja,zie previous_cancellations,behouden met beperking
+adr,feature,gemiddelde prijs per nacht,ja (geboekt tarief),mogelijk herrekend na het verblijf,notebook sectie 10: geannuleerd houdt het geboekte tarief; zelfde verdeling per hotel/segment/maand; afronden verandert de AUC niet (0.682 tegenover 0.687); zonder adr MAE 5.08 tegenover 4.87,behouden
+hotel,feature,City of Resort,ja,nee,vast,behouden
+arrival_date_month,feature,maand van aankomst,ja,ja (datumwijziging),zie booking_changes,behouden met beperking
+meal,feature,maaltijdformule,ja,ja (wijziging),zie booking_changes,behouden met beperking
+market_segment,feature,marktsegment,ja,nee,toegekend bij het boeken; wel een omweg naar het land (AUC 0.70 om PRT te raden; notebook sectie 9),behouden met beperking
+distribution_channel,feature,verkoopkanaal,ja,nee,toegekend bij het boeken,behouden
+reserved_room_type,feature,geboekt kamertype,ja,ja (wijziging),zie booking_changes,behouden met beperking
+deposit_type,feature,soort waarborg,ja,ja,Non Refund is uitgesloten (99.4 % geannuleerd: datafout),behouden
+customer_type,feature,soort klant,ja,ja (bv. Transient wordt Transient-Party),zie booking_changes,behouden met beperking
+agent,feature,id van het reisbureau,ja,nee,toegekend bij het boeken; wel een omweg naar het land (notebook sectie 9),behouden met beperking
+arrival_date_year,alleen vuistregel,jaar van aankomst,ja,ja (datumwijziging),alleen voor het venster van de vuistregel,behouden (geen feature)
+arrival_date_day_of_month,alleen vuistregel,dag van aankomst,ja,ja (datumwijziging),alleen voor het venster van de vuistregel,behouden (geen feature)
+arrival_date_week_number,kandidaat,weeknummer van aankomst,ja,ja (datumwijziging),getest: MAE 4.96 tegenover 4.87 (experimenten.csv),afgewezen op de validatie
+country,uit,land van de gast,vermoedelijk niet,ja (vermoedelijk pas bij inchecken ingevuld),no-shows 63 % PRT tegenover 18 % bij uitgecheckt; agent 28: 100 % tegenover 7 % (README bevinding 1),uitgesloten: lek
+company,uit,id van het bedrijf,ja,nee,96.8 % leeg,uitgesloten: te dun
+booking_changes,uit,aantal wijzigingen,nee (telt ook wijzigingen na T),ja,geannuleerd 8.6 % tegenover 15.8 %: volgt de afloop,uitgesloten: lek
+days_in_waiting_list,uit,dagen op de wachtlijst,onzeker,ja,2.8 % > 0; tijdstip onbekend,uitgesloten: onzeker
+assigned_room_type,uit,toegewezen kamertype,nee (bij aankomst),ja,13.6 % verschilt van reserved,uitgesloten: lek
+required_car_parking_spaces,uit,parkeerplaatsen,nee (bij aankomst),ja,van 3 265 actieve boekingen met parkeerplaats annuleert er geen,uitgesloten: lek
+total_of_special_requests,uit,speciale wensen,nee (tot aankomst),ja,lekcontrole notebook sectie 5,uitgesloten: lek
+reservation_status,label,eindstatus,nee,ja,het label zelf,label
+reservation_status_date,label,datum van de eindstatus,nee,ja,bepaalt of een annulatie vóór of na T valt,label

@@ -7,9 +7,11 @@ import pytest
 from src.evaluate import zekerheden_winstcurve
 from src.nachten import (
     advies,
+    alleen_volledig,
     beoordeel,
     bezetting,
     capaciteit,
+    dekking,
     per_nacht,
     spreidingsfactor,
     winst,
@@ -152,3 +154,54 @@ def test_de_zekerheden_van_de_winstcurve_komen_uit_de_config(cfg):
     assert z[0] == w["van"] and z[-1] == w["tot"]
     assert len(z) == round((w["tot"] - w["van"]) / w["stap"]) + 1
     assert cfg["advies"]["zekerheid"] in z
+
+
+def test_dekking_meet_wie_van_voor_de_periode_nog_blijft(cfg):
+    # Arrange: één gast komt op 30 december voor 5 nachten, één op 1 januari voor 1 nacht
+    alle = pd.DataFrame(
+        [boeking(aankomst="2016-12-30", nachten=5), boeking(aankomst="2017-01-01", nachten=1)]
+    )
+
+    # Act
+    dek = dekking(alle, "2017-01-01", "2017-01-10").set_index("nacht")["dekking"]
+
+    # Assert: op 1 januari zit de helft in de periode, daarna niemand meer van binnen
+    assert dek[pd.Timestamp("2017-01-01")] == pytest.approx(0.5)
+    assert dek[pd.Timestamp("2017-01-02")] == pytest.approx(0.0)
+    assert pd.Timestamp("2017-01-05") not in dek.index
+
+
+def test_onvolledige_nachten_vallen_weg(cfg):
+    alle = pd.DataFrame(
+        [boeking(aankomst="2016-12-30", nachten=3), boeking(aankomst="2017-01-01", nachten=4)]
+    )
+    deel = alle.iloc[[1]]
+    n = per_nacht(deel, np.array([0.1]), cfg, "2017-01-01", "2017-01-31")
+    volledig = alleen_volledig(n, dekking(alle, "2017-01-01", "2017-01-31"), 0.95)
+    # 1 januari deelt de gast van 30 december (zijn laatste nacht): weg. Vanaf 2 januari volledig
+    assert volledig["nacht"].dt.day.tolist() == [2, 3, 4]
+
+
+def test_beoordeel_meldt_bias_nul_en_maximum_adviezen(cfg):
+    # Arrange: één nacht waar k het maximum raakt, één met k = 0
+    nachten = pd.DataFrame(
+        {
+            "hotel": ["City Hotel", "City Hotel"],
+            "nacht": pd.to_datetime(["2017-01-01", "2017-01-02"]),
+            "verwacht": [30.0, 0.2],
+            "variantie": [4.0, 0.16],
+            "echt": [27, 1],
+            "adr": [100.0, 100.0],
+        }
+    )
+    bezet = nachten[["hotel", "nacht"]].assign(bezet=[0, 0])
+
+    # Act
+    cfg_5 = {**cfg, "advies": {**cfg["advies"], "max_aandeel": 0.05}}
+    tabel = beoordeel(nachten, {"City Hotel": 1.0}, {"City Hotel": 200}, bezet, cfg_5)
+    beide = tabel.set_index("hotel").loc["beide"]
+
+    # Assert: bias = gemiddelde van (+3, -0,8); maximum = 5 % van 200 = 10
+    assert beide["bias"] == pytest.approx(1.1)
+    assert beide["nul_advies"] == pytest.approx(0.5)
+    assert beide["max_advies"] == pytest.approx(0.5)

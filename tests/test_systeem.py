@@ -6,6 +6,7 @@ nieuwe boekingen voorspellen, per nacht tellen en het advies geven. Alles in een
 zodat models/ niet aangeraakt wordt.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -14,8 +15,9 @@ import numpy as np
 import pytest
 import yaml
 
-from src.config import PROJECT, laad_config
+from src.config import PROJECT, invoerkolommen, laad_config
 from src.data import laad_data
+from src.manifest import controleer
 from src.predict import adviseer, laad_advies, laad_model
 from src.schema import INVOER
 from src.train import bouw_en_bewaar
@@ -28,7 +30,10 @@ def config_in(map_: Path, **model) -> Path:
     ruwe = yaml.safe_load((PROJECT / "configs" / "default.yaml").read_text(encoding="utf-8"))
     ruwe["logs"] = str(map_ / "logs")
     ruwe["model"].update(
-        pad=str(map_ / "model.joblib"), advies_pad=str(map_ / "advies.json"), **model
+        pad=str(map_ / "model.joblib"),
+        advies_pad=str(map_ / "advies.json"),
+        manifest_pad=str(map_ / "manifest.json"),
+        **model,
     )
     pad = map_ / "config.yaml"
     pad.write_text(yaml.safe_dump(ruwe, allow_unicode=True), encoding="utf-8")
@@ -63,15 +68,29 @@ def test_van_csv_tot_advies_k(gebouwd):
     assert ((tabel["verwacht"] >= 0) & (tabel["verwacht"] <= tabel["boekingen"])).all()
 
 
-def test_maximum_is_vijf_procent_van_de_capaciteit(gebouwd):
+def test_zonder_maximum_is_de_capaciteit_de_grens(gebouwd):
     cfg, _ = gebouwd
+    assert cfg["advies"]["max_aandeel"] is None
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
     tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg, nacht=NACHT)
 
+    verwacht = {hotel: int(np.floor(cap)) for hotel, cap in instellingen["capaciteit"].items()}
+    assert tabel.set_index("hotel")["maximum"].to_dict() == verwacht
+    # De geschatte capaciteit: City 225,8 en Resort 184 kamers
+    assert verwacht == {"City Hotel": 225, "Resort Hotel": 184}
+
+
+def test_een_maximum_van_vijf_procent_kan_nog_altijd(gebouwd):
+    # Wil het hotel toch een maximum, dan volstaat max_aandeel in de config
+    cfg, _ = gebouwd
+    cfg_5 = {**cfg, "advies": {**cfg["advies"], "max_aandeel": 0.05}}
+    instellingen = laad_advies(cfg["model"]["advies_pad"])
+    nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
+    tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg_5, nacht=NACHT)
+
     verwacht = {
-        hotel: int(np.floor(cfg["advies"]["max_aandeel"] * cap))
-        for hotel, cap in instellingen["capaciteit"].items()
+        hotel: int(np.floor(0.05 * cap)) for hotel, cap in instellingen["capaciteit"].items()
     }
     assert tabel.set_index("hotel")["maximum"].to_dict() == verwacht
     # De capaciteit uit de data, vergeleken met het voorstel: City ±11, Resort ±9
@@ -116,6 +135,7 @@ def test_wie_de_poort_niet_haalt_wordt_niet_weggeschreven(ruw, tmp_path, instell
         bouw_en_bewaar(ruw, cfg)
     assert not cfg["model"]["pad"].exists()
     assert not cfg["model"]["advies_pad"].exists()
+    assert not cfg["model"]["manifest_pad"].exists()
 
 
 def test_de_opdrachtregel_van_csv_tot_advies(tmp_path):
@@ -141,3 +161,43 @@ def test_de_opdrachtregel_van_csv_tot_advies(tmp_path):
     logbestand = (tmp_path / "logs" / "predict.log").read_text(encoding="utf-8")
     assert "Advies voor de nacht van 15-08-2017" in logbestand
     assert "Validatie: AUC" in (tmp_path / "logs" / "train.log").read_text(encoding="utf-8")
+
+
+def test_manifest_bindt_model_advies_en_config(gebouwd):
+    # Roundtrip: wat src.train wegschreef, hoort bij elkaar
+    cfg, resultaat = gebouwd
+    manifest = controleer(cfg)
+    assert manifest["run_id"] == resultaat["run_id"]
+    assert manifest["run_id"] == laad_advies(cfg["model"]["advies_pad"])["run_id"]
+    assert manifest["features"] == invoerkolommen(cfg)
+    assert len(manifest["dataset"]["sha256"]) == 64
+
+
+def test_verwisseld_advies_wordt_geweigerd(gebouwd, tmp_path):
+    # Arrange: een advies met een andere spreidingsfactor, van een andere run
+    cfg, _ = gebouwd
+    vreemd = laad_advies(cfg["model"]["advies_pad"])
+    vreemd["run_id"] = "een-andere-run"
+    vreemd["factor"] = {hotel: 1.0 for hotel in vreemd["factor"]}
+    pad = tmp_path / "advies.json"
+    pad.write_text(json.dumps(vreemd), encoding="utf-8")
+    cfg_vreemd = {**cfg, "model": {**cfg["model"], "advies_pad": pad}}
+
+    # Act en Assert
+    with pytest.raises(SystemExit, match="adviesbestand is niet dat van run"):
+        controleer(cfg_vreemd)
+
+
+def test_gewijzigde_beleidsinstelling_wordt_geweigerd(gebouwd):
+    # Iemand zet de zekerheid lager na het trainen, zonder opnieuw te beoordelen
+    cfg, _ = gebouwd
+    cfg_anders = {**cfg, "advies": {**cfg["advies"], "zekerheid": 0.6}}
+    with pytest.raises(SystemExit, match="config is veranderd"):
+        controleer(cfg_anders)
+
+
+def test_een_andere_winstcurve_mag_wel(gebouwd):
+    # Wat niets verandert aan het advies, blokkeert het voorspellen niet
+    cfg, _ = gebouwd
+    cfg_anders = {**cfg, "advies": {**cfg["advies"], "winstcurve": {"van": 0.1}}}
+    controleer(cfg_anders)

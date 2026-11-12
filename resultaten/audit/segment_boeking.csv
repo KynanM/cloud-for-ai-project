@@ -1,0 +1,109 @@
+periode,model,dimensie,waarde,boekingen,voorspeld,echt,voorspeld_echt,verschil
+validatie,vuistregel,hotel,City Hotel,3069,562.1453,554,1.0147,8.1453
+validatie,vuistregel,hotel,Resort Hotel,1370,215.8775,185,1.1669,30.8775
+validatie,vuistregel,market_segment,Corporate,108,8.8869,26,0.3418,-17.1131
+validatie,vuistregel,market_segment,Direct,318,44.5854,37,1.2050,7.5854
+validatie,vuistregel,market_segment,Groups,972,199.7690,97,2.0595,102.7690
+validatie,vuistregel,market_segment,Offline TA/TO,495,48.7785,32,1.5243,16.7785
+validatie,vuistregel,market_segment,Online TA,2546,476.0029,547,0.8702,-70.9971
+validatie,vuistregel,lead_time,120-240,960,121.1039,133,0.9106,-11.8961
+validatie,vuistregel,lead_time,240+,180,17.5709,23,0.7640,-5.4291
+validatie,vuistregel,lead_time,60-120,1553,269.4496,226,1.1923,43.4496
+validatie,vuistregel,lead_time,<60,1746,369.8984,357,1.0361,12.8984
+validatie,vuistregel,verblijf,1,463,83.9887,120,0.6999,-36.0113
+validatie,vuistregel,verblijf,2-3,1889,336.7778,301,1.1189,35.7778
+validatie,vuistregel,verblijf,4-7,1843,316.6837,278,1.1391,38.6837
+validatie,vuistregel,verblijf,8+,244,40.5726,40,1.0143,0.5726
+validatie,vuistregel,agent,geen agent,496,93.8918,57,1.6472,36.8918
+validatie,vuistregel,agent,via agent,3943,684.1310,682,1.0031,2.1310
+validatie,vuistregel,customer_type,Contract,22,1.4959,0,1.4959,1.4959
+validatie,vuistregel,customer_type,Group,15,2.2596,0,2.2596,2.2596
+validatie,vuistregel,customer_type,Transient,3170,544.5112,600,0.9075,-55.4888
+validatie,vuistregel,customer_type,Transient-Party,1232,229.7561,139,1.6529,90.7561
+validatie,vuistregel,deposit_type,No Deposit,4439,778.0228,739,1.0528,39.0228
+validatie,vuistregel,maand,February,1293,224.2240,284,0.7895,-59.7760
+validatie,vuistregel,maand,January,1015,192.0367,212,0.9058,-19.9633
+validatie,vuistregel,maand,March,2131,361.7621,243,1.4887,118.7621
+test,vuistregel,hotel,City Hotel,8930,1470.2803,1078,1.3639,392.2803
+test,vuistregel,hotel,Resort Hotel,4134,481.5519,429,1.1225,52.5519
+test,vuistregel,market_segment,Complementary,2,0.2440,0,0.2440,0.2440
+test,vuistregel,market_segment,Corporate,103,18.1587,18,1.0088,0.1587
+test,vuistregel,market_segment,Direct,1549,177.7550,128,1.3887,49.7550
+test,vuistregel,market_segment,Groups,1187,230.6964,125,1.8456,105.6964
+test,vuistregel,market_segment,Offline TA/TO,2669,224.2272,201,1.1156,23.2272
+test,vuistregel,market_segment,Online TA,7554,1300.7508,1035,1.2568,265.7508
+test,vuistregel,lead_time,120-240,5301,655.4740,446,1.4697,209.4740
+test,vuistregel,lead_time,240+,2123,282.1969,254,1.1110,28.1969
+test,vuistregel,lead_time,60-120,3561,562.3879,402,1.3990,160.3879
+test,vuistregel,lead_time,<60,2079,451.7734,405,1.1155,46.7734
+test,vuistregel,verblijf,1,980,163.6616,144,1.1365,19.6616
+test,vuistregel,verblijf,2-3,5545,913.9309,745,1.2268,168.9309
+test,vuistregel,verblijf,4-7,5743,792.9334,556,1.4261,236.9334
+test,vuistregel,verblijf,8+,796,81.3063,62,1.3114,19.3063
+test,vuistregel,agent,geen agent,681,92.2162,67,1.3764,25.2162
+test,vuistregel,agent,via agent,12383,1859.6159,1440,1.2914,419.6159
+test,vuistregel,customer_type,Contract,504,27.9830,12,2.3319,15.9830
+test,vuistregel,customer_type,Group,48,4.9774,1,4.9774,3.9774
+test,vuistregel,customer_type,Transient,9640,1480.0683,1217,1.2162,263.0683
+test,vuistregel,customer_type,Transient-Party,2872,438.8035,277,1.5841,161.8035
+test,vuistregel,deposit_type,No Deposit,13046,1949.3088,1490,1.3083,459.3088
+test,vuistregel,deposit_type,Refundable,18,2.5234,17,0.1484,-14.4766
+test,vuistregel,maand,April,2584,408.6009,336,1.2161,72.6009
+test,vuistregel,maand,August,2556,364.4306,278,1.3109,86.4306
+test,vuistregel,maand,July,2737,390.4377,271,1.4407,119.4377
+test,vuistregel,maand,June,2529,392.6026,282,1.3922,110.6026
+test,vuistregel,maand,May,2658,395.7604,340,1.1640,55.7604
+validatie,boosting zonder land,hotel,City Hotel,3069,483.1522,554,0.8721,-70.8478
+validatie,boosting zonder land,hotel,Resort Hotel,1370,168.1996,185,0.9092,-16.8004
+validatie,boosting zonder land,market_segment,Corporate,108,16.6472,26,0.6403,-9.3528
+validatie,boosting zonder land,market_segment,Direct,318,41.0158,37,1.1085,4.0158
+validatie,boosting zonder land,market_segment,Groups,972,93.2679,97,0.9615,-3.7321
+validatie,boosting zonder land,market_segment,Offline TA/TO,495,28.8884,32,0.9028,-3.1116
+validatie,boosting zonder land,market_segment,Online TA,2546,471.5326,547,0.8620,-75.4674
+validatie,boosting zonder land,lead_time,120-240,960,98.6449,133,0.7417,-34.3551
+validatie,boosting zonder land,lead_time,240+,180,17.3755,23,0.7555,-5.6245
+validatie,boosting zonder land,lead_time,60-120,1553,225.0980,226,0.9960,-0.9020
+validatie,boosting zonder land,lead_time,<60,1746,310.2334,357,0.8690,-46.7666
+validatie,boosting zonder land,verblijf,1,463,69.8298,120,0.5819,-50.1702
+validatie,boosting zonder land,verblijf,2-3,1889,291.0925,301,0.9671,-9.9075
+validatie,boosting zonder land,verblijf,4-7,1843,259.1415,278,0.9322,-18.8585
+validatie,boosting zonder land,verblijf,8+,244,31.2880,40,0.7822,-8.7120
+validatie,boosting zonder land,agent,geen agent,496,67.4192,57,1.1828,10.4192
+validatie,boosting zonder land,agent,via agent,3943,583.9326,682,0.8562,-98.0674
+validatie,boosting zonder land,customer_type,Contract,22,0.5942,0,0.5942,0.5942
+validatie,boosting zonder land,customer_type,Group,15,1.0378,0,1.0378,1.0378
+validatie,boosting zonder land,customer_type,Transient,3170,525.7658,600,0.8763,-74.2342
+validatie,boosting zonder land,customer_type,Transient-Party,1232,123.9541,139,0.8918,-15.0459
+validatie,boosting zonder land,deposit_type,No Deposit,4439,651.3518,739,0.8814,-87.6482
+validatie,boosting zonder land,maand,February,1293,210.4647,284,0.7411,-73.5353
+validatie,boosting zonder land,maand,January,1015,143.9601,212,0.6791,-68.0399
+validatie,boosting zonder land,maand,March,2131,296.9271,243,1.2219,53.9271
+test,boosting zonder land,hotel,City Hotel,8930,1240.6237,1078,1.1509,162.6237
+test,boosting zonder land,hotel,Resort Hotel,4134,390.5887,429,0.9105,-38.4113
+test,boosting zonder land,market_segment,Complementary,2,0.4835,0,0.4835,0.4835
+test,boosting zonder land,market_segment,Corporate,103,16.5339,18,0.9186,-1.4661
+test,boosting zonder land,market_segment,Direct,1549,163.2520,128,1.2754,35.2520
+test,boosting zonder land,market_segment,Groups,1187,89.4480,125,0.7156,-35.5520
+test,boosting zonder land,market_segment,Offline TA/TO,2669,157.3913,201,0.7830,-43.6087
+test,boosting zonder land,market_segment,Online TA,7554,1204.1037,1035,1.1634,169.1037
+test,boosting zonder land,lead_time,120-240,5301,541.6384,446,1.2144,95.6384
+test,boosting zonder land,lead_time,240+,2123,159.3396,254,0.6273,-94.6604
+test,boosting zonder land,lead_time,60-120,3561,493.5313,402,1.2277,91.5313
+test,boosting zonder land,lead_time,<60,2079,436.7030,405,1.0783,31.7030
+test,boosting zonder land,verblijf,1,980,161.2661,144,1.1199,17.2661
+test,boosting zonder land,verblijf,2-3,5545,761.1289,745,1.0216,16.1289
+test,boosting zonder land,verblijf,4-7,5743,645.0318,556,1.1601,89.0318
+test,boosting zonder land,verblijf,8+,796,63.7855,62,1.0288,1.7855
+test,boosting zonder land,agent,geen agent,681,72.3546,67,1.0799,5.3546
+test,boosting zonder land,agent,via agent,12383,1558.8577,1440,1.0825,118.8577
+test,boosting zonder land,customer_type,Contract,504,13.5999,12,1.1333,1.5999
+test,boosting zonder land,customer_type,Group,48,2.2799,1,2.2799,1.2799
+test,boosting zonder land,customer_type,Transient,9640,1386.0072,1217,1.1389,169.0072
+test,boosting zonder land,customer_type,Transient-Party,2872,229.3253,277,0.8279,-47.6747
+test,boosting zonder land,deposit_type,No Deposit,13046,1629.0749,1490,1.0933,139.0749
+test,boosting zonder land,deposit_type,Refundable,18,2.1375,17,0.1257,-14.8625
+test,boosting zonder land,maand,April,2584,359.4435,336,1.0698,23.4435
+test,boosting zonder land,maand,August,2556,281.6870,278,1.0133,3.6870
+test,boosting zonder land,maand,July,2737,317.8365,271,1.1728,46.8365
+test,boosting zonder land,maand,June,2529,342.3203,282,1.2139,60.3203
+test,boosting zonder land,maand,May,2658,329.9250,340,0.9704,-10.0750

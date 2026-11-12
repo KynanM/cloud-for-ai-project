@@ -1,0 +1,7 @@
+periode,hotel,nachten,echt_a,echt_b,gem_abs_verschil,max_abs_verschil
+validatie,City Hotel,90,22.2444,22.7556,1.8667,8
+validatie,Resort Hotel,90,9.2778,8.6222,1.2333,5
+validatie,beide,180,15.7611,15.6889,1.55,8
+test,City Hotel,153,22.6536,22.0523,1.1373,6
+test,Resort Hotel,153,13.7582,13.3333,0.9085,5
+test,beide,306,18.2059,17.6928,1.0229,6

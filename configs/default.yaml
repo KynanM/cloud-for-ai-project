@@ -70,10 +70,19 @@ split:
   test_start: 2017-04-01
   test_einde: 2017-08-31
 
+# Welke hotel-nachten meetellen in de evaluatie. De eerste nachten van een periode missen de
+# gasten die vóór de periode aankwamen en dan nog blijven: hun portefeuille is onvolledig.
+# Een nacht telt pas mee als minstens dit aandeel van haar boeking-nachten in de periode zit.
+# Zie dekking() in src/nachten.py en python -m src.audit (dekking.csv).
+evaluatie:
+  min_dekking: 0.95
+
 # De baseline: wat de revenue manager vandaag doet. Zie src/baseline.py.
 vuistregel:
-  # Alleen het laatste jaar vóór het einde van de training. null: alle historiek.
-  venster_maanden: 12
+  # null: alle historiek vóór het einde van de training. Een getal: alleen zoveel maanden.
+  # Gekozen op de validatie (src.experimenten, experimenten.csv): alle historiek 6,36,
+  # 12 maanden 6,65. De sterkste baseline maakt de poort strenger.
+  venster_maanden: null
   # Klassen van lead_time in dagen: <60, 60–120, 120–240, 240+. Actief op T is minstens 30.
   lead_time_grenzen: [60, 120, 240]
   # Een groep met minder boekingen krijgt het percentage van het hotel.
@@ -88,8 +97,15 @@ advies:
   capaciteit_percentiel: 0.99
   # Een nacht telt als volgeboekt vanaf dit aandeel van de capaciteit.
   volgeboekt_vanaf: 0.95
-  # Nooit meer dan dit aandeel van de capaciteit overboeken: de bescherming voor de gast.
-  max_aandeel: 0.05
+  # Maximum per nacht, als aandeel van de capaciteit. null: geen maximum, k is alleen begrensd
+  # door de capaciteit zelf. In deel 1 stond 0.05; dat maximum bond in City op 98 % van de
+  # testnachten en verborg de waarde van het model (resultaten/audit/zonder_rem.csv). Zonder
+  # maximum blijft het advies binnen de risicogrens hieronder. Weggehaald op 10-11-2026.
+  max_aandeel: null
+  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv):
+  # op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k. Gekozen wordt de
+  # zekerheid met de hoogste europroxy binnen die grens.
+  risicogrens: 0.20
   # De zekerheden waarvoor src.evaluate de winstcurve tekent. Begin en einde zijn inbegrepen.
   winstcurve:
     van: 0.50
@@ -114,12 +130,17 @@ model:
   pad: models/model.joblib
   # Wat het advies k naast het model nodig heeft: spreidingsfactor en capaciteit per hotel.
   advies_pad: models/advies.json
+  # Bindt model, advies, config en data aan één run. src.predict stopt als ze niet bij
+  # elkaar horen. Zie src/manifest.py.
+  manifest_pad: models/manifest.json
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42
   logreg:
     max_iter: 1000
   boosting:
-    max_iter: 200
+    # Eerst 200. 100 is op de validatie aantoonbaar beter (MAE per nacht, bootstrap): zie
+    # experimenten.csv en docs/verantwoording.md. De rest is niet afgesteld.
+    max_iter: 100
     learning_rate: 0.05
     max_leaf_nodes: 15
     min_samples_leaf: 100
