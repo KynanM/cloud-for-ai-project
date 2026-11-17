@@ -1,42 +1,33 @@
 # Overboeken per hotel-nacht: rapport deel 2
 
-Kynan Melsens · Cloud for AI · 2026-2027
+Kynan Melsens · Cloud for AI · 2026-2027 · repo: https://github.com/KynanM/cloud-for-ai-project
 
 ## 1. Probleem en metriek
 
 Een hotel beslist 30 dagen vóór elke nacht hoeveel kamers het extra mag verkopen. Het model
-voorspelt per boeking die op dat moment nog actief is, de kans dat ze alsnog geannuleerd wordt
-of een no-show wordt. Opgeteld per hotel-nacht geeft dat het verwachte aantal kamers dat
-vrijkomt. Daaruit volgt het advies k: het grootste aantal waarvoor P(minstens k annulaties)
-≥ 0,80. Het maximum van 5 % van de capaciteit uit deel 1 is weggehaald: zie paragraaf 4.
+voorspelt per boeking die op dat moment nog actief is, de kans dat ze alsnog geannuleerd wordt of
+een no-show wordt. Opgeteld per hotel-nacht geeft dat het verwachte aantal kamers dat vrijkomt.
+Daaruit volgt het advies k: het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80.
 
 De ML-metriek uit deel 1 is de **MAE van het aantal annulaties per hotel-nacht**. De
 businessmetriek is een **europroxy** per volgeboekte nacht: een extra verkochte kamer die echt
-vrijkomt, levert 0,5 × de prijs op, een gast die je moet doorverwijzen kost 2 × de prijs. Bij die
-bedragen loont de k-de kamer zolang P(minstens k) ≥ 2 / 2,5 = 0,80. Daar komt de drempel vandaan.
-Het is een proxy: ze klopt als de nacht op het beslismoment precies volgeboekt is en elke extra
-kamer verkocht wordt, en "volgeboekt" is achteraf gemeten (`docs/business_aannames.md`).
+vrijkomt levert 0,5 × de prijs op, een doorverwezen gast kost 2 × de prijs. Daaruit volgt de
+drempel: 2 / 2,5 = 0,80.
 
 ## 2. Data en opzet
 
-*Hotel booking demand* (Antonio et al., 2019): 119 390 boekingen van een stadshotel en een
-resort in Portugal, met aankomst van juli 2015 tot augustus 2017. Na het weglaten van Non Refund
-(99,4 % geannuleerd, een eigenaardigheid van de export), een onmogelijke prijs en verblijven van
-nul nachten zijn 50 824 boekingen actief op het beslismoment. Daarvan annuleert 14,3 % nog.
-
-De split gebeurt in de tijd, op aankomstdatum: training tot 30-11-2016, validatie in Q1 2017
-(het model kiezen, de poorten), test van april tot augustus 2017 (alleen rapporteren, na
-hertrainen tot 28-02-2017). Het label hangt aan het beslismoment 30 dagen vóór de aankomst; voor
-latere nachten van een verblijf is dat een vereenvoudiging, gemeten in `docs/besliscontract.md`.
-De eerste nachten van een periode delen hun portefeuille met gasten van vóór de periode; nachten
-met minder dan 95 % dekking tellen niet mee (164 van 180 nachten op de validatie, 295 van 306 op
-de test).
+*Hotel booking demand* (Antonio et al., 2019): 119 390 boekingen van een stadshotel en een resort
+in Portugal, aankomst juli 2015 tot augustus 2017. Zonder Non Refund (99,4 % geannuleerd),
+onmogelijke prijzen en verblijven van nul nachten zijn 50 824
+boekingen actief op het beslismoment; 14,3 % daarvan annuleert nog. Split in de tijd, op aankomstdatum: training tot 30-11-2016, validatie Q1 2017 (hier wordt
+gekozen), test april tot augustus 2017 (alleen rapporteren, na hertrainen tot 28-02-2017).
+Nachten waarvan minder dan 95 % van de portefeuille in de periode valt, tellen niet mee: 164 van
+180 op de validatie, 295 van 306 op de test.
 
 ## 3. Modellen en scores
 
-Drie modellen, gekozen met één sleutel in de config: de **vuistregel** van de revenue manager
-als baseline (het annulatiepercentage per hotel, marktsegment en klasse van `lead_time`, over alle
-historiek: op de validatie sterker dan alleen het laatste jaar, 6,36 tegenover 6,65),
+Drie modellen, gekozen met één sleutel in de config: de **vuistregel** van de revenue manager als
+baseline (het annulatiepercentage per hotel, segment en klasse van lead time),
 **logistische regressie** en **gradient boosting** (`HistGradientBoostingClassifier`).
 
 | Model | MAE validatie | MAE test | AUC validatie | AUC test | € per volle nacht, test |
@@ -47,149 +38,103 @@ historiek: op de validatie sterker dan alleen het laatste jaar, 6,36 tegenover 6
 | *logistische regressie met land* | *4,95* | *5,12* | *0,743* | *0,751* | *582* |
 | *boosting met land* | *4,58* | *5,39* | *0,777* | *0,792* | *700* |
 
-De modellen met land staan er ter vergelijking. Waarom ze niet in aanmerking komen, staat in
-paragraaf 5. De validatie telt 30 volgeboekte nachten, de test 199. Elke andere keuze (features,
-weging, trainingsvenster, hyperparameters, spreidingscorrectie, drempel) staat met opties, cijfers
-en het waarom in `docs/verantwoording.md`.
+De modellen met land staan er ter vergelijking (zie 5). Volgeboekte nachten: 30 op de validatie,
+199 op de test. Elke keuze, met opties en cijfers: `docs/verantwoording.md`.
 
 ## 4. Keuze: boosting zonder land
 
-Boosting heeft de laagste MAE op de validatie van de toelaatbare modellen: 4,72 tegenover 6,36
-voor de vuistregel. Daar wordt gekozen, en de test bevestigt het (5,11 tegenover 6,87). Het haalt
-beide poorten die `src/train.py` controleert voor er iets weggeschreven wordt: een lagere MAE dan
-de vuistregel, en een AUC van minstens 0,60. Eerst had boosting 200 iteraties (MAE 4,87); omdat
-de AUC op de training veel hoger lag dan op de validatie (0,85 tegenover 0,69), zijn één keer twee
-lichtere varianten vergeleken. 100 iteraties was aantoonbaar beter (bootstrap per nacht) en is
-overgenomen. Gewogen klassen, een korter trainingsvenster en elke maand hertrainen zijn getest en
-afgewezen: de weging verdrievoudigt het voorspelde aantal annulaties, en maandelijks hertrainen
-maakt de MAE aantoonbaar groter (5,04 tegenover 4,72).
+Boosting heeft de laagste MAE op de validatie: 4,72 tegenover 6,36 voor de vuistregel, en de test
+bevestigt het (5,11 tegenover 6,87). Gewogen klassen en elke maand hertrainen zijn getest en
+afgewezen (verantwoording, sectie 10).
 
-**Het maximum van 5 % verborg de waarde van het model, en is weggehaald.** Met dat maximum haalde
-de vuistregel op de test 638 € per volgeboekte nacht en boosting 633 €: in het stadshotel raakte
-het advies op 98 % van de testnachten het maximum, voor elk model, dus besliste het maximum en
-niet het model. Zonder maximum, met dezelfde beslisregel, haalt boosting 480 € op de validatie
-tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). De vuistregel overschat het
-aantal annulaties en adviseert dan op 31 % van de testnachten te veel kamers, boven de risicogrens
-van 20 %; boosting blijft er met 16 % onder. Het maximum is daarom uit de config gehaald en het
-model is opnieuw getraind.
-
-De spreidingsfactor remt het model niet, ze beschermt: zonder factor zakt boosting op de test naar
-518 € en gaat het over de risicogrens. De drempel van 0,80 volgt uit de bedragen en is zonder
-maximum opnieuw getoetst op de validatie: geen andere zekerheid is aantoonbaar beter (bootstrap
-per nacht), onder 0,70 wordt de risicogrens overschreden.
-
-De prijs van geen maximum: op de test worden 0,54 gasten per volle nacht doorverwezen in plaats
-van 0,09. Dat zit in de europroxy en blijft binnen de risicogrens. Het model adviseert, de revenue
-manager beslist; wil het hotel toch een maximum, dan staat het in de config.
+**Het maximum van 5 % per nacht verborg de waarde van het model, en is weggehaald.** Met dat
+maximum haalden de vuistregel en boosting op de test 638 € en 633 € per volgeboekte nacht: in het
+stadshotel raakte het advies op 98 % van de nachten het maximum, dus besliste het maximum en niet
+het model. Zonder maximum haalt boosting 480 € tegenover 328 € (validatie) en 715 € tegenover
+540 € (test). De vuistregel adviseert dan op 31 % van de testnachten te veel
+kamers, boven de risicogrens van 20 %; boosting op 16 %. De prijs: 0,54
+doorverwezen gasten per volle nacht in plaats van 0,09.
 
 ## 5. Data leakage
 
-De eerste bron van lek was de **split**: met een willekeurige split haalt de logistische
-regressie een AUC van 0,756, met een split in de tijd nog 0,627. Het verschil was de toekomst die
-in de training lekte. Een embargo van 31 dagen zorgt ervoor dat de afloop van elke
-trainingsboeking gekend is op het eerste beslismoment erna, en op de test wordt niets gekozen.
-Eerlijk is wel: de testcijfers waren al gekend toen de dekkingsregel, de vuistregel en het aantal
-iteraties werden aangepast. Die keuzes vielen op de validatie, met een vooraf vastgelegde regel. **Kolommen die pas bij aankomst ingevuld worden** (parkeerplaats, toegewezen kamer,
-wijzigingen, speciale wensen) zijn geen feature: van de 3 265 actieve boekingen met een
-parkeerplaats annuleert er niet één. De **duplicaten** (27 % van de rijen is een exacte kopie,
-voor 72 % groepen of touroperators) blijven staan, maar lekken niet over de split, want kopieën
-hebben dezelfde aankomstdatum. De moeilijkste was **het land**. Het stond in het voorstel als
-feature en deed de AUC met 0,10 stijgen. Maar no-shows zijn nooit aangekomen en toch voor 63 %
-Portugees, tegenover 18 % van wie uitcheckte, en binnen één agent is wie annuleert bijna altijd
-Portugees en wie uitcheckt zelden (agent 28: 100 tegenover 7 %). Het land wordt dus
-waarschijnlijk pas bij het inchecken ingevuld: dan meet het of de gast kwam opdagen, en dat is het
-label. Daarom is het geschrapt, ook al is de MAE met land op de validatie iets lager (4,58
-tegenover 4,72). Segment en
-agent wijzen wel naar het land (AUC ongeveer 0,70 om PRT te raden), maar het model zonder land
-volgt het land niet: het geeft Portugese boekingen een lagere kans (12,2 %) dan de rest (15,2 %).
-Tot slot is **`adr`** gecontroleerd: een geannuleerde boeking houdt haar geboekte tarief. Ze staat
-niet op 0 (0,4 % tegenover 2,3 % bij wie uitcheckte) en heeft dezelfde verdeling per hotel,
-segment en maand. Alleen ronde bedragen komen vaker voor, en met `adr` afgerond op de euro
-verandert de AUC nauwelijks (0,696 tegenover 0,695). `adr` blijft dus een feature. Tot slot
-kunnen 20 % van de boekingen na het boeken gewijzigd zijn; voor die boekingen kan de export een
-andere waarde tonen dan op het beslismoment (`docs/feature_beschikbaarheid.csv`).
+**De split.** Met een willekeurige split haalt de logistische regressie een AUC van 0,756, in de
+tijd 0,627: het verschil is de toekomst die in de training lekt. Een embargo van 31 dagen zorgt dat
+de afloop van elke trainingsboeking gekend is op het eerste beslismoment erna
+(`tests/test_split.py`). **Kolommen die pas bij aankomst ingevuld worden** (parkeerplaats,
+toegewezen kamer, wijzigingen, speciale wensen) zijn geen feature. **Het land** deed de AUC met 0,10 stijgen,
+maar no-shows zijn nooit aangekomen en toch voor 63 % Portugees, tegenover 18 % bij wie
+uitcheckte. Het wordt dus waarschijnlijk pas bij het inchecken ingevuld, en meet dan het label.
+Daarom is het geschrapt, ook al is de MAE met land iets lager (4,58 tegenover 4,72). **`adr`**
+blijft: een geannuleerde boeking houdt haar geboekte tarief, en afgerond op de euro verandert de
+AUC nauwelijks (0,696 tegenover 0,695). De testcijfers waren wel al gekend toen de dekkingsregel
+en de vuistregel werden aangepast; die keuzes vielen op de validatie.
 
 ## 6. Grenzen
 
-- Het label hangt aan de aankomst, niet aan elke nacht van het verblijf (per nacht scheelt het
-  echte aantal annulaties gemiddeld 1,0 à 1,6).
-- De euro's zijn een proxy; de capaciteit is geschat als het 99ste percentiel van de bezette
-  kamers (226 en 184).
-- De zekerheid van 0,80 is nominaal; gemeten adviseert het model op 11 % (validatie) en 16 %
-  (test) van de nachten te veel, binnen de belofte van 20 %.
-- De controle per groep (Portugal tegenover de rest) kan met deze export niet eerlijk, omdat de
-  groep zelf met de lekkende kolom gemaakt is.
-- Code, tests en alle cijfers staan in de repository. `README.md` legt uit hoe je ze opnieuw maakt,
-  `docs/bewijsregister.csv` zegt voor elk cijfer uit welk bestand het komt.
+- Het label hangt aan de aankomst, niet aan elke nacht (verschil: 1,0 à 1,6 annulaties per nacht).
+- De euro's zijn een proxy (`docs/business_aannames.md`), en de capaciteit is geschat.
+- 0,80 is nominaal: gemeten adviseert het model op 11 % (validatie) en 16 % (test) te veel.
+- Grootste resterende fout: een seizoensbias (City −8,3 per nacht in januari, +6,4 in juni).
 
 ---
 
 ## Bijlage: gebruik van AI
 
-**Tools.** Claude Code van Anthropic (Claude): tot 12 november in een cloudsessie gekoppeld aan
-de GitHub-repository van dit project, op 17 november in de Claude-desktopapp (model Claude Opus
-5.5). Perplexity voor het onderzoeksplan van de audit (`OnderzoekCloudForAI.md`), opgesteld op
-basis van het lesmateriaal. De audit-commits van 10 november staan in git op naam van Claude
-(`858a01c` tot `6c98b5a`). [IN TE VULLEN: andere tools die je gebruikt hebt.]
+**Tools.** Claude Code van Anthropic (Claude): tot 12 november in een cloudsessie gekoppeld aan de
+GitHub-repository van dit project, model Claude Opus 5.5, instelling High. Het uitlegdocument, de
+structuur van de presentatie en de opmaak van dit rapport in het VIVES-sjabloon maakte Claude
+(Opus 5.5) in de Claude-app, met toegang tot mijn cursusmap. De hercontrole van 17 november
+gebeurde met Claude Code in de Claude-desktopapp (Opus 5.5). Het onderzoeksplan van de audit
+(`OnderzoekCloudForAI.md`) is opgesteld met Perplexity, op basis van het lesmateriaal. De
+audit-commits van 10 november staan in git op naam van Claude (`858a01c` tot `6c98b5a`).
 
-**Hoe ik werkte.** Ik schreef het plan voor deel 2 en liet het stap voor stap uitvoeren. Na
-elke stap las ik het resultaat na, koos ik bij open vragen, en gaf ik pas dan de volgende stap
-vrij. [IN TE VULLEN: hoe het plan tot stand kwam, en in hoeverre met AI.]
+**Hoe ik werkte.** Het plan voor deel 2 werd gemaakt door Claude, maar ik review en controleer
+grondig en pas aan waar nodig. Op basis van feedback heb ik aanpassingen gedaan aan het plan, ben
+ik zo verder gegaan, en heb ik deze aanpassingen bekeken en kritisch nagelezen. Na elke stap las
+ik het resultaat na, koos ik bij open vragen, en gaf ik pas dan de volgende stap vrij.
 
 **Wat de AI deed.**
 
 | Onderdeel | Wat de AI deed | Wat ik besliste |
 |---|---|---|
-| refactor naar het pakket | de code uit deel 1 omzetten naar `src/`, met config en tests | [IN TE VULLEN] |
+| refactor naar het pakket | de code uit deel 1 omzetten naar `src/`, met config en tests | de structuur overgenomen uit het sjabloon van labo 5 |
 | split, vuistregel, modellen | code en tests schrijven, cijfers berekenen | de periodes, het embargo, de drie modellen |
 | evaluatie per hotel-nacht | `src/nachten.py`, `src/evaluate.py`, grafieken | de metriek, r en W, de drempel, het maximum van 5 % (na de audit weggehaald) |
 | schema en tests | controles, unit- en systeemtests schrijven | de grenzen van 20 en 50 % |
 | exploratienotebook | analyses en tekst | welke vragen beantwoord moesten worden |
-| README en dit rapport | eerste versie van de tekst | [IN TE VULLEN: wat je herschreef] |
+| README en dit rapport | eerste versie van de tekst | niets herschreven, wel nagelezen |
 | review van 9 november | de repository nalezen tegen les 5 en de checklist van labo 5 | welke punten aangepast werden |
-| aanpassingen na de review | logging in plaats van print, paden en parameters naar de config, versies vastgelegd, de analyses van segment en agent en van `adr` | [IN TE VULLEN] |
-| audit van 10 november | een onderzoeksplan (zelf met AI opgesteld op basis van het lesmateriaal) uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | overgenomen: de dekkingsregel, de vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen. Afgewezen: contract B, herijken per hotel, klassegewichten, breder zoeken |
-| hercontrole van 17 november | het onderzoeksplan toetsen aan de repository en het lesmateriaal, alles opnieuw draaien, verouderde cijfers rechtzetten, het notebook herstellen, `tol` van logreg vastleggen, elke maand hertrainen testen, een test die de cijfers in de tekst bewaakt, dit rapport omzetten naar de PDF | deel 3 nog niet uitvoeren; [IN TE VULLEN] |
+| aanpassingen na de review | logging in plaats van print, paden en parameters naar de config, versies vastgelegd, de analyses van segment en agent en van `adr` | de voorstellen van de review overgenomen |
+| uitleg en presentatie | een uitlegdocument bij alle code en keuzes, de structuur en inhoud van de presentatie van 10-11, dit rapport in het sjabloon | de duur van de presentatie (10 minuten) en de antwoorden in deze bijlage |
+| audit van 10 november | het onderzoeksplan uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | overgenomen: de dekkingsregel, de vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen |
+| hercontrole van 17 november | het onderzoeksplan toetsen aan de repository en het lesmateriaal, alles opnieuw draaien, verouderde cijfers rechtzetten, het notebook herstellen, `tol` van logreg vastleggen, elke maand hertrainen testen, een test die de cijfers in de tekst bewaakt, dit rapport bijwerken | deel 3 nog niet uitvoeren, de rest van het plan wel |
 
 **Waar de AI mijn plan bijstuurde.** De AI merkte op dat het land waarschijnlijk een lek is, en
-legde de cijfers voor in plaats van het zelf te schrappen. Ik besliste het land uit te zetten.
-[IN TE VULLEN: andere punten waar je een voorstel van de AI overnam of afwees.]
-
-**Wat de audit veranderde, en wat niet.** De audit vond twee echte fouten in de evaluatie: de
-eerste nachten van elke periode werden beoordeeld met een onvolledige portefeuille, en de
-vuistregel was niet de sterkste versie. Beide zijn hersteld; de keuze van het model bleef. Ze
-vond ook een overfit-signaal (AUC 0,85 op de training, 0,69 op de validatie), wat leidde tot 100
-in plaats van 200 iteraties. Voorstellen die op de cijfers afvielen en niet zijn overgenomen:
+legde de cijfers voor in plaats van het zelf te schrappen. Ik besliste het land uit te zetten. De
+andere aanbevelingen van de AI heb ik overgenomen. Afgewezen op de cijfers: contract B,
 klassegewichten, een korter trainingsvenster, het weeknummer, herijken van de bias, elke maand
-hertrainen (17 november: de MAE wordt aantoonbaar groter, 5,04 tegenover 4,72) en een andere
-drempel dan 0,80. Het onderzoeksplan zelf vroeg ook om deel 3 (API, Docker); dat is bewust nog
-niet gedaan.
+hertrainen en een andere drempel dan 0,80.
 
-**Fouten van de AI, en hoe ze gevonden werden.** Een test voor de vuistregel was fout opgezet.
-Een model dat met `python -m src.train` getraind was, kon `src.predict` niet laden, omdat een
-functie in de pijplijn in de verkeerde module stond. In de README stonden beweringen over de
-ijking die verder gingen dan de cijfers. Ze werden gevonden door de uitvoer te controleren, en
-hersteld. In de audit schreef de AI eerst dat de kloof tussen de AUC op de training en op de
-validatie "geen teken van overfit" was, zonder de AUC op de training te berekenen. Bij het
-nagaan bleek die 0,85 tegenover 0,69, en dat leidde net tot de vergelijking van de iteraties.
-Ook stond in de README een AUC van 0,725 voor de willekeurige split zonder script erachter; die
-is nu reproduceerbaar (`resultaten/audit/split.csv`) en blijkt 0,756. Bij de hercontrole van
-17 november bleek dat de audit zelf twee dingen had laten liggen: in `feature_beschikbaarheid.csv`
-en de verantwoording stonden nog cijfers van de eerste instelling (200 iteraties), en het notebook
-brak sinds het maximum uit de config was gehaald. Gevonden door alles opnieuw te draaien, hersteld,
-en sindsdien bewaakt door `tests/test_bewijsregister.py`. Ook gaf logistische regressie op een
-andere machine iets andere cijfers (MAE 5,135 tegenover 5,113 voor het model met land): de solver
-stopte vóór het optimum. Met `tol: 1.0e-6` ligt het resultaat vast. [IN TE VULLEN: fouten die je
-zelf vond.]
+**Fouten van de AI, en hoe ze gevonden werden.** Een test voor de vuistregel was fout opgezet. Een
+model dat met `python -m src.train` getraind was, kon `src.predict` niet laden, omdat een functie
+in de pijplijn in de verkeerde module stond. In de README stonden beweringen over de ijking die
+verder gingen dan de cijfers. In de audit schreef de AI eerst dat de kloof tussen de AUC op de
+training en op de validatie "geen teken van overfit" was, zonder die op de training te berekenen
+(0,85 tegenover 0,69). Een AUC van 0,725 voor de willekeurige split had geen script; reproduceerbaar
+is het 0,756. Bij de hercontrole van 17 november bleek dat de audit nog cijfers van 200 iteraties
+had laten staan en dat het notebook brak sinds het maximum weg was; dat bewaakt nu
+`tests/test_bewijsregister.py`. Logistische regressie gaf op een andere machine iets andere cijfers,
+omdat de solver vóór het optimum stopte; met `tol: 1.0e-6` ligt het resultaat vast. Alle fouten
+werden gevonden door de uitvoer te controleren, en hersteld. Zelf vond ik: het uitsluiten van de
+land-feature.
 
-**Hoe het resultaat gecontroleerd is.** Ik heb `pytest` (toen 110 tests), `ruff check .` en
-`ruff format --check .` zelf gedraaid, net als `python -m src.train`, `python -m src.predict` en
-`python -m src.evaluate`, en de cijfers in de README en in dit rapport nagelezen tegen
-`resultaten/` en de uitvoer van `src.train`. Op 17 november is alles opnieuw gedraaid in een
-nieuwe omgeving met `requirements.txt`: `pytest` (125 tests), `python -m src.audit`,
-`python -m src.experimenten`, `python -m src.evaluate`, `python -m src.train`, het notebook, en
-de cijfers nagelezen tegen `docs/bewijsregister.csv` (`docs/audit_scope.md`, "Hercontrole").
-[IN TE VULLEN: wat je verder zelf nagerekend hebt, bv. de drie situaties in
-`tests/test_businessrekening.py` met de hand.]
+**Hoe het resultaat gecontroleerd is.** Ik heb `pytest`, `ruff check .` en `ruff format --check .`
+zelf gedraaid, net als `python -m src.train`, `python -m src.predict` en `python -m src.evaluate`,
+en de cijfers in de README en in dit rapport nagelezen tegen `resultaten/` en de uitvoer van
+`src.train`. Op 17 november is alles opnieuw gedraaid in een nieuwe omgeving met
+`requirements.txt` (125 tests groen) en zijn de cijfers nagelezen tegen
+`docs/bewijsregister.csv` (`docs/audit_scope.md`, "Hercontrole").
 
-**Wat ik ervan leerde.** [IN TE VULLEN, in je eigen woorden.]
+**Wat ik ervan leerde.** Ik leerde gestructureerd werken volgens de regels en de werkwijze die we
+in de les kregen, en die opvolgen: logging in plaats van print. En soms is de baseline al sterk in
+vergelijking met een beter en complexer model.
