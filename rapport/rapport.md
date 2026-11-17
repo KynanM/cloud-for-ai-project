@@ -42,9 +42,9 @@ historiek: op de validatie sterker dan alleen het laatste jaar, 6,36 tegenover 6
 | Model | MAE validatie | MAE test | AUC validatie | AUC test | € per volle nacht, test |
 |---|---|---|---|---|---|
 | vuistregel | 6,36 | 6,87 | 0,557 | 0,613 | 540 |
-| logistische regressie | 5,78 | 5,37 | 0,628 | 0,626 | 666 |
+| logistische regressie | 5,77 | 5,35 | 0,627 | 0,626 | 671 |
 | **boosting** | **4,72** | **5,11** | **0,695** | **0,647** | **715** |
-| *logistische regressie met land* | *4,98* | *5,14* | *0,743* | *0,751* | *578* |
+| *logistische regressie met land* | *4,95* | *5,12* | *0,743* | *0,751* | *582* |
 | *boosting met land* | *4,58* | *5,39* | *0,777* | *0,792* | *700* |
 
 De modellen met land staan er ter vergelijking. Waarom ze niet in aanmerking komen, staat in
@@ -60,8 +60,9 @@ beide poorten die `src/train.py` controleert voor er iets weggeschreven wordt: e
 de vuistregel, en een AUC van minstens 0,60. Eerst had boosting 200 iteraties (MAE 4,87); omdat
 de AUC op de training veel hoger lag dan op de validatie (0,85 tegenover 0,69), zijn één keer twee
 lichtere varianten vergeleken. 100 iteraties was aantoonbaar beter (bootstrap per nacht) en is
-overgenomen. Gewogen klassen en een korter trainingsvenster zijn getest en afgewezen: de weging
-verdrievoudigt het voorspelde aantal annulaties.
+overgenomen. Gewogen klassen, een korter trainingsvenster en elke maand hertrainen zijn getest en
+afgewezen: de weging verdrievoudigt het voorspelde aantal annulaties, en maandelijks hertrainen
+maakt de MAE aantoonbaar groter (5,04 tegenover 4,72).
 
 **Het maximum van 5 % verborg de waarde van het model, en is weggehaald.** Met dat maximum haalde
 de vuistregel op de test 638 € per volgeboekte nacht en boosting 633 €: in het stadshotel raakte
@@ -84,7 +85,7 @@ manager beslist; wil het hotel toch een maximum, dan staat het in de config.
 ## 5. Data leakage
 
 De eerste bron van lek was de **split**: met een willekeurige split haalt de logistische
-regressie een AUC van 0,756, met een split in de tijd nog 0,628. Het verschil was de toekomst die
+regressie een AUC van 0,756, met een split in de tijd nog 0,627. Het verschil was de toekomst die
 in de training lekte. Een embargo van 31 dagen zorgt ervoor dat de afloop van elke
 trainingsboeking gekend is op het eerste beslismoment erna, en op de test wordt niets gekozen.
 Eerlijk is wel: de testcijfers waren al gekend toen de dekkingsregel, de vuistregel en het aantal
@@ -125,9 +126,11 @@ andere waarde tonen dan op het beslismoment (`docs/feature_beschikbaarheid.csv`)
 
 ## Bijlage: gebruik van AI
 
-**Tool.** Claude Code van Anthropic (Claude), in een cloudsessie gekoppeld aan de
-GitHub-repository van dit project. [IN TE VULLEN: het model en de versie, als de opdracht dat
-vraagt; andere tools die je gebruikt hebt.]
+**Tools.** Claude Code van Anthropic (Claude): tot 12 november in een cloudsessie gekoppeld aan
+de GitHub-repository van dit project, op 17 november in de Claude-desktopapp (model Claude Opus
+5.5). Perplexity voor het onderzoeksplan van de audit (`OnderzoekCloudForAI.md`), opgesteld op
+basis van het lesmateriaal. De audit-commits van 10 november staan in git op naam van Claude
+(`858a01c` tot `6c98b5a`). [IN TE VULLEN: andere tools die je gebruikt hebt.]
 
 **Hoe ik werkte.** Ik schreef het plan voor deel 2 en liet het stap voor stap uitvoeren. Na
 elke stap las ik het resultaat na, koos ik bij open vragen, en gaf ik pas dan de volgende stap
@@ -145,7 +148,8 @@ vrij. [IN TE VULLEN: hoe het plan tot stand kwam, en in hoeverre met AI.]
 | README en dit rapport | eerste versie van de tekst | [IN TE VULLEN: wat je herschreef] |
 | review van 9 november | de repository nalezen tegen les 5 en de checklist van labo 5 | welke punten aangepast werden |
 | aanpassingen na de review | logging in plaats van print, paden en parameters naar de config, versies vastgelegd, de analyses van segment en agent en van `adr` | [IN TE VULLEN] |
-| audit van 10 november | een onderzoeksplan (zelf met AI opgesteld op basis van het lesmateriaal) uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | [IN TE VULLEN: welke keuzes je overnam: dekkingsregel, vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen] |
+| audit van 10 november | een onderzoeksplan (zelf met AI opgesteld op basis van het lesmateriaal) uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | overgenomen: de dekkingsregel, de vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen. Afgewezen: contract B, herijken per hotel, klassegewichten, breder zoeken |
+| hercontrole van 17 november | het onderzoeksplan toetsen aan de repository en het lesmateriaal, alles opnieuw draaien, verouderde cijfers rechtzetten, het notebook herstellen, `tol` van logreg vastleggen, elke maand hertrainen testen, een test die de cijfers in de tekst bewaakt, dit rapport omzetten naar de PDF | deel 3 nog niet uitvoeren; [IN TE VULLEN] |
 
 **Waar de AI mijn plan bijstuurde.** De AI merkte op dat het land waarschijnlijk een lek is, en
 legde de cijfers voor in plaats van het zelf te schrappen. Ik besliste het land uit te zetten.
@@ -156,7 +160,8 @@ eerste nachten van elke periode werden beoordeeld met een onvolledige portefeuil
 vuistregel was niet de sterkste versie. Beide zijn hersteld; de keuze van het model bleef. Ze
 vond ook een overfit-signaal (AUC 0,85 op de training, 0,69 op de validatie), wat leidde tot 100
 in plaats van 200 iteraties. Voorstellen die op de cijfers afvielen en niet zijn overgenomen:
-klassegewichten, een korter trainingsvenster, het weeknummer, herijken van de bias, en een andere
+klassegewichten, een korter trainingsvenster, het weeknummer, herijken van de bias, elke maand
+hertrainen (17 november: de MAE wordt aantoonbaar groter, 5,04 tegenover 4,72) en een andere
 drempel dan 0,80. Het onderzoeksplan zelf vroeg ook om deel 3 (API, Docker); dat is bewust nog
 niet gedaan.
 
@@ -168,14 +173,23 @@ hersteld. In de audit schreef de AI eerst dat de kloof tussen de AUC op de train
 validatie "geen teken van overfit" was, zonder de AUC op de training te berekenen. Bij het
 nagaan bleek die 0,85 tegenover 0,69, en dat leidde net tot de vergelijking van de iteraties.
 Ook stond in de README een AUC van 0,725 voor de willekeurige split zonder script erachter; die
-is nu reproduceerbaar (`resultaten/audit/split.csv`) en blijkt 0,756. [IN TE VULLEN: fouten die je
+is nu reproduceerbaar (`resultaten/audit/split.csv`) en blijkt 0,756. Bij de hercontrole van
+17 november bleek dat de audit zelf twee dingen had laten liggen: in `feature_beschikbaarheid.csv`
+en de verantwoording stonden nog cijfers van de eerste instelling (200 iteraties), en het notebook
+brak sinds het maximum uit de config was gehaald. Gevonden door alles opnieuw te draaien, hersteld,
+en sindsdien bewaakt door `tests/test_bewijsregister.py`. Ook gaf logistische regressie op een
+andere machine iets andere cijfers (MAE 5,135 tegenover 5,113 voor het model met land): de solver
+stopte vóór het optimum. Met `tol: 1.0e-6` ligt het resultaat vast. [IN TE VULLEN: fouten die je
 zelf vond.]
 
-**Hoe het resultaat gecontroleerd is.** Ik heb `pytest` (110 tests), `ruff check .` en
+**Hoe het resultaat gecontroleerd is.** Ik heb `pytest` (toen 110 tests), `ruff check .` en
 `ruff format --check .` zelf gedraaid, net als `python -m src.train`, `python -m src.predict` en
 `python -m src.evaluate`, en de cijfers in de README en in dit rapport nagelezen tegen
-`resultaten/` en de uitvoer van `src.train`. [NA TE GAAN: na de audit zelf `pytest`,
-`python -m src.audit` en `python -m src.experimenten` draaien en de nieuwe cijfers nalezen tegen
-`docs/bewijsregister.csv`.] [IN TE VULLEN: wat je verder zelf nagerekend hebt.]
+`resultaten/` en de uitvoer van `src.train`. Op 17 november is alles opnieuw gedraaid in een
+nieuwe omgeving met `requirements.txt`: `pytest` (125 tests), `python -m src.audit`,
+`python -m src.experimenten`, `python -m src.evaluate`, `python -m src.train`, het notebook, en
+de cijfers nagelezen tegen `docs/bewijsregister.csv` (`docs/audit_scope.md`, "Hercontrole").
+[IN TE VULLEN: wat je verder zelf nagerekend hebt, bv. de drie situaties in
+`tests/test_businessrekening.py` met de hand.]
 
 **Wat ik ervan leerde.** [IN TE VULLEN, in je eigen woorden.]
