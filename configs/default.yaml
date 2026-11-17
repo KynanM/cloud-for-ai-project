@@ -125,7 +125,7 @@ bedragen:
 
 model:
   # vuistregel | logreg | boosting. Gekozen op de MAE per hotel-nacht op de validatie, nooit op
-  # de test: boosting 4,86, logreg 5,78, vuistregel 6,36. Zie python -m src.evaluate.
+  # de test: boosting 4,72, logreg 5,77, vuistregel 6,36. Zie python -m src.evaluate.
   soort: boosting
   pad: models/model.joblib
   # Wat het advies k naast het model nodig heeft: spreidingsfactor en capaciteit per hotel.
@@ -137,6 +137,10 @@ model:
   seed: 42
   logreg:
     max_iter: 1000
+    # Met de standaard (1e-4) stopt de solver vóór het optimum, en hangt het resultaat af van
+    # de machine (MAE op de test 5,135 tegenover 5,113 voor logreg met land). Met 1e-6 ligt de
+    # oplossing vast: 1e-8 verschilt minder dan 0,001 in MAE. Niet afgesteld op de score.
+    tol: 1.0e-6
   boosting:
     # Eerst 200. 100 is op de validatie aantoonbaar beter (MAE per nacht, bootstrap): zie
     # experimenten.csv en docs/verantwoording.md. De rest is niet afgesteld.
