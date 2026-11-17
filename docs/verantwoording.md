@@ -43,8 +43,8 @@ theorie**, niet gedraaid.
 | Resultaat | op de eerste dag van de validatie zit 24 % (City) en 8 % (Resort) van de portefeuille in de periode, pas na 5 à 11 dagen 95 %. Met de regel vallen 16 van 180 nachten op de validatie weg, 11 van 306 op de test |
 | Keuze | weglaten onder 95 % dekking (`evaluatie.min_dekking`) |
 | Waarom | aanvullen kan niet zonder lek: de boekingen van vóór de test zitten in de hertraining, en het model zou dan op zijn eigen trainingsdata voorspellen. Weglaten gebruikt alleen aankomstdatums, nooit het label |
-| Effect | boosting (200 iteraties) op de validatie 4,86 → 4,87; vuistregel (12 maanden) 6,36 → 6,65. De volgorde van de modellen verandert niet |
-| Bewijs | `dekking.csv`, `dekking()` en `alleen_volledig()` in `src/nachten.py`, `tests/test_nachten.py` |
+| Effect | MAE op de validatie, alle 180 nachten → de 164 volledige: vuistregel 6,09 → 6,36, logreg 5,78 → 5,77, boosting 4,66 → 4,72. De volgorde van de modellen verandert niet |
+| Bewijs | `dekking.csv`, `dekking_effect.csv`, `dekking()` en `alleen_volledig()` in `src/nachten.py`, `tests/test_nachten.py` |
 
 ## 3. Dataselectie
 
@@ -63,10 +63,10 @@ theorie**, niet gedraaid.
 | | |
 |---|---|
 | Opties | willekeurig · in de tijd zonder embargo · in de tijd met embargo |
-| Resultaat | logreg AUC 0,725 met een willekeurige split, 0,628 in de tijd. Het verschil is de toekomst die in de training lekt |
+| Resultaat | logreg AUC 0,756 met een willekeurige split, 0,627 in de tijd; boosting 0,797 tegenover 0,695. Het verschil is de toekomst die in de training lekt |
 | Keuze | in de tijd, op aankomstdatum, met een embargo van horizon + 1 dag |
 | Waarom | les 4: preprocessing en training mogen niets leren uit de evaluatieperiode, en een label moet gekend zijn op het beslismoment. Zie [label_beschikbaarheid.md](label_beschikbaarheid.md) |
-| Bewijs | `grenzen()` in `src/train.py`, `tests/test_split.py` |
+| Bewijs | `split.csv`, `grenzen()` in `src/train.py`, `tests/test_split.py` |
 
 Geen k-voudige kruisvalidatie: een willekeurige vouw mengt de tijd. Een tijdreeks-kruisvalidatie met
 meerdere blokken is mogelijk, maar met twee jaar data en een seizoenspatroon zou elk blok een ander
@@ -112,10 +112,10 @@ boekingen voorspellen.
 | Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | leren | voorspellen |
 |---|---|---|---|---|---|---|---|---|
 | vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 352 | 0,02 s | 1 ms |
-| logreg | 5,78 | −0,41 | 0,97 | 0,628 | 0,140 | 356 | 0,3 s | 3 ms |
+| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 356 | 0,3 s | 3 ms |
 | **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 357 | 0,3 s | 5 ms |
 
-Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,37, boosting **5,11**.
+Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 
 | | |
 |---|---|
@@ -128,7 +128,7 @@ Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,37, boosting **5,11**.
 
 | | |
 |---|---|
-| Aanleiding | de AUC van boosting op de training is 0,854, op de validatie 0,687. Een deel daarvan is tijdsdrift: ook de vuistregel, die nauwelijks kan overfitten, zakt van 0,645 naar 0,557. Boosting zakt bijna dubbel zo ver. Dat is een concrete reden om één keer naar de complexiteit te kijken, niet om breed te zoeken |
+| Aanleiding | met de eerste instelling (200 iteraties) is de AUC van boosting op de training 0,854, op de validatie 0,687 (met 100 iteraties: 0,828 en 0,695). Een deel daarvan is tijdsdrift: ook de vuistregel, die nauwelijks kan overfitten, zakt van 0,645 naar 0,557. Boosting zakt bijna dubbel zo ver. Dat is een concrete reden om één keer naar de complexiteit te kijken, niet om breed te zoeken |
 | Opties, vooraf vastgelegd | 200 iteraties (eerste instelling) · 100 iteraties · 200 iteraties met 7 bladeren en minstens 300 boekingen per blad |
 | Resultaat | MAE 4,87 · **4,72** · 4,69. Verschil per nacht van 200 tegenover 100 iteraties: +0,15, interval +0,002 tot +0,31. Van de sterk geregulariseerde variant tegenover 100 iteraties: −0,03, interval −0,17 tot +0,12 |
 | Keuze | **100 iteraties**, de rest ongewijzigd: leersnelheid 0,05, 15 bladeren, minstens 100 per blad, L2 1,0. Geen vroege stop: die zet een willekeurig stuk van de training apart en mengt zo de tijd |
@@ -152,6 +152,20 @@ zwaarder doet doorwegen, schuift alle kansen omhoog: het model voorspelt 2,7 kee
 annulaties. Ze verbetert de rangschikking niet eens (AUC 0,688). Voor een som van kansen moet de
 kans geijkt zijn, en dat breekt elke weging. **Venster:** minder bias, maar een duidelijk hogere
 MAE en lagere AUC: minder data weegt zwaarder dan recentere data. Bewijs: `experimenten.csv`.
+
+### Elke maand hertrainen
+
+| | |
+|---|---|
+| Vraag | het vaste model beslist voor de nacht van 31 maart met de kennis van 30 november ([label_beschikbaarheid.md](label_beschikbaarheid.md)). Verkleint elke maand hertrainen de seizoensbias, zoals het systeem in productie zou kunnen draaien? |
+| Opties | vast model (referentie) · elke maand opnieuw leren op alles wat op het eerste beslismoment van die maand gekend is, met hetzelfde embargo (`hertraingrens()` in `src/experimenten.py`, gelijk aan `grenzen()`). Een boeking krijgt de kans van het model van haar aankomstmaand (contract A) |
+| Keuzeregel, vooraf | de variant wint als het 90 %-bootstrapinterval van het verschil in absolute fout per nacht onder 0 ligt én het advies binnen de risicogrens blijft. Gekozen op de validatie |
+| Resultaat validatie | MAE 4,72 → **5,04**, verschil +0,32 (interval **+0,09 tot +0,59**): aantoonbaar slechter. Bias −1,59 → −0,54, AUC 0,695 → 0,672, € per volle nacht 480 → 446, te veel 11 % → 12 % |
+| Per maand (City) | januari gelijk (zelfde model). Februari: bias −3,5 → −0,6, maar MAE 5,8 → 7,1. Maart: bias +1,6 → +3,7, MAE 4,1 → 4,8. Het bijgewerkte model schuift mee met de vorige maand, en het seizoen draait |
+| Test, alleen gerapporteerd | MAE 5,11 → 5,08 (interval −0,08 tot +0,03, niet aantoonbaar), € 715 → 725 |
+| Keuze | **vast model**. Hertrainen niet op een vast ritme, maar wanneer de monitoring drift toont (deel 3) |
+| Waarom | de bias wordt kleiner, maar de fout per nacht groter: met één winter in de data leert een maand extra vooral het niveau van de vorige maand, niet het seizoen |
+| Bewijs | `hertraining.csv`, `hertraining_maand.csv`; het embargo per maand in `tests/test_split.py` |
 
 ## 11. Spreidingscorrectie
 
@@ -184,8 +198,8 @@ Zonder maximum per nacht (de huidige regel, sectie 13).
 |---|---|
 | Vraag | houden het maximum van 5 % uit deel 1 en de spreidingsfactor het model tegen? |
 | Opties | met en zonder maximum, met en zonder spreidingsfactor, voor elk model, zelfde beslisregel |
-| Resultaat, € per volle nacht | met 5 %: vuistregel 352 / 638, boosting 357 / 633 (validatie / test). Zonder maximum: vuistregel 328 / 540, logreg 343 / 666, **boosting 480 / 715**. Zonder maximum en zonder factor: boosting 466 / 518 |
-| Risico zonder maximum (test) | te veel: vuistregel 31 %, logreg 10 %, boosting 16 %; boosting zonder factor 33 % |
+| Resultaat, € per volle nacht | met 5 %: vuistregel 352 / 638, boosting 357 / 633 (validatie / test). Zonder maximum: vuistregel 328 / 540, logreg 331 / 671, **boosting 480 / 715**. Zonder maximum en zonder factor: boosting 466 / 518 |
+| Risico zonder maximum (test) | te veel: vuistregel 31 %, logreg 9 %, boosting 16 %; boosting zonder factor 33 % |
 | Conclusie | **het maximum was de rem**: in City bond het op 98 % van de testnachten, en het verborg zowel de waarde van het model als de fout van de vuistregel. **De spreidingsfactor is geen rem**: zonder factor verliest het model geld en gaat het over de risicogrens |
 | Keuze | **geen maximum** (`advies.max_aandeel: null`), model opnieuw getraind. Het advies wordt begrensd door de zekerheid en de risicogrens |
 | Prijs | 0,54 doorverwezen gasten per volle nacht op de test in plaats van 0,09 (City 0,86). Dat zit in de europroxy en blijft binnen de risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel`; `maximum.csv` toont 5, 7,5 en 10 % |
@@ -214,7 +228,7 @@ en zonder maximum te halen was: r × adr × elke kamer die vrijkomt.
 | Model | perfect | gehaald | door voorzichtigheid | door doorverwijzen |
 |---|---|---|---|---|
 | vuistregel | 1 232 € | 540 € | 248 € | 444 € |
-| logreg | 1 232 € | 666 € | 485 € | 81 € |
+| logreg | 1 232 € | 671 € | 484 € | 77 € |
 | **boosting** | 1 232 € | **715 €** | 383 € | 135 € |
 
 Zonder maximum valt het verlies door het maximum weg. Wat overblijft, is wat elk model verliest door
@@ -243,9 +257,10 @@ City 1,15 op de test.
 
 **Lezing.** De grootste fout is een **seizoensbias** die van teken wisselt, en een dalende
 basiskans over de jaren (`filterwaterval.csv`). Het model ziet maar één winter en anderhalve zomer.
-Twee pogingen om dat binnen de les op te lossen zijn gedraaid en afgewezen: een korter
-trainingsvenster en herijken per hotel. Wat overblijft, is meer jaren data, of een hertraining die
-het seizoen meeneemt. Dat hoort bij de monitoring van deel 3.
+Drie pogingen om dat binnen de les op te lossen zijn gedraaid en afgewezen: een korter
+trainingsvenster, herijken per hotel en elke maand hertrainen (sectie 10). Wat overblijft, is meer
+jaren data. Hertrainen hoort bij de monitoring van deel 3: wanneer drift zichtbaar wordt, niet op
+een vast ritme.
 
 ### Groepen met weinig waarnemingen
 
@@ -263,4 +278,4 @@ en de drempel uit de kosten afgeleid, niet uit de curve.
 | r, w en de extra vraag | geen hotelgegevens | shadow mode, deel 3 |
 | op het beslismoment volgeboekt | stand van de verkoop op T staat niet in de export | grens in het rapport |
 | eerlijkheid per land | het land is zelf de lekkende kolom | README bevinding 2 |
-| seizoensbias | te weinig jaren | monitoring, deel 3 |
+| seizoensbias | te weinig jaren; korter venster, herijken en elke maand hertrainen helpen niet (sectie 10 en 11) | monitoring, deel 3 |

@@ -1,0 +1,7 @@
+min_dekking,model,nachten,mae,bias
+0.0000,vuistregel,180.0000,6.0919,1.2921
+0.0000,logreg zonder land,180.0000,5.7774,-0.7601
+0.0000,boosting zonder land,180.0000,4.6635,-1.7745
+0.9500,vuistregel,164.0000,6.3566,1.6890
+0.9500,logreg zonder land,164.0000,5.7745,-0.3313
+0.9500,boosting zonder land,164.0000,4.7190,-1.5915

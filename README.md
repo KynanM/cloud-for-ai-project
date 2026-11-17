@@ -197,7 +197,7 @@ kans op annuleren, en het hotel zou nooit overboeken.
 Een willekeurige split laat de toekomst in de training lekken: een boeking van augustus 2017
 helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
 Met een willekeurige split haalt de logistische regressie een AUC van 0,756, met de split in de
-tijd 0,628 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil is lek.
+tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil is lek.
 
 Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
 afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
@@ -292,9 +292,9 @@ aandeel nachten met minder annulaties dan k; de risicogrens is 20 %.
 | Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht | te veel |
 |---|---|---|---|---|---|
 | vuistregel | 6,36 | 1,11 | 328 | 2,23 | **23 %** |
-| logreg zonder land | 5,78 | 0,97 | 343 | 1,37 | 12 % |
+| logreg zonder land | 5,77 | 0,98 | 331 | 1,43 | 13 % |
 | **boosting zonder land** | **4,72** | 0,90 | **480** | 0,43 | 11 % |
-| logreg met land | 4,98 | 0,82 | 495 | 0,03 | 2 % |
+| logreg met land | 4,95 | 0,82 | 502 | 0,03 | 2 % |
 | boosting met land | 4,58 | 0,82 | 484 | 0,00 | 2 % |
 
 Test (april tot augustus 2017, 295 hotel-nachten, waarvan 199 volgeboekt, na hertrainen). Alleen
@@ -303,9 +303,9 @@ gerapporteerd:
 | Model | MAE | voorspeld/echt | € per volgeboekte nacht | doorverwezen per volle nacht | te veel |
 |---|---|---|---|---|---|
 | vuistregel | 6,87 | 1,31 | 540 | 1,76 | **31 %** |
-| logreg zonder land | 5,37 | 1,04 | 666 | 0,34 | 10 % |
+| logreg zonder land | 5,35 | 1,04 | 671 | 0,32 | 9 % |
 | **boosting zonder land** | **5,11** | 1,07 | **715** | 0,54 | 16 % |
-| logreg met land | 5,14 | 0,87 | 578 | 0,03 | 2 % |
+| logreg met land | 5,12 | 0,87 | 582 | 0,04 | 2 % |
 | boosting met land | 5,39 | 1,01 | 700 | 0,23 | 9 % |
 
 **Gekozen: boosting zonder land**, op de laagste MAE op de validatie van de modellen zonder land.
@@ -319,7 +319,7 @@ geen zoektocht: zie de bewijskaart "Hyperparameters" in
 | AUC | validatie | test |
 |---|---|---|
 | vuistregel | 0,557 | 0,613 |
-| logreg zonder land | 0,628 | 0,626 |
+| logreg zonder land | 0,627 | 0,626 |
 | boosting zonder land | 0,695 | 0,647 |
 
 ### De poorten vóór het wegschrijven
@@ -423,7 +423,7 @@ Dezelfde beslisregel, met en zonder maximum, en met en zonder spreidingsfactor
 | vuistregel, max 5 % | 352 | 638 | 5 % | 0,10 |
 | boosting, max 5 % | 357 | 633 | 5 % | 0,09 |
 | vuistregel, geen maximum | 328 | 540 | **31 %** | 1,76 |
-| logreg, geen maximum | 343 | 666 | 10 % | 0,34 |
+| logreg, geen maximum | 331 | 671 | 9 % | 0,32 |
 | **boosting, geen maximum** | **480** | **715** | 16 % | 0,54 |
 | boosting, geen maximum, geen spreidingsfactor | 466 | 518 | **33 %** | 1,88 |
 
@@ -452,7 +452,7 @@ risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de co
 | Model | top validatie | top test |
 |---|---|---|
 | vuistregel | 0,925 | 0,875 |
-| logreg | 0,875 | 0,775 |
+| logreg | 0,875 | 0,75 |
 | boosting | 0,725 | 0,825 |
 
 Zonder maximum is de curve van boosting niet meer vlak: onder 0,70 gaat het advies op de
@@ -474,8 +474,10 @@ verschillende kansen en volgt de diagonaal het slechtst. In totaal onderschat bo
 aantal annulaties per nacht op de validatie met 10 % en overschat het op de test met 7 %. Dat
 de fout van teken wisselt tussen winter en zomer, wijst eerder op het seizoen dan op de
 ijking. Per maand is dat duidelijk: in City −8,3 annulaties per nacht in januari, +6,4 in juni
-(`resultaten/audit/segment_nacht.csv`). Een korter trainingsvenster (12 maanden) en herijken per
-hotel zijn getest en afgewezen (`experimenten.csv`, `spreiding.csv`).
+(`resultaten/audit/segment_nacht.csv`). Een korter trainingsvenster (12 maanden), herijken per
+hotel en elke maand hertrainen zijn getest en afgewezen (`experimenten.csv`, `spreiding.csv`,
+`hertraining.csv`). Elke maand hertrainen maakt de bias kleiner, maar de MAE op de validatie
+aantoonbaar groter: 5,04 tegenover 4,72 (interval van het verschil +0,09 tot +0,59).
 
 ### 6. `adr` is het geboekte tarief, ook bij een annulatie
 
@@ -517,7 +519,8 @@ Wat dit project niet doet, of vereenvoudigt:
   vergelijken. Daarom wordt gekozen op de MAE (164 hotel-nachten) en volgt de drempel uit de
   bedragen.
 - **Seizoensbias.** De fout wisselt van teken tussen winter en zomer. Met twee jaar data is dat
-  binnen dit project niet op te lossen; een korter venster en herijken zijn getest en afgewezen.
+  binnen dit project niet op te lossen; een korter venster, herijken en elke maand hertrainen zijn
+  getest en afgewezen.
 - **Segment en agent wijzen naar het land.** Ze blijven features, want ze zijn bij het boeken
   gekend, maar zo ziet het model het land deels toch. Een eerlijke controle per land kan pas met
   een land dat bij het boeken ingevuld is.
@@ -548,7 +551,7 @@ src/
   experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
-  test_split.py        is de split in de tijd eerlijk? embargo, geen overlap met de test
+  test_split.py        is de split in de tijd eerlijk? embargo (ook per maand), geen overlap met de test
   test_baseline.py     rekent de vuistregel na op kleine, zelfgemaakte data
   test_model.py        output, pijplijn, persistentie en reproduceerbaarheid
   test_modellen.py     elke soort, met en zonder land: kansen, ruwe rijen, persistentie
@@ -556,6 +559,7 @@ tests/
   test_systeem.py      van csv tot advies k, ook via de opdrachtregel; de poorten; het manifest
   test_businessrekening.py  de europroxy met de hand nagerekend, en waar ze afwijkt
   test_tijdcontract.py contract A tegenover B, verliesrekening, bootstrap
+  test_bewijsregister.py  spreken README, rapport en verantwoording de resultaten niet tegen?
 data/
   hotel_bookings.csv   de ruwe export (Kaggle)
   nieuwe_boekingen.csv geldige voorbeeldinvoer voor voorspellingen
@@ -563,7 +567,7 @@ notebooks/
   01_exploratie.ipynb  wat zit erin, wat is stuk, lekcontrole, land, capaciteit, spreiding,
                        segment en agent als omweg naar het land, adr als lek
 rapport/
-  rapport.md           concept van het rapport voor deel 2, met de AI-bijlage
+  rapport.md           het rapport voor deel 2, met de AI-bijlage: de bron van de PDF
 docs/
   verantwoording.md    elke keuze: opties, cijfers, keuze, waarom. Plus de foutenanalyse
   besliscontract.md    wat het hotel wanneer weet, en waar het label over gaat

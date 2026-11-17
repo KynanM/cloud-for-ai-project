@@ -8,7 +8,7 @@ babies,feature,aantal baby's,ja,ja (wijziging),zie booking_changes,behouden met 
 is_repeated_guest,feature,eerder al gast,ja,nee,profiel bij het boeken,behouden
 previous_cancellations,feature,eerdere annulaties van deze klant,ja,ja (latere boekingen van dezelfde klant),telt alleen boekingen vóór deze; niet na te gaan per datum,behouden met beperking
 previous_bookings_not_canceled,feature,eerdere niet-geannuleerde boekingen,ja,ja,zie previous_cancellations,behouden met beperking
-adr,feature,gemiddelde prijs per nacht,ja (geboekt tarief),mogelijk herrekend na het verblijf,notebook sectie 10: geannuleerd houdt het geboekte tarief; zelfde verdeling per hotel/segment/maand; afronden verandert de AUC niet (0.682 tegenover 0.687); zonder adr MAE 5.08 tegenover 4.87,behouden
+adr,feature,gemiddelde prijs per nacht,ja (geboekt tarief),mogelijk herrekend na het verblijf,notebook sectie 10: geannuleerd houdt het geboekte tarief; zelfde verdeling per hotel/segment/maand; afronden verandert de AUC niet (0.696 tegenover 0.695); zonder adr MAE 4.72 tegenover 4.72 (experimenten.csv; met 200 iteraties was het 5.08 tegenover 4.87),behouden
 hotel,feature,City of Resort,ja,nee,vast,behouden
 arrival_date_month,feature,maand van aankomst,ja,ja (datumwijziging),zie booking_changes,behouden met beperking
 meal,feature,maaltijdformule,ja,ja (wijziging),zie booking_changes,behouden met beperking
@@ -20,7 +20,7 @@ customer_type,feature,soort klant,ja,ja (bv. Transient wordt Transient-Party),zi
 agent,feature,id van het reisbureau,ja,nee,toegekend bij het boeken; wel een omweg naar het land (notebook sectie 9),behouden met beperking
 arrival_date_year,alleen vuistregel,jaar van aankomst,ja,ja (datumwijziging),alleen voor het venster van de vuistregel,behouden (geen feature)
 arrival_date_day_of_month,alleen vuistregel,dag van aankomst,ja,ja (datumwijziging),alleen voor het venster van de vuistregel,behouden (geen feature)
-arrival_date_week_number,kandidaat,weeknummer van aankomst,ja,ja (datumwijziging),getest: MAE 4.96 tegenover 4.87 (experimenten.csv),afgewezen op de validatie
+arrival_date_week_number,kandidaat,weeknummer van aankomst,ja,ja (datumwijziging),getest: MAE 4.77 tegenover 4.72 (experimenten.csv),afgewezen op de validatie
 country,uit,land van de gast,vermoedelijk niet,ja (vermoedelijk pas bij inchecken ingevuld),no-shows 63 % PRT tegenover 18 % bij uitgecheckt; agent 28: 100 % tegenover 7 % (README bevinding 1),uitgesloten: lek
 company,uit,id van het bedrijf,ja,nee,96.8 % leeg,uitgesloten: te dun
 booking_changes,uit,aantal wijzigingen,nee (telt ook wijzigingen na T),ja,geannuleerd 8.6 % tegenover 15.8 %: volgt de afloop,uitgesloten: lek
