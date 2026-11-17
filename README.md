@@ -567,7 +567,7 @@ notebooks/
   01_exploratie.ipynb  wat zit erin, wat is stuk, lekcontrole, land, capaciteit, spreiding,
                        segment en agent als omweg naar het land, adr als lek
 rapport/
-  rapport.md           concept van het rapport voor deel 2, met de AI-bijlage
+  rapport.md           het rapport voor deel 2, met de AI-bijlage: de bron van de PDF
 docs/
   verantwoording.md    elke keuze: opties, cijfers, keuze, waarom. Plus de foutenanalyse
   besliscontract.md    wat het hotel wanneer weet, en waar het label over gaat
