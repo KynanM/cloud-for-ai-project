@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from src.data import aankomstdatum
+from src.experimenten import hertraingrens, maandstarts
 from src.train import grenzen, splits
 
 
@@ -71,3 +72,25 @@ def test_periodes_in_de_verkeerde_volgorde_worden_geweigerd(cfg):
     # Act en Assert
     with pytest.raises(ValueError, match="niet na elkaar"):
         grenzen(fout)
+
+
+def test_hertrainen_per_maand_respecteert_het_embargo(cfg):
+    # Arrange: elke maand van de validatie en de test
+    maanden = maandstarts(cfg["split"]["validatie_start"], cfg["split"]["test_einde"])
+
+    for maand in maanden:
+        # Act
+        grens = hertraingrens(maand, cfg)
+
+        # Assert: de afloop van de laatste boeking (een no-show: de dag na aankomst) is gekend
+        # vóór het eerste beslismoment van de maand, en er gaat niet meer dan één dag verloren
+        beslismoment = eerste_beslismoment(maand, cfg)
+        assert grens + pd.Timedelta(days=1) < beslismoment, maand
+        assert grens + pd.Timedelta(days=2) >= beslismoment, maand
+
+
+def test_hertraingrens_is_die_van_de_vaste_split(cfg):
+    # Eén regel voor het embargo: dezelfde grens als training en hertraining
+    g = grenzen(cfg)
+    assert hertraingrens(g["validatie_start"], cfg) == g["training_einde"]
+    assert hertraingrens(g["test_start"], cfg) == g["hertraining_einde"]
