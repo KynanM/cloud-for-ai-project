@@ -1,5 +1,5 @@
 model,split,auc
-logreg,willekeurig,0.7556
-logreg,in de tijd,0.6284
+logreg,willekeurig,0.7558
+logreg,in de tijd,0.6274
 boosting,willekeurig,0.7974
 boosting,in de tijd,0.6954

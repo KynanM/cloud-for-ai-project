@@ -1,0 +1,13 @@
+periode,variant,hotel,nachten,mae,bias,voorspeld_echt,te_veel,gem_k,euro_per_volle_nacht,doorverwezen,auc,factor,mae_verschil,interval_laag,interval_hoog,binnen_risicogrens,aantoonbaar_beter
+validatie,vast model (referentie),City Hotel,85.0000,6.0092,-3.1280,0.8533,0.0588,10.6000,696.4844,0.4118,0.6954,2.4503,0.0000,0.0000,0.0000,True,False
+validatie,vast model (referentie),Resort Hotel,79.0000,3.3308,0.0618,1.0066,0.1646,6.1013,197.3438,0.4615,0.6954,1.4555,0.0000,0.0000,0.0000,True,False
+validatie,vast model (referentie),beide,164.0000,4.7190,-1.5915,0.8978,0.1098,8.4329,480.1901,0.4333,0.6954,,0.0000,0.0000,0.0000,True,False
+validatie,elke maand hertrainen,City Hotel,85.0000,6.7000,-1.4045,0.9342,0.0824,11.6471,643.1614,1.1176,0.6717,2.5781,0.3241,0.0905,0.5901,True,False
+validatie,elke maand hertrainen,Resort Hotel,79.0000,3.2603,0.3932,1.0419,0.1646,6.3797,188.8961,0.6154,0.6717,1.4484,0.3241,0.0905,0.5901,True,False
+validatie,elke maand hertrainen,beide,164.0000,5.0431,-0.5386,0.9654,0.1220,9.1098,446.3131,0.9000,0.6717,,0.3241,0.0905,0.5901,True,False
+test,vast model (referentie),City Hotel,149.0000,6.8597,3.5992,1.1579,0.2215,16.8255,822.2841,0.8600,0.6474,2.4503,0.0000,0.0000,0.0000,False,False
+test,vast model (referentie),Resort Hotel,146.0000,3.3157,-0.9892,0.9294,0.0959,8.9247,605.7831,0.2121,0.6474,1.4555,0.0000,0.0000,0.0000,True,False
+test,vast model (referentie),beide,295.0000,5.1057,1.3284,1.0720,0.1593,12.9153,714.5775,0.5377,0.6474,,0.0000,0.0000,0.0000,True,False
+test,elke maand hertrainen,City Hotel,149.0000,6.8813,3.7926,1.1664,0.2013,16.5302,838.3549,0.7500,0.6564,2.5781,-0.0246,-0.0750,0.0298,False,False
+test,elke maand hertrainen,Resort Hotel,146.0000,3.2440,-0.9076,0.9353,0.0890,9.0000,611.1406,0.2222,0.6564,1.4484,-0.0246,-0.0750,0.0298,True,False
+test,elke maand hertrainen,beide,295.0000,5.0812,1.4664,1.0795,0.1458,12.8034,725.3186,0.4874,0.6564,,-0.0246,-0.0750,0.0298,True,False
