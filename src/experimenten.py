@@ -25,6 +25,9 @@ scenario_optimum.csv   welke zekerheid bij welke r en w past (R11)
 maximum.csv            een maximum per nacht (5, 7,5, 10 % of geen) als beleidskeuze (R11)
 zonder_rem.csv         de modellen met het maximum van deel 1 (5 %) en zonder, met en zonder
                        spreidingsfactor: wat kost elke rem?
+dekking_effect.csv     de MAE met alle nachten en met alleen de volledige (dekkingsregel)
+hertraining.csv        vast model tegenover elke maand hertrainen, met het embargo (B1)
+hertraining_maand.csv  dezelfde vergelijking per hotel en maand: verdwijnt de seizoensbias?
 """
 
 import copy
@@ -686,6 +689,177 @@ def zonder_rem(bewaard: dict, o: Opzet) -> pd.DataFrame:
     return pd.DataFrame(rijen)
 
 
+# ---------------------------------------------------------------------- periodegrenzen
+
+
+def dekkingseffect(ruw: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Wat de dekkingsregel aan de MAE verandert: alle nachten tegenover de volledige.
+
+    Alleen de nachten die wegvallen verschillen; het model en de beslisregel blijven gelijk.
+    """
+    rijen = []
+    for min_dekking in (0.0, cfg["evaluatie"]["min_dekking"]):
+        o = Opzet(ruw, variant(cfg, evaluatie__min_dekking=min_dekking))
+        for soort in ("vuistregel", "logreg", "boosting"):
+            c = met(o.cfg, soort, False)
+            r = o.draai(c, "validatie", "training", "validatie")
+            t = beide(beoordeel(r["nachten"], spreidingsfactor(r["nachten"]), o.cap, o.bezet, c))
+            rijen.append(
+                {
+                    "min_dekking": min_dekking,
+                    "model": naam(soort, False),
+                    "nachten": t["nachten"],
+                    "mae": t["mae"],
+                    "bias": t["bias"],
+                }
+            )
+    return pd.DataFrame(rijen)
+
+
+# ---------------------------------------------------------------------------- hertraining
+
+
+def hertraingrens(maand_start: pd.Timestamp, cfg: dict) -> pd.Timestamp:
+    """De laatste aankomst die mee mag in een hertraining vóór deze maand.
+
+    Zelfde regel als `grenzen()`: op het eerste beslismoment van de maand (horizon dagen vóór
+    de eerste aankomst) moet de afloop gekend zijn, en een no-show ken je pas de dag erna.
+    """
+    embargo = pd.Timedelta(days=cfg["label"]["horizon_dagen"] + 1)
+    return pd.Timestamp(maand_start) - embargo - pd.Timedelta(days=1)
+
+
+def maandstarts(start: pd.Timestamp, einde: pd.Timestamp) -> list[pd.Timestamp]:
+    return list(pd.date_range(pd.Timestamp(start), pd.Timestamp(einde), freq="MS"))
+
+
+def voorspel_per_maand(o: Opzet, c: dict, periode: str) -> tuple[np.ndarray, list[dict]]:
+    """Elke maand een nieuw model, geleerd op alles wat op het eerste beslismoment van die
+    maand gekend is. Een boeking krijgt de kans van het model van haar aankomstmaand
+    (contract A: het beslismoment hangt aan de aankomst)."""
+    meet = o.delen[periode]
+    aankomst_meet = aankomstdatum(meet)
+    aankomst_alles = aankomstdatum(o.df)
+    p = np.full(len(meet), np.nan)
+    modellen = []
+    for maand in maandstarts(o.g[f"{periode}_start"], o.g[f"{periode}_einde"]):
+        grens = hertraingrens(maand, o.cfg)
+        leer = o.df[aankomst_alles <= grens]
+        model = bouw_pijplijn(c).fit(*kenmerken_en_label(leer, c))
+        in_maand = (aankomst_meet >= maand) & (aankomst_meet < maand + pd.offsets.MonthBegin(1))
+        if in_maand.any():
+            X, _ = kenmerken_en_label(meet[in_maand], c)
+            p[in_maand.to_numpy()] = model.predict_proba(X)[:, 1]
+        modellen.append({"maand": f"{maand:%Y-%m}", "leer_tot": grens, "boekingen": len(leer)})
+    if np.isnan(p).any():
+        raise ValueError(f"{periode}: niet elke boeking kreeg een kans")
+    return p, modellen
+
+
+def hertraining(bewaard: dict, o: Opzet, per_maand: dict) -> pd.DataFrame:
+    """Vraag: verkleint elke maand hertrainen de seizoensbias en de MAE?
+
+    Referentie: het vaste model (geleerd tot het einde van de training, of de hertraining voor
+    de test). Variant: per maand opnieuw leren, met hetzelfde embargo. Spreidingsfactor zoals
+    in `experimenten()`: geschat op de validatie van de variant zelf; voor de test die van de
+    validatie. Keuzeregel, vooraf vastgelegd: de variant wordt het beleid als het
+    90 %-bootstrapinterval van het verschil in absolute fout per nacht onder 0 ligt én het
+    advies binnen de risicogrens blijft. Gekozen wordt op de validatie; de test wordt alleen
+    gerapporteerd.
+    """
+    c = met(o.cfg, *GEKOZEN)
+    seed = o.cfg["model"]["seed"]
+    rijen, factor_variant = [], None
+    for periode, _, _ in RG:
+        ref = bewaard[(*GEKOZEN, periode)]
+        p, nachten = per_maand[periode]
+        if periode == "validatie":
+            factor_variant = spreidingsfactor(nachten)
+        fout_ref = ref["nachten"].set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
+        fout_var = nachten.set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
+        verschil = (fout_var - fout_ref).dropna()
+        for variant_naam, n, factor, y_p in [
+            ("vast model (referentie)", ref["nachten"], ref["factor"], ref["p"]),
+            ("elke maand hertrainen", nachten, factor_variant, p),
+        ]:
+            tabel = beoordeel(n, factor, o.cap, o.bezet, c)
+            is_variant = variant_naam != "vast model (referentie)"
+            laag, hoog = bootstrap(verschil, seed) if is_variant else (0.0, 0.0)
+            for _, t in tabel.iterrows():
+                rijen.append(
+                    {
+                        "periode": periode,
+                        "variant": variant_naam,
+                        "hotel": t["hotel"],
+                        "nachten": t["nachten"],
+                        "mae": t["mae"],
+                        "bias": t["bias"],
+                        "voorspeld_echt": t["voorspeld_echt"],
+                        "te_veel": t["te_veel"],
+                        "gem_k": t["gem_k"],
+                        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+                        "doorverwezen": t["doorverwezen"],
+                        "auc": roc_auc_score(ref["y"], y_p),
+                        "factor": factor.get(t["hotel"], np.nan),
+                        "mae_verschil": verschil.mean() if is_variant else 0.0,
+                        "interval_laag": laag,
+                        "interval_hoog": hoog,
+                    }
+                )
+    uit = pd.DataFrame(rijen)
+    uit["binnen_risicogrens"] = uit["te_veel"] <= o.cfg["advies"]["risicogrens"]
+    uit["aantoonbaar_beter"] = (uit["interval_hoog"] < 0) & uit["binnen_risicogrens"]
+    return uit
+
+
+def maandmodellen(o: Opzet) -> dict[str, tuple[np.ndarray, pd.DataFrame]]:
+    """Per periode: de kansen van elke maand hertrainen, en de volledige hotel-nachten."""
+    c = met(o.cfg, *GEKOZEN)
+    uit = {}
+    for periode, _, meet in RG:
+        p, modellen = voorspel_per_maand(o, c, meet)
+        for m in modellen:
+            logger.info(
+                "  %s %s: geleerd tot %s, %d boekingen",
+                periode,
+                m["maand"],
+                f"{m['leer_tot']:%d-%m-%Y}",
+                m["boekingen"],
+            )
+        nachten = alleen_volledig(
+            per_nacht(o.delen[meet], p, c, o.g[f"{periode}_start"], o.g[f"{periode}_einde"]),
+            o._dekking[periode],
+            c["evaluatie"]["min_dekking"],
+        )
+        uit[periode] = (p, nachten)
+    return uit
+
+
+def hertraining_per_maand(bewaard: dict, per_maand: dict) -> pd.DataFrame:
+    """Bias en MAE per hotel en maand, vast model tegenover elke maand hertrainen."""
+    rijen = []
+    for periode, _, _ in RG:
+        _, nachten = per_maand[periode]
+        for variant_naam, n in [
+            ("vast model (referentie)", bewaard[(*GEKOZEN, periode)]["nachten"]),
+            ("elke maand hertrainen", nachten),
+        ]:
+            n = n.assign(maand=n["nacht"].dt.to_period("M").astype(str))
+            for (hotel, maand), groep in n.groupby(["hotel", "maand"]):
+                rijen.append(
+                    {
+                        "periode": periode,
+                        "variant": variant_naam,
+                        "hotel": hotel,
+                        "maand": maand,
+                        "nachten": len(groep),
+                        "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
+                        "bias": (groep["verwacht"] - groep["echt"]).mean(),
+                    }
+                )
+    return pd.DataFrame(rijen)
+
+
 def main() -> None:
     cfg = laad_config()
     zet_logging_op(cfg, "experimenten")
@@ -727,6 +901,11 @@ def main() -> None:
     schrijf(scenario_optimum(bewaard, o), "scenario_optimum.csv")
     schrijf(maximum(bewaard, o), "maximum.csv")
     schrijf(zonder_rem(bewaard, o), "zonder_rem.csv")
+    schrijf(dekkingseffect(laad_data(cfg["data"]["pad"]), cfg), "dekking_effect.csv")
+    logger.info("Elke maand hertrainen")
+    per_maand = maandmodellen(o)
+    schrijf(hertraining(bewaard, o, per_maand), "hertraining.csv")
+    schrijf(hertraining_per_maand(bewaard, per_maand), "hertraining_maand.csv")
     logger.info("Weggeschreven naar %s", uit)
 
 
