@@ -76,6 +76,36 @@ zolang je pc aan en verbonden is, tot na het mondeling.
 
 ---
 
+## Status van de uitvoering (19-11-2026)
+
+| Fase | Status | Commit |
+|---|---|---|
+| 0 Directe correcties | **klaar, gecontroleerd** | `fb0c6e9` |
+| 1 Softwaremetriek & benchmarking | **klaar, gecontroleerd** | `f2c740a` |
+| 2 Contract, API & releasegates | **klaar, gecontroleerd** | `bb08aed` |
+| 3 ML-metric, statistiek & experimenten | **klaar, gecontroleerd** (P1 én P2) | `fdaf74d` |
+| 4 Businessmetric | **klaar, gecontroleerd** | `fec3575` |
+| 5 Lokale MLOps-verharding | **klaar, behalve 5.8 (CI op GitHub) en 5.10 (Hugging Face Space)** | `d1d7a46` |
+| 6 Documentatie & bewijsvoering | **klaar** | zie git log |
+
+**Wat nog van de student afhangt:**
+
+1. **Pushen** van `audit-opvolging` naar GitHub, zodat `ci.yml` draait (taak 5.8).
+2. **Hugging Face Space** (taak 5.10): een Space met de Docker SDK aanmaken, een token met
+   schrijfrechten als GitHub-secret `HF_TOKEN` en de naam als repositoryvariabele `HF_SPACE`
+   zetten, en `deploy.yml` starten. Daarna `python -m benchmarks.bench --doelen http --url
+   https://<space>.hf.space` voor de publieke latency, en de URL in `rapport/rapport_deel3.md`.
+3. **De PDF's** van rapport deel 2 en deel 3 (VIVES-sjabloon) en de presentatie.
+
+**Wat de uitvoering anders deed dan gepland:** de MLflow-tracking (3.1) is al in fase 1 gebouwd,
+zodat de experimenten van fase 1 meteen geregistreerd werden; de loadtest gebruikt een eigen
+open-model-generator in Python in plaats van k6 (geen extra programma); de API (2.3) leest het
+gepubliceerde model via `OVERBOEKING_MODELMAP` in plaats van een gegenereerde `configs/productie.yaml`;
+de driftdrempels zijn per kolom geijkt (een vaste 0,2 alarmeerde elke dag). Afwijkingen per taak
+staan als *open* bij de DoD.
+
+---
+
 ## 1. Overzicht & prioriteitenmatrix
 
 ### Fases
@@ -196,7 +226,7 @@ Conventies:
 **Doel:** binnen één sessie verdwijnt elke tegenspraak tussen documentatie en de eigen CSV's.
 Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
 
-#### [ ] Taak 0.1: Veiligheidsclaim per hotel corrigeren (G10)
+#### [x] Taak 0.1: Veiligheidsclaim per hotel corrigeren (G10)
 
 - **Wat & waarom:** README en verantwoording zeggen dat boosting "binnen de risicogrens blijft".
   Gepoold klopt dat (15,93 %), maar City Hotel zit op de test op **22,15 %**. Het gemiddelde
@@ -215,11 +245,11 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
 - **Bewijs / output:** tabel met `te_veel` per hotel × periode in verantwoording §8; nieuwe rij in
   `bewijsregister.csv`: `veiligheid,te veel City test,22.15 %,resultaten/evaluatie.csv,...`.
 - **DoD:**
-  - [ ] `grep -rn "binnen de risicogrens" README.md docs rapport` geeft alleen nog zinnen die gepoold/per hotel expliciet maken
-  - [ ] `bewijsregister.csv` bevat de per-hotelwaarde; `pytest tests/test_bewijsregister.py` groen
-  - [ ] Rapport nog steeds ≤ 2 pagina's
+  - [x] `grep -rn "binnen de risicogrens" README.md docs rapport` geeft alleen nog zinnen die gepoold/per hotel expliciet maken
+  - [x] `bewijsregister.csv` bevat de per-hotelwaarde; `pytest tests/test_bewijsregister.py` groen
+  - [ ] Rapport nog steeds ≤ 2 pagina's — *open: rapport.md met ~1 regel extra; de PDF in OneDrive past de student zelf aan*
 
-#### [ ] Taak 0.2: Risicogrens-terminologie rechtzetten (G28)
+#### [x] Taak 0.2: Risicogrens-terminologie rechtzetten (G28)
 
 - **Wat & waarom:** "Het advies wordt begrensd door de zekerheid en de risicogrens"
   (`docs/verantwoording.md:204`, `README.md:442`) suggereert een runtimecontrole. In werkelijkheid
@@ -234,10 +264,10 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
   | risicogrens 20 % | `drempel()` | keuze zekerheid | nee → wordt releasegate in 2.5, monitor in 5.7 |
 - **Bewijs / output:** de tabel hierboven in `docs/verantwoording.md`.
 - **DoD:**
-  - [ ] Geen tekst meer die "begrensd door de risicogrens" zegt zonder verwijzing naar 2.5/5.7
-  - [ ] Na 2.5: de kolom "Afgedwongen?" bijgewerkt naar "ja, releasegate per hotel"
+  - [x] Geen tekst meer die "begrensd door de risicogrens" zegt zonder verwijzing naar 2.5/5.7
+  - [x] Na 2.5: de kolom "Afgedwongen?" bijgewerkt naar "ja, releasegate per hotel"
 
-#### [ ] Taak 0.3: Softwaretijden en €-kolom in verantwoording §8 actualiseren (G02)
+#### [x] Taak 0.3: Softwaretijden en €-kolom in verantwoording §8 actualiseren (G02)
 
 - **Wat & waarom:** `docs/verantwoording.md:113-116,123` noemt 0,02 / 0,3 / 0,3 s leren en
   1 / 3 / 5 ms per 1 000. `resultaten/audit/modelvergelijking.csv` zegt (validatie):
@@ -253,11 +283,11 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
   per 1 000). Of dat verschil ertoe doet, beslist pas de meting tegen de SLO (1.9).
 - **Bewijs / output:** bijgewerkte tabel; rijen in `bewijsregister.csv` voor `leertijd_s` en `voorspeltijd_ms_per_1000`.
 - **DoD:**
-  - [ ] Elke tijd en elk €-bedrag in §8 is gelijk (afgerond) aan `modelvergelijking.csv`
-  - [ ] Noot over meetopzet aanwezig
-  - [ ] In 6.1 wordt dit semantisch getest
+  - [x] Elke tijd en elk €-bedrag in §8 is gelijk (afgerond) aan `modelvergelijking.csv`
+  - [x] Noot over meetopzet aanwezig
+  - [x] In 6.1 wordt dit semantisch getest
 
-#### [ ] Taak 0.4: Testaantal niet meer hardcoderen (G32)
+#### [x] Taak 0.4: Testaantal niet meer hardcoderen (G32)
 
 - **Wat & waarom:** `README.md:41` zegt 110 tests, `rapport/rapport.md:135` en `docs/audit_scope.md` 125.
 - **Betrokken bestanden:** `README.md:41`, `rapport/rapport.md:135`, `docs/audit_scope.md`.
@@ -266,9 +296,9 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
   CI-badge toevoegen.
 - **Bewijs / output:** één consistent getal of geen getal.
 - **DoD:**
-  - [ ] `grep -rn "110 tests\|125 tests" .` geeft hoogstens één bron, gelijk aan `pytest --collect-only`
+  - [x] `grep -rn "110 tests\|125 tests" .` geeft hoogstens één bron, gelijk aan `pytest --collect-only`
 
-#### [ ] Taak 0.5: Docstring en default van de vuistregel gelijkzetten (G36)
+#### [x] Taak 0.5: Docstring en default van de vuistregel gelijkzetten (G36)
 
 - **Wat & waarom:** `src/baseline.py:8-10` beschrijft "alleen de laatste 12 maanden" en
   `Vuistregel.__init__` heeft `venster_maanden=12`, terwijl `configs/default.yaml` `null` kiest
@@ -279,10 +309,10 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
   `tests/test_baseline.py` impliciet op de default steunt; zo ja, expliciet `venster_maanden=12` meegeven.
 - **Bewijs / output:** diff + groene tests.
 - **DoD:**
-  - [ ] Docstring, default en config zeggen hetzelfde
-  - [ ] `pytest tests/test_baseline.py` groen
+  - [x] Docstring, default en config zeggen hetzelfde
+  - [x] `pytest tests/test_baseline.py` groen
 
-#### [ ] Taak 0.6: Probleemstelling en contracttekst volgens contract A (G18, G33, G34)
+#### [x] Taak 0.6: Probleemstelling en contracttekst volgens contract A (G18, G33, G34)
 
 - **Wat & waarom:**
   - `README.md:5` "beslist 30 dagen vóór elke nacht" en de `--nacht`-help in `src/predict.py:84-85`
@@ -299,11 +329,11 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
   is gemeten in `contract_mae.csv` (taak 3.12)."*
 - **Bewijs / output:** diff; na 3.12 een gemeten getal.
 - **DoD:**
-  - [ ] `grep -n "vóór elke nacht" README.md src/predict.py` leeg
-  - [ ] `besliscontract.md` noemt `lead_time` niet meer als veranderlijk
-  - [ ] Geen optelbaarheidsclaim meer zonder `contract_mae.csv`
+  - [x] `grep -n "vóór elke nacht" README.md src/predict.py` leeg
+  - [x] `besliscontract.md` noemt `lead_time` niet meer als veranderlijk
+  - [x] Geen optelbaarheidsclaim meer zonder `contract_mae.csv`
 
-#### [ ] Taak 0.7: Te stellige methodologische claims afzwakken (G30, G31, G35)
+#### [x] Taak 0.7: Te stellige methodologische claims afzwakken (G30, G31, G35)
 
 - **Wat & waarom:**
   - `README.md:200` en `docs/verantwoording.md:66`: "Het verschil is lek." De random split
@@ -322,8 +352,8 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
     of weging met herijking werkt, is niet getest."* (Of het resultaat van 3.8.)
 - **Bewijs / output:** diff.
 - **DoD:**
-  - [ ] Drie claims herschreven
-  - [ ] Elk verwijst naar een bestaand bewijsbestand of benoemt de beperking
+  - [x] Drie claims herschreven
+  - [x] Elk verwijst naar een bestaand bewijsbestand of benoemt de beperking
 
 ---
 
@@ -334,7 +364,7 @@ door een gemeten, bewakende metric: **p95-latency van het hele pad** voor een ad
 vastgelegde infrastructuur, met herhalingen, tijd per fase, geheugenpiek en vooraf vastgelegde
 grenzen (les 06 p. 13, 23).
 
-#### [ ] Taak 1.1: Softwaremetric en SLO's vooraf vastleggen (G01, G37, G46)
+#### [x] Taak 1.1: Softwaremetric en SLO's vooraf vastleggen (G01, G37, G46)
 
 - **Wat & waarom:** zonder vooraf vastgelegde definitie, infrastructuur en grens kan niemand
   zeggen wanneer het systeem slaagt. De metric uit deel 1 had geen percentiel en geen
@@ -393,11 +423,11 @@ grenzen (les 06 p. 13, 23).
 - **Bewijs / output:** beide bestanden, gecommit **vóór** de eerste benchmarkcommit. De
   git-historiek is het bewijs dat de grenzen vooraf vastlagen.
 - **DoD:**
-  - [ ] `configs/benchmark.yaml` en `docs/softwaremetric.md` gecommit vóór `resultaten/software/` bestaat
-  - [ ] Elke SLO-waarde heeft een verantwoording, met `[eigen aanvulling]` waar ze niet uit de cursus komt
-  - [ ] Verantwoording bevat de tabel "deel 1 → nu"
+  - [x] `configs/benchmark.yaml` en `docs/softwaremetric.md` gecommit vóór `resultaten/software/` bestaat
+  - [x] Elke SLO-waarde heeft een verantwoording, met `[eigen aanvulling]` waar ze niet uit de cursus komt
+  - [x] Verantwoording bevat de tabel "deel 1 → nu"
 
-#### [ ] Taak 1.2: Gedeelde jobkern, uitvoer en fase-instrumentatie (G01, G38)
+#### [x] Taak 1.2: Gedeelde jobkern, uitvoer en fase-instrumentatie (G01, G38)
 
 - **Wat & waarom:** `src.predict` logt alleen; er is geen uitvoerbestand om te valideren en geen
   tijd per fase. De CLI en de API (2.3) moeten bovendien dezelfde kern gebruiken, anders meet je twee systemen.
@@ -424,11 +454,11 @@ grenzen (les 06 p. 13, 23).
 - **Bewijs / output:** voorbeeld-`metrics.json` in `docs/softwaremetric.md`; test die controleert dat
   alle fases aanwezig zijn en samen ≤ `totaal_ms` zijn.
 - **DoD:**
-  - [ ] `python -m src.predict data/nieuwe_boekingen.csv --uitvoer x.csv --metrics-json m.json` schrijft beide
-  - [ ] `schema.ADVIES.validate(pd.read_csv("x.csv"))` slaagt; test in `tests/test_systeem.py`
-  - [ ] Bestaande `test_de_opdrachtregel_van_csv_tot_advies` blijft groen
+  - [x] `python -m src.predict data/nieuwe_boekingen.csv --uitvoer x.csv --metrics-json m.json` schrijft beide
+  - [x] `schema.ADVIES.validate(pd.read_csv("x.csv"))` slaagt; test in `tests/test_systeem.py`
+  - [x] Bestaande `test_de_opdrachtregel_van_csv_tot_advies` blijft groen
 
-#### [ ] Taak 1.3: Deterministische workloadgenerator (G01, G38)
+#### [x] Taak 1.3: Deterministische workloadgenerator (G01, G38)
 
 - **Wat & waarom:** de huidige timing hergebruikt de validatieset. Een softwaremetric heeft een
   eigen, vaste en geverifieerde workload nodig, met boekingen én boeking-nachten (de kost van
@@ -448,11 +478,11 @@ grenzen (les 06 p. 13, 23).
   - CSV voor de CLI én JSON voor de API (zelfde rijen).
 - **Bewijs / output:** `resultaten/software/workloads.json` met hashes; een tweede run geeft identieke hashes.
 - **DoD:**
-  - [ ] Twee keer genereren → identieke sha256
-  - [ ] Elke workload valideert tegen `schema.INVOER` (en na 2.1 tegen de scopecontrole)
-  - [ ] De grootte van "normaal" is met een getal verantwoord in `docs/softwaremetric.md`
+  - [x] Twee keer genereren → identieke sha256
+  - [x] Elke workload valideert tegen `schema.INVOER` (en na 2.1 tegen de scopecontrole)
+  - [x] De grootte van "normaal" is met een getal verantwoord in `docs/softwaremetric.md`
 
-#### [ ] Taak 1.4: Benchmarkrunner: HTTP, warm, vers proces, koude start (G01, G38)
+#### [x] Taak 1.4: Benchmarkrunner: HTTP, warm, vers proces, koude start (G01, G38)
 
 - **Wat & waarom:** één getimede aanroep geeft geen spreiding, geen p95 en geen systeemgrens.
 - **Betrokken bestanden (nieuw):** `benchmarks/bench.py`, `benchmarks/test_bench_functies.py`,
@@ -478,12 +508,12 @@ grenzen (les 06 p. 13, 23).
   `software_fases.png` (gestapelde staaf per fase: "waar gaat de tijd naartoe", opdracht deel 3) en
   `software_schaal.png` (latency tegen `n_boeking_nachten`, log-log).
 - **DoD:**
-  - [ ] ≥ 200 warme `http`-runs en ≥ 30 `cli`-runs per workload × model; 20 koude starts
-  - [ ] `summary.csv` bevat p50/p95/max/mislukt/ongeldig en `slo_gehaald`
-  - [ ] Infrastructuur en threads staan in elke ruwe rij
-  - [ ] Normale workload: SLO gehaald of expliciet niet gehaald (beide zijn een geldig resultaat)
+  - [x] ≥ 200 warme `http`-runs en ≥ 30 `cli`-runs per workload × model; 20 koude starts
+  - [x] `summary.csv` bevat p50/p95/max/mislukt/ongeldig en `slo_gehaald`
+  - [x] Infrastructuur en threads staan in elke ruwe rij
+  - [x] Normale workload: SLO gehaald of expliciet niet gehaald (beide zijn een geldig resultaat)
 
-#### [ ] Taak 1.5: Experiment E1 — dubbele inference verwijderen (G03)
+#### [x] Taak 1.5: Experiment E1 — dubbele inference verwijderen (G03)
 
 - **Wat & waarom:** `main()` roept `voorspel()` aan (`src/predict.py:103`) en daarna `adviseer()`,
   dat opnieuw `voorspel()` aanroept (`:72`). Onnodig werk op het kritieke pad.
@@ -502,11 +532,11 @@ grenzen (les 06 p. 13, 23).
   | Beslisregel (vooraf) | overnemen als de uitvoer identiek is; effect rapporteren, ook als het < 1 % is | |
 - **Bewijs / output:** MLflow-run `e1_dubbele_inference` + `resultaten/software/e1_dubbele_inference.csv`.
 - **DoD:**
-  - [ ] Teller-test bewijst 1 aanroep
-  - [ ] Uitvoer-sha256 identiek voor en na
-  - [ ] Δp95 met interval gerapporteerd per workload
+  - [x] Teller-test bewijst 1 aanroep
+  - [x] Uitvoer-sha256 identiek voor en na
+  - [x] Δp95 met interval gerapporteerd per workload
 
-#### [ ] Taak 1.6: Experiment E9 — één-nachtaggregatie tegenover volledig uitrollen (G04)
+#### [x] Taak 1.6: Experiment E9 — één-nachtaggregatie tegenover volledig uitrollen (G04)
 
 - **Wat & waarom:** `per_nacht()` roept `_uitgerold()` aan voor alle verblijfsnachten en filtert pas
   daarna op `begin`/`einde`. Voor één adviesnacht is dat overbodige allocatie, die schaalt met de verblijfsduur.
@@ -534,11 +564,11 @@ grenzen (les 06 p. 13, 23).
   | Beslisregel (vooraf) | overnemen als equivalent **en** p95 op normaal ≥ 10 % lager of piek-RSS ≥ 20 % lager; anders afwijzen en documenteren | |
 - **Bewijs / output:** MLflow-run + `resultaten/software/e9_aggregatie.csv`; figuur geheugen tegen gemiddelde verblijfsduur.
 - **DoD:**
-  - [ ] Equivalentietest groen
-  - [ ] Meting op alle zes workloads
-  - [ ] Besluit volgens de vooraf vastgelegde regel, in `docs/optimalisaties.md`
+  - [x] Equivalentietest groen
+  - [ ] Meting op alle zes workloads — *open: E9 op 5 workloads: smoke (76 boekingen) ontbreekt*
+  - [x] Besluit volgens de vooraf vastgelegde regel, in `docs/optimalisaties.md`
 
-#### [ ] Taak 1.7: Experiment — batch, online, en model laden per verzoek (G47)
+#### [x] Taak 1.7: Experiment — batch, online, en model laden per verzoek (G47)
 
 - **Wat & waarom:** les 07 (p. 7–8) meet dit met het labosjabloon. Het deel-3-plan (C0) citeert
   die cijfers als argument voor batch. Met je eigen model en je eigen pad is het een eigen bewijs
@@ -555,10 +585,10 @@ grenzen (les 06 p. 13, 23).
   van alle boekingen van een nacht samen (C0).*
 - **Bewijs / output:** `modus.csv` + tabel naar het model van les 07 p. 8, met je eigen getallen.
 - **DoD:**
-  - [ ] Drie varianten × 30 runs, met identieke k
-  - [ ] Tabel opgenomen in `docs/verantwoording.md` (inferentiemodus) en in het rapport van deel 3
+  - [x] Drie varianten × 30 runs, met identieke k
+  - [x] Tabel opgenomen in `docs/verantwoording.md` (inferentiemodus) en in het rapport van deel 3
 
-#### [ ] Taak 1.8: Artefact- en runtime-optimalisaties meten of onderbouwd afwijzen (G40)
+#### [x] Taak 1.8: Artefact- en runtime-optimalisaties meten of onderbouwd afwijzen (G40)
 
 - **Wat & waarom:** les 06 p. 21 noemt GPU-sharing, multi-model serving, caching, compilatie en
   een kleiner model. Zonder gemeten bottleneck zijn die irrelevante demonstraties; een afwijzing met een meting is sterker.
@@ -577,10 +607,10 @@ grenzen (les 06 p. 13, 23).
 - **Bewijs / output:** `docs/optimalisaties.md` met tabel
   `| Optimalisatie (les 06 p. 21) | Hypothese | Gemeten aandeel in latency | Gemeten effect | Besluit | Bewijs |`.
 - **DoD:**
-  - [ ] Elke optimalisatie uit les 06 p. 21 en uit de opdracht (feature-selectie → 3.9, quantization/pruning, compilatie, batch vs real-time → 1.7, caching → 1.7/5.5, instance sizing → 5.6, image size → 5.2) heeft een rij
-  - [ ] Geen enkele rij "niet onderzocht" zonder getal of verwijzing
+  - [x] Elke optimalisatie uit les 06 p. 21 en uit de opdracht (feature-selectie → 3.9, quantization/pruning, compilatie, batch vs real-time → 1.7, caching → 1.7/5.5, instance sizing → 5.6, image size → 5.2) heeft een rij
+  - [x] Geen enkele rij "niet onderzocht" zonder getal of verwijzing
 
-#### [ ] Taak 1.9: De drie modellen op de softwaremetric — "is 1 % het waard?" (G02)
+#### [x] Taak 1.9: De drie modellen op de softwaremetric — "is 1 % het waard?" (G02)
 
 - **Wat & waarom:** les 06 p. 22 stelt de vraag letterlijk: een iets beter model dat trager is,
   welk stuur je naar productie? De modelkeuze vermeldt nu alleen een microbenchmark.
@@ -591,8 +621,8 @@ grenzen (les 06 p. 13, 23).
 - **Bewijs / output:** in `summary.csv` per model: p50/p95 `http`, koude start, `piek_rss_mb`,
   modelgrootte (MB), leertijd (mediaan van 30). Figuur: MAE (validatie) tegen p95-latency, met de SLO-lijn.
 - **DoD:**
-  - [ ] Tabel "softwaremetric per model" in `docs/verantwoording.md` §8 vervangt de microbenchmarkkolommen
-  - [ ] De keuze voor boosting steunt op "MAE het laagst, en p95 binnen de grens", met getallen
+  - [x] Tabel "softwaremetric per model" in `docs/verantwoording.md` §8 vervangt de microbenchmarkkolommen
+  - [x] De keuze voor boosting steunt op "MAE het laagst, en p95 binnen de grens", met getallen
 
 ---
 
@@ -602,7 +632,7 @@ grenzen (les 06 p. 13, 23).
 falen met een nette fout (eis van deel 3), en een model wordt alleen gepubliceerd als het ML-,
 beleids- én softwaregrenzen haalt.
 
-#### [ ] Taak 2.1: Gedeelde scopevalidator voor training én inference (G05, G29, G39)
+#### [x] Taak 2.1: Gedeelde scopevalidator voor training én inference (G05, G29, G39)
 
 - **Wat & waarom:** training filtert met `schoon_op()` (`src/data.py:50`) en `maak_label()` (actief
   op T); `src.predict` valideert alleen `schema.INVOER`, dat bewust Non Refund, 0 nachten,
@@ -627,11 +657,11 @@ beleids- én softwaregrenzen haalt.
   - `schema.invoer_schema(cfg)` bouwt `INVOER` dynamisch: `country` `required=cfg["features"]["gebruik_land"]`.
 - **Bewijs / output:** tabel in `docs/inputcontract.md` (reden → regel → herkomst in training); testmatrix (2.4).
 - **DoD:**
-  - [ ] `schoon_op()` en inference gebruiken dezelfde predikaten (test op de volledige export)
-  - [ ] `filterwaterval.csv` ongewijzigd na `python -m src.audit` (regressie)
-  - [ ] Een CSV zonder `country` wordt geaccepteerd als `gebruik_land: false`
+  - [x] `schoon_op()` en inference gebruiken dezelfde predikaten (test op de volledige export)
+  - [x] `filterwaterval.csv` ongewijzigd na `python -m src.audit` (regressie)
+  - [x] Een CSV zonder `country` wordt geaccepteerd als `gebruik_land: false`
 
-#### [ ] Taak 2.2: `as_of` en inputcontract (G06)
+#### [x] Taak 2.2: `as_of` en inputcontract (G06)
 
 - **Wat & waarom:** de CLI neemt een CSV en optioneel `--nacht`, maar kan niet controleren dat de
   export van het juiste beslismoment komt of dat er boekingen na dat moment gemaakt zijn.
@@ -644,10 +674,10 @@ beleids- én softwaregrenzen haalt.
   4. `nacht` ligt binnen de verblijven in het bestand, anders weigeren ("geen portefeuille voor deze nacht").
 - **Bewijs / output:** `docs/inputcontract.md` (kolommen, types, as_of-regels, CLI-exitcodes 0/1/2 en HTTP-statussen 200/422/500); tests.
 - **DoD:**
-  - [ ] Elke regel heeft een test met een geldig en een ongeldig voorbeeld
-  - [ ] Metrics bevatten `as_of` en `n_uitgesloten_per_reden`
+  - [x] Elke regel heeft een test met een geldig en een ongeldig voorbeeld
+  - [x] Metrics bevatten `as_of` en `n_uitgesloten_per_reden`
 
-#### [ ] Taak 2.3: API: `POST /advies` met inputvalidatie (G48)
+#### [x] Taak 2.3: API: `POST /advies` met inputvalidatie (G48)
 
 - **Wat & waarom:** deel 3 eist "je model achter een endpoint" en "een ongeldige request krijgt
   een nette fout, geen stacktrace". De primaire softwaremetric wordt op dit endpoint gemeten.
@@ -666,11 +696,11 @@ beleids- én softwaregrenzen haalt.
     een onverwachte fout → 500 met een generieke melding en `run_id`; de stacktrace alleen in de log.
 - **Bewijs / output:** `/docs` (automatisch), voorbeeldverzoek en -antwoord in de README, tests.
 - **DoD:**
-  - [ ] `TestClient`: geldig → 200 met k identiek aan de CLI; ongeldig veld → 422 met veldnaam; geen stacktrace in een antwoord
-  - [ ] De Pydantic- en Pandera-definities zijn door een test aan elkaar gelijk gehouden
-  - [ ] Geen secrets nodig of aanwezig
+  - [x] `TestClient`: geldig → 200 met k identiek aan de CLI; ongeldig veld → 422 met veldnaam; geen stacktrace in een antwoord
+  - [x] De Pydantic- en Pandera-definities zijn door een test aan elkaar gelijk gehouden
+  - [x] Geen secrets nodig of aanwezig
 
-#### [ ] Taak 2.4: Experiment E2 — foutgedrag-matrix voor CLI en API (G44)
+#### [x] Taak 2.4: Experiment E2 — foutgedrag-matrix voor CLI en API (G44)
 
 - **Wat & waarom:** aantonen dat het systeem niet stil advies geeft buiten scope, en hoe snel het weigert.
 - **Betrokken bestanden (nieuw):** `tests/test_foutgedrag.py`, `benchmarks/bench_foutgedrag.py`, `resultaten/software/foutgedrag.csv`.
@@ -681,11 +711,11 @@ beleids- én softwaregrenzen haalt.
   uitkomst (`advies`, `advies + uitsluiting`, `weigering`), exitcode of HTTP-status, verwacht fragment in de melding.
 - **Bewijs / output:** `foutgedrag.csv`: `kanaal, case, verwacht, gekregen, status, melding, latency_ms, n_uitgesloten`.
 - **DoD:**
-  - [ ] 100 % van de cases `verwacht == gekregen`
-  - [ ] Geen enkele case levert advies voor een rij buiten scope
-  - [ ] Geen enkel API-antwoord bevat een traceback
+  - [x] 100 % van de cases `verwacht == gekregen`
+  - [x] Geen enkele case levert advies voor een rij buiten scope
+  - [x] Geen enkel API-antwoord bevat een traceback
 
-#### [ ] Taak 2.5: Releasegates: ML, beleid, software (G11, G28)
+#### [x] Taak 2.5: Releasegates: ML, beleid, software (G11, G28)
 
 - **Wat & waarom:** `bouw_en_bewaar()` (`src/train.py`) controleert alleen AUC ≥ 0,60 en MAE <
   vuistregel. Een model met goede MAE maar te veel overboekingsrisico in één hotel, of een model
@@ -706,9 +736,9 @@ beleids- én softwaregrenzen haalt.
   - Resultaat van alle poorten → `manifest["poorten"]` én als MLflow-metrics en -tags; één gefaalde poort → niets gepubliceerd, `SystemExit`.
 - **Bewijs / output:** poorttabel in het manifest, in MLflow en in `logs/train.log`; tabel in verantwoording §14.
 - **DoD:**
-  - [ ] `test_wie_de_poort_niet_haalt_wordt_niet_weggeschreven` geparametriseerd met `risico_per_hotel: 0.01` en met een SLO van 1 ms → niets gepubliceerd
-  - [ ] Het huidige model haalt alle poorten (validatie: City 5,9 %, Resort 16,5 %), of het faalt en dat wordt gerapporteerd
-  - [ ] Taak 0.2: kolom "Afgedwongen?" bijgewerkt
+  - [x] `test_wie_de_poort_niet_haalt_wordt_niet_weggeschreven` geparametriseerd met `risico_per_hotel: 0.01` en met een SLO van 1 ms → niets gepubliceerd
+  - [x] Het huidige model haalt alle poorten (validatie: City 5,9 %, Resort 16,5 %), of het faalt en dat wordt gerapporteerd
+  - [x] Taak 0.2: kolom "Afgedwongen?" bijgewerkt
 
 ---
 
@@ -723,7 +753,7 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
 | **P1** (2 dagen) | 3.1 MLflow · 3.2 AUC per hotel · 3.3 risiconoemers · 3.4 risico per hotel × maand · 3.7 complexiteitsladder · 3.11 testlogboek |
 | **P2** (3–4 dagen) | 3.5 blokbootstrap · 3.6 rolling origin · 3.8 weging + herijking · 3.9 conservatieve features · 3.10 kalibratie · 3.12 claimtoetsen |
 
-#### [ ] Taak 3.1: MLflow-tracking voor alle experimenten (G22) — eerst
+#### [x] Taak 3.1: MLflow-tracking voor alle experimenten (G22) — eerst
 
 - **Wat & waarom:** `src/experimenten.py:main()` overschrijft `resultaten/audit/*.csv`. Er is geen
   registratie van config, hypothese, data-hash en hardware per run. Je keuze: MLflow, dat je ook
@@ -758,12 +788,12 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
     (alle runs met params, metrics, tags, besluit), zodat het bewijs ook zonder MLflow-server in de repo leesbaar is.
 - **Bewijs / output:** screenshot van de MLflow-UI met de vergelijkingsweergave van één experiment; `resultaten/runs.csv`.
 - **DoD:**
-  - [ ] Elk experiment uit fase 1, 3 en 4 draait via `experimentrun()`
-  - [ ] Een run zonder `beslisregel` faalt bij de start
-  - [ ] `runs.csv` bevat ook afgewezen varianten
-  - [ ] Keuze in `docs/verantwoording.md`: MLflow tegenover CSV in git, met de reden
+  - [ ] Elk experiment uit fase 1, 3 en 4 draait via `experimentrun()` — *open: de hoofdbenchmark (benchmarks/bench.py) en de metingen van fase 5 schrijven CSV's, geen MLflow-runs*
+  - [x] Een run zonder `beslisregel` faalt bij de start
+  - [x] `runs.csv` bevat ook afgewezen varianten
+  - [x] Keuze in `docs/verantwoording.md`: MLflow tegenover CSV in git, met de reden
 
-#### [ ] Taak 3.2: AUC en Brier echt per hotel (G08) — P1
+#### [x] Taak 3.2: AUC en Brier echt per hotel (G08) — P1
 
 - **Wat & waarom:** in `resultaten/evaluatie.csv` hebben City en Resort dezelfde `auc`/`brier`
   omdat `src/evaluate.py:103-104` gepoold rekent.
@@ -773,10 +803,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   `brier_gepoold` op de rij `beide`.
 - **Bewijs / output:** nieuwe kolommen in `evaluatie.csv`.
 - **DoD:**
-  - [ ] City- en Resort-AUC verschillen in `evaluatie.csv`
-  - [ ] Geen kolom die gepoolde waarden op een hotelrij toont zonder `_gepoold`
+  - [x] City- en Resort-AUC verschillen in `evaluatie.csv`
+  - [x] Geen kolom die gepoolde waarden op een hotelrij toont zonder `_gepoold`
 
-#### [ ] Taak 3.3: Risicometriek met meerdere noemers (G07, G12) — P1
+#### [x] Taak 3.3: Risicometriek met meerdere noemers (G07, G12) — P1
 
 - **Wat & waarom:** `te_veel` in `beoordeel()` (`src/nachten.py`) deelt door alle nachten, ook
   nachten met `k = 0` waarop geen risico genomen wordt. Dat verdunt het risico.
@@ -786,10 +816,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   `tekort_gem = mean(max(k − C, 0))`, `tekort_p95`, `tekort_max`. Bestaande `te_veel` blijft.
 - **Bewijs / output:** kolommen in `evaluatie.csv` en `modelvergelijking.csv`.
 - **DoD:**
-  - [ ] Unit-test met een handberekend voorbeeld voor elke nieuwe kolom
-  - [ ] `docs/metrics.md` definieert elke noemer
+  - [x] Unit-test met een handberekend voorbeeld voor elke nieuwe kolom
+  - [x] `docs/metrics.md` definieert elke noemer
 
-#### [ ] Taak 3.4: Experiment E3 — risico per hotel × maand × noemer (G10) — P1
+#### [x] Taak 3.4: Experiment E3 — risico per hotel × maand × noemer (G10) — P1
 
 - **Wat & waarom:** vaststellen of een acceptabel gemiddelde lokale problemen verbergt (City test 22 %).
 - **Betrokken bestanden:** `src/experimenten.py` (nieuwe `risico_per_groep()`), `configs/experimenten/e3_risico.yaml`.
@@ -804,10 +834,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   grens, dan wordt in 3.7 een per-hotelzekerheid als variant meegenomen.
 - **Bewijs / output:** `resultaten/audit/risico_per_groep.csv`, figuur `risico_per_maand.png` (punt + interval, horizontale lijn op 20 %).
 - **DoD:**
-  - [ ] Tabel en figuur voor drie modellen × twee hotels × alle maanden
-  - [ ] Tekst in verantwoording: welke groepen boven 20 % zitten, met interval, en wat dat (niet) betekent
+  - [x] Tabel en figuur voor drie modellen × twee hotels × alle maanden
+  - [x] Tekst in verantwoording: welke groepen boven 20 % zitten, met interval, en wat dat (niet) betekent
 
-#### [ ] Taak 3.5: Experiment E4 — blokbootstrap-robuustheid (G13) — P2
+#### [x] Taak 3.5: Experiment E4 — blokbootstrap-robuustheid (G13) — P2
 
 - **Wat & waarom:** `bootstrap()` (`src/experimenten.py:461`) trekt losse hotel-nachten. Overlappende
   verblijven, groepsannulaties en seizoen maken nachten afhankelijk; de intervallen zijn daardoor
@@ -835,10 +865,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   andere reden**: niet slechter, en lager op de bewakende metric (1.9, 3.7).
 - **Bewijs / output:** `resultaten/audit/bootstrap_gevoeligheid.csv`; figuur intervallen per bloklengte.
 - **DoD:**
-  - [ ] Vier vergelijkingen × vier bloklengtes
-  - [ ] Omgevallen conclusies expliciet herschreven
+  - [x] Vier vergelijkingen × vier bloklengtes
+  - [x] Omgevallen conclusies expliciet herschreven
 
-#### [ ] Taak 3.6: Experiment E5 — rolling-origin-evaluatie met embargo (G14, G31) — P2
+#### [x] Taak 3.6: Experiment E5 — rolling-origin-evaluatie met embargo (G14, G31) — P2
 
 - **Wat & waarom:** de modelkeuze steunt op één validatieblok (Q1 2017, winter). Aantonen of
   boosting structureel wint.
@@ -864,11 +894,11 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   laagst is **en** boosting in ≥ 3 van 4 folds wint van logreg **en** geen fold × hotel boven de risicogrens zit.*
 - **Bewijs / output:** `resultaten/audit/rolling_origin.csv`; figuur `rolling_origin_mae.png`.
 - **DoD:**
-  - [ ] Test bewijst per fold: max(aankomst train) ≤ `embargo_einde(begin)`, geen overlap met de test
-  - [ ] Vier folds × drie modellen × twee hotels in MLflow
-  - [ ] Taak 0.7: de tekst over tijdreeks-CV vervangen door het resultaat
+  - [x] Test bewijst per fold: max(aankomst train) ≤ `embargo_einde(begin)`, geen overlap met de test
+  - [x] Vier folds × drie modellen × twee hotels in MLflow
+  - [x] Taak 0.7: de tekst over tijdreeks-CV vervangen door het resultaat
 
-#### [ ] Taak 3.7: Experiment E6 — complexiteitsladder tegen de bewakende metric (G15) — P1
+#### [x] Taak 3.7: Experiment E6 — complexiteitsladder tegen de bewakende metric (G15) — P1
 
 - **Wat & waarom:** les 06 p. 23: "Verhoog de complexiteit zolang de voorspelkracht stijgt, tot je
   tegen een bewakende metriek botst." Dat is de manier om "opties overwogen en getest" binnen dit vak
@@ -900,11 +930,11 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
 - **Bewijs / output:** `complexiteit.csv`; figuur `complexiteit.png`: MAE (y) tegen p95-latency (x)
   per trede, met de SLO als verticale lijn: les 06 p. 23 in één beeld.
 - **DoD:**
-  - [ ] Negen treden, ML- én softwaremetric op dezelfde infrastructuur, in MLflow
-  - [ ] Besluit volgens de regel in verantwoording §9
-  - [ ] Test niet gebruikt
+  - [x] Negen treden, ML- én softwaremetric op dezelfde infrastructuur, in MLflow
+  - [x] Besluit volgens de regel in verantwoording §9
+  - [x] Test niet gebruikt
 
-#### [ ] Taak 3.8: Weging + herijking (G35) — P2
+#### [x] Taak 3.8: Weging + herijking (G35) — P2
 
 - **Wat & waarom:** de afwijzing van weging steunt op één variant zonder herijking. Of weging met kanscorrectie werkt, is niet getest.
 - **Betrokken bestanden:** `src/train.py` (`bouw_pijplijn`: optionele `CalibratedClassifierCV`), `configs/experimenten/e6b_weging.yaml`.
@@ -916,10 +946,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   software: p95 `http` (herijking voegt een stap toe). Beslisregel: zoals 3.7.
 - **Bewijs / output:** MLflow-experiment `e6b_weging`, CSV-kopie.
 - **DoD:**
-  - [ ] Drie varianten gemeten
-  - [ ] Taak 0.7: de wegingsclaim definitief
+  - [x] Drie varianten gemeten
+  - [x] Taak 0.7: de wegingsclaim definitief
 
-#### [ ] Taak 3.9: Experiment E7 — conservatieve featureset (G17) — P2
+#### [x] Taak 3.9: Experiment E7 — conservatieve featureset (G17) — P2
 
 - **Wat & waarom:** de eindexport toont alleen de laatste waarde van veranderlijke features
   (`docs/feature_beschikbaarheid.csv`: `behouden met beperking`). Hoeveel hangt de prestatie daarvan af?
@@ -934,10 +964,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   vermeld. Expliciet: dit bewijst niet dat er geen lek is.
 - **Bewijs / output:** MLflow-experiment `e7_features`; figuur Δ MAE per set.
 - **DoD:**
-  - [ ] Zes sets gemeten
-  - [ ] `feature_beschikbaarheid.csv` krijgt een kolom `gemeten_effect`
+  - [x] Zes sets gemeten
+  - [x] `feature_beschikbaarheid.csv` krijgt een kolom `gemeten_effect`
 
-#### [ ] Taak 3.10: Kalibratie met onzekerheid (G09) — P2
+#### [x] Taak 3.10: Kalibratie met onzekerheid (G09) — P2
 
 - **Wat & waarom:** `teken_ijking()` (`src/evaluate.py:213`) toont een ijkingscurve zonder aantallen
   per bin en zonder intervallen. Voor een *som* van kansen is de ijking de kern.
@@ -946,10 +976,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   waargenomen aandeel, Wilson-interval; ECE = Σ (n_b/N)·|p̄_b − ȳ_b|; per hotel (en per fold als 3.6 uitgevoerd is).
 - **Bewijs / output:** `resultaten/audit/kalibratie.csv`; `ijking.png` met foutbalken en een histogram van n per bin.
 - **DoD:**
-  - [ ] ECE per hotel × model
-  - [ ] Figuur toont intervallen en aantallen
+  - [x] ECE per hotel × model
+  - [x] Figuur toont intervallen en aantallen
 
-#### [ ] Taak 3.11: Testintegriteit vastleggen en afdwingen (G16) — P1
+#### [x] Taak 3.11: Testintegriteit vastleggen en afdwingen (G16) — P1
 
 - **Wat & waarom:** het rapport erkent dat testcijfers bekend waren toen keuzes veranderden
   (o.a. `max_aandeel: null` op 10-11-2026). De test is geen blinde eindtoets meer.
@@ -961,10 +991,10 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
     `--rapporteer-test`; die vlag zet MLflow-tag `test_gezien=true` en `bevroren_config_hash`.
 - **Bewijs / output:** testlogboek; een test die bewijst dat experimenten zonder vlag de test niet kunnen lezen.
 - **DoD:**
-  - [ ] Testlogboek met datum, commit, wat gezien werd en wat daarna veranderde
-  - [ ] Rapport en verantwoording noemen de test "niet meer blind", met verwijzing
+  - [x] Testlogboek met datum, commit, wat gezien werd en wat daarna veranderde
+  - [x] Rapport en verantwoording noemen de test "niet meer blind", met verwijzing
 
-#### [ ] Taak 3.12: Aanvullende claimtoetsen: contract en duplicaten (G30, G34) — P2
+#### [x] Taak 3.12: Aanvullende claimtoetsen: contract en duplicaten (G30, G34) — P2
 
 - **Wat & waarom:** twee tekstclaims kunnen met een kleine meting hard worden in plaats van afgezwakt.
 - **Betrokken bestanden:** `src/audit.py` (`boeking_nachten`, `contract_per_nacht`), `src/experimenten.py` (`willekeurige_split`).
@@ -973,7 +1003,7 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
   - **Duplicaten:** random split met `GroupShuffleSplit` op een duplicaatsleutel (alle kolommen behalve het label), naast de huidige random split en de tijdsplit → extra rijen in `split.csv`.
 - **Bewijs / output:** `contract_mae.csv`, uitgebreide `split.csv`.
 - **DoD:**
-  - [ ] De teksten uit 0.6 en 0.7 verwijzen naar de gemeten getallen
+  - [x] De teksten uit 0.6 en 0.7 verwijzen naar de gemeten getallen
 
 ---
 
@@ -982,7 +1012,7 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
 **Doel:** van "europroxy onder één aanname" naar een scenarioanalyse met kosten, een netto-ROI-raming
 en een protocol om de echte waarde te meten, met een expliciete scheiding tussen gemeten, geraamd en aangenomen.
 
-#### [ ] Taak 4.1: Experiment E8 — businessstress met `winst_fysiek()` (G19)
+#### [x] Taak 4.1: Experiment E8 — businessstress met `winst_fysiek()` (G19)
 
 - **Wat & waarom:** `winst()` klopt alleen als de nacht op T precies volgeboekt is en elke extra kamer
   verkocht wordt (`docs/business_aannames.md`). De gevoeligheid voor `r/w` bestaat al (`robuustheid.csv`);
@@ -998,11 +1028,11 @@ en een protocol om de echte waarde te meten, met een expliciete scheiding tussen
   businessrobuust als het in ≥ 90 % van de scenario's ≥ vuistregel scoort; anders worden de scenario's benoemd waarin het verliest.*
 - **Bewijs / output:** MLflow-experiment `e8_business`; `resultaten/audit/business_scenario.csv`; heatmap `business_scenario.png`.
 - **DoD:**
-  - [ ] Test: `verkoopkans=1, geboekt=cap` reproduceert `winst()` exact
-  - [ ] Percentage scenario's waarin de rangorde gelijk blijft, gerapporteerd
-  - [ ] Gepresenteerd als scenarioanalyse, niet als reconstructie
+  - [x] Test: `verkoopkans=1, geboekt=cap` reproduceert `winst()` exact
+  - [x] Percentage scenario's waarin de rangorde gelijk blijft, gerapporteerd
+  - [x] Gepresenteerd als scenarioanalyse, niet als reconstructie
 
-#### [ ] Taak 4.2: Kosten- en ROI-raming (G20, G37)
+#### [x] Taak 4.2: Kosten- en ROI-raming (G20, G37)
 
 - **Wat & waarom:** er is geen netto waarde: beheer- en infrastructuurkosten ontbreken. Les 06 p. 15
   telt bij de kost ook "mensen en de rest: engineering- en testtijd".
@@ -1018,11 +1048,11 @@ en een protocol om de echte waarde te meten, met een expliciete scheiding tussen
   **geraamd** (beheeruren, energie), **aangenomen** (tarief, verkoopkans). Tornadodiagram: welke aanname beweegt de netto waarde het meest.
 - **Bewijs / output:** `resultaten/business/roi.csv`, `roi_tornado.png`, `docs/business_roi.md`.
 - **DoD:**
-  - [ ] Elke invoerwaarde heeft een label en een bron
-  - [ ] Netto waarde in een pessimistisch, basis- en optimistisch scenario
-  - [ ] Geen ROI-claim in de README zonder scenario-aanduiding
+  - [x] Elke invoerwaarde heeft een label en een bron
+  - [x] Netto waarde in een pessimistisch, basis- en optimistisch scenario
+  - [x] Geen ROI-claim in de README zonder scenario-aanduiding
 
-#### [ ] Taak 4.3: Shadow-evaluatie en tijdswinst: protocol + historische replay (G20, G42)
+#### [x] Taak 4.3: Shadow-evaluatie en tijdswinst: protocol + historische replay (G20, G42)
 
 - **Wat & waarom:** echte ROI en tijdswinst vereisen operationele data die er niet is. Wat wel kan:
   een uitvoerbaar protocol (shadow mode, les 06 p. 24) en een replay die de keten demonstreert.
@@ -1036,10 +1066,10 @@ en een protocol om de echte waarde te meten, met een expliciete scheiding tussen
     aanroepen tegen de lokale stack (5.4); antwoord en latency loggen. De monitor uit 5.7 draait erop.
 - **Bewijs / output:** protocol; `replay.csv` (dag, hotel, k, C, €, latency_ms); doorlooptijd van de hele replay.
 - **DoD:**
-  - [ ] De replay draait end-to-end over de testperiode zonder fouten
-  - [ ] Het protocol bevat een meetformulier, een stopregel en een analyseplan
+  - [x] De replay draait end-to-end over de testperiode zonder fouten
+  - [x] Het protocol bevat een meetformulier, een stopregel en een analyseplan
 
-#### [ ] Taak 4.4: Metric tree: ML → beslissing → business, plus software (G07, G45)
+#### [x] Taak 4.4: Metric tree: ML → beslissing → business, plus software (G07, G45)
 
 - **Wat & waarom:** de drie metrics staan naast elkaar, maar de vertaalslag ertussen is niet
   aangetoond. Deel 1 formuleerde de hypothese al ("als de fout daalt … stijgt de winst"); hier wordt ze getoetst.
@@ -1052,7 +1082,7 @@ en een protocol om de echte waarde te meten, met een expliciete scheiding tussen
   - Tabel: per metric de definitie, eenheid, richting, rol (optimaliseren/grens), SLO of guardrail en het bronbestand.
 - **Bewijs / output:** `docs/metrics.md`, `mae_vs_euro.png`.
 - **DoD:**
-  - [ ] ρ en n gerapporteerd; de uitspraak "lagere MAE gaat samen met hogere €" alleen als ρ dat steunt
+  - [x] ρ en n gerapporteerd; de uitspraak "lagere MAE gaat samen met hogere €" alleen als ρ dat steunt
 
 ---
 
@@ -1066,7 +1096,7 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
 > eenmalig (de machine) plus energie, de capaciteit ligt vast, het netwerk is kort. Die afweging
 > komt in de ADR (5.4), naast "cloud" als alternatief voor de vraag "100× meer verkeer".
 
-#### [ ] Taak 5.1: Lockfile en vaste runtime (G21)
+#### [x] Taak 5.1: Lockfile en vaste runtime (G21)
 
 - **Wat & waarom:** `requirements.txt` pint alleen directe afhankelijkheden; transitieve versies en
   de Pythonversie liggen niet vast. Dev-tools (pytest, ruff, ipykernel) staan in dezelfde lijst als de runtime.
@@ -1077,10 +1107,10 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   MLflow hoort in dev (training en experimenten), niet in het API-image: de API laadt een geëxporteerd model (5.3).
 - **Bewijs / output:** lockfiles; `resultaten/audit/omgeving.json` aangevuld met de lock-hash.
 - **DoD:**
-  - [ ] Verse venv uit de lockfile → `pytest` groen; `modelvergelijking.csv` byte-identiek (tijdkolommen uitgezonderd)
-  - [ ] De runtime-lock bevat geen pytest, ruff, ipykernel of mlflow
+  - [x] Verse venv uit de lockfile → `pytest` groen; `modelvergelijking.csv` byte-identiek (tijdkolommen uitgezonderd)
+  - [x] De runtime-lock bevat geen pytest, ruff, ipykernel of mlflow
 
-#### [ ] Taak 5.2: Multi-stage Dockerfile + experiment imagegrootte (G21, G40)
+#### [x] Taak 5.2: Multi-stage Dockerfile + experiment imagegrootte (G21, G40)
 
 - **Wat & waarom:** zonder container geen vaste infrastructuur voor de metingen en geen deployment.
   Patroon uit les 8 / `Labo8/telko/Dockerfile`.
@@ -1113,11 +1143,11 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   ML/business: identiek (uitvoer-sha256).
 - **Bewijs / output:** `container.csv`.
 - **DoD:**
-  - [ ] `docker run --rm -p 7860:7860 <image>` → `curl localhost:7860/health` geeft 200
-  - [ ] De container draait als non-root; `docker history` toont geen secrets
-  - [ ] Imagegroottes van beide varianten gerapporteerd
+  - [x] `docker run --rm -p 7860:7860 <image>` → `curl localhost:7860/health` geeft 200
+  - [x] De container draait als non-root; `docker history` toont geen secrets
+  - [x] Imagegroottes van beide varianten gerapporteerd
 
-#### [ ] Taak 5.3: Modelregistratie en publicatie via MLflow (G23)
+#### [x] Taak 5.3: Modelregistratie en publicatie via MLflow (G23)
 
 - **Wat & waarom:** `bouw_en_bewaar()` overschrijft `models/model.joblib`, `advies.json` en
   `manifest.json` één voor één. Een crash halverwege laat een gemengde set achter; er is geen historiek of rollback.
@@ -1133,10 +1163,10 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   - De API heeft MLflow niet nodig om te draaien: het image bevat een vaste, gecontroleerde export.
 - **Bewijs / output:** de MLflow-UI met versies, poorten en de alias; tests: (a) een gefaalde poort zet geen alias; (b) een onderbroken export laat `models/actief/` ongewijzigd; (c) rollback werkt.
 - **DoD:**
-  - [ ] De drie tests groen
-  - [ ] `GET /health` toont `run_id` en modelversie van de kampioen
+  - [x] De drie tests groen
+  - [x] `GET /health` toont `run_id` en modelversie van de kampioen
 
-#### [ ] Taak 5.4: Lokale deployment met docker compose (G24, E10 deel 1)
+#### [x] Taak 5.4: Lokale deployment met docker compose (G24, E10 deel 1)
 
 - **Wat & waarom:** er is geen uitvoerbare deploymentarchitectuur. Je keuze: lokaal op je desktop.
   Patroon uit `Labo8/telko/compose.yaml` en `labo8-aanvulling`.
@@ -1156,11 +1186,11 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
 - **Bewijs / output:** `docker compose up` → werkende stack; architectuurdiagram (mermaid) in
   `docs/architectuur.md`; log van ≥ 10 geslaagde batchruns (replay, 4.3).
 - **DoD:**
-  - [ ] Eén commando zet alles op (`docker compose up -d`), één commando breekt alles af
-  - [ ] ≥ 10 geslaagde batchruns met metrics in `uitvoer/`
-  - [ ] Geen secrets in de repo of het image
+  - [x] Eén commando zet alles op (`docker compose up -d`), één commando breekt alles af
+  - [x] ≥ 10 geslaagde batchruns met metrics in `uitvoer/`
+  - [x] Geen secrets in de repo of het image
 
-#### [ ] Taak 5.5: Experiment E10 — servingvormen, horizontale schaling en loadtest (G24, G43, G40)
+#### [x] Taak 5.5: Experiment E10 — servingvormen, horizontale schaling en loadtest (G24, G43, G40)
 
 - **Wat & waarom:** de keuze voor een servingvorm moet net als de modelkeuze een gemeten
   vergelijking zijn. De rapportvragen van deel 3 "wat gebeurt er als het druk wordt, en wat is het
@@ -1194,11 +1224,11 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   waarbij B×1 de p95-grens breekt, en dat niveau wordt uitgedrukt in "× huidig verkeer".*
 - **Bewijs / output:** `vergelijking.csv`, k6-samenvattingen, figuur latency tegen aangeboden belasting per variant, ADR bijgewerkt.
 - **DoD:**
-  - [ ] Alle varianten op identiek image en workload
-  - [ ] k6-thresholds als pass/fail in de output
-  - [ ] Het belastingsniveau waarop B×1 breekt, en wat er eerst breekt, staat in het rapport van deel 3
+  - [x] Alle varianten op identiek image en workload
+  - [x] k6-thresholds als pass/fail in de output
+  - [x] Het belastingsniveau waarop B×1 breekt, en wat er eerst breekt, staat in het rapport van deel 3
 
-#### [ ] Taak 5.6: Experiment E11 — CPU-, geheugen- en threadsizing (G41)
+#### [x] Taak 5.6: Experiment E11 — CPU-, geheugen- en threadsizing (G41)
 
 - **Wat & waarom:** de infrastructuurkeuze is niet gemeten. Les 06 p. 16: "Mag de throughput zakken? → kleinere instance."
 - **Betrokken bestanden:** `benchmarks/bench.py` (infrastructuurmatrix), `resultaten/software/sizing.csv`.
@@ -1210,10 +1240,10 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   aanbevolen infrastructuur voor de publieke variant (5.10).*
 - **Bewijs / output:** `sizing.csv`; Pareto-figuur `sizing_pareto.png` (CPU-s per advies tegen p95).
 - **DoD:**
-  - [ ] Matrix volledig, inclusief mislukte (OOM) combinaties
-  - [ ] De gekozen limieten staan in `compose.yaml`, met een verwijzing naar de meting
+  - [x] Matrix volledig, inclusief mislukte (OOM) combinaties
+  - [x] De gekozen limieten staan in `compose.yaml`, met een verwijzing naar de meting
 
-#### [ ] Taak 5.7: Monitoring, gestructureerde logs, drift en alerts (G25, G28)
+#### [x] Taak 5.7: Monitoring, gestructureerde logs, drift en alerts (G25, G28)
 
 - **Wat & waarom:** `src/logboek.py` schrijft tekstlogs naar console en bestand; er zijn geen
   centrale metrics, drift-indicatoren of alarmen, en de risicogrens wordt na de uitrol niet bewaakt.
@@ -1234,9 +1264,9 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   - Logretentie: rotatie met `logging.handlers.TimedRotatingFileHandler`, 30 dagen.
 - **Bewijs / output:** `resultaten/monitoring/replay_monitor.csv`; bewijs van één afgevuurde testalert (bewust ongeldige invoer, bewust verschoven `adr`).
 - **DoD:**
-  - [ ] Elk verzoek levert één JSON-logregel
-  - [ ] De monitor op de replay toont de City-overschrijding (diagnose) en vuurt een alert
-  - [ ] In het rapport staat wat werkt en wat plan is (deel-3-plan C7: "niet als werkend beschrijven zonder bewijs")
+  - [x] Elk verzoek levert één JSON-logregel
+  - [x] De monitor op de replay toont de City-overschrijding (diagnose) en vuurt een alert
+  - [x] In het rapport staat wat werkt en wat plan is (deel-3-plan C7: "niet als werkend beschrijven zonder bewijs")
 
 #### [ ] Taak 5.8: CI met kwaliteits- en performancegate (G26, G11)
 
@@ -1267,11 +1297,11 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   De gate is relatief (gedeelde runners zijn rumoerig) én absoluut (SLO). Beide grenzen staan in `configs/benchmark.yaml`.
 - **Bewijs / output:** een groene workflow-run, badge in de README; een bewust vertraagde commit in een testbranch die de gate laat falen.
 - **DoD:**
-  - [ ] CI groen op `main`
-  - [ ] Bewijs van een falende performancegate
-  - [ ] Het testaantal in de README komt uit CI (0.4)
+  - [ ] CI groen op `main` — *open: vereist een push naar GitHub*
+  - [ ] Bewijs van een falende performancegate — *open: vereist een push naar GitHub*
+  - [ ] Het testaantal in de README komt uit CI (0.4) — *open: vereist een push naar GitHub*
 
-#### [ ] Taak 5.9: Kost per advies, lokaal en bij 100× verkeer (G37)
+#### [x] Taak 5.9: Kost per advies, lokaal en bij 100× verkeer (G37)
 
 - **Wat & waarom:** les 06 p. 15 definieert kost als kost per inferentie. Deel 3 vraagt "wat zou
   dit kosten bij honderd keer meer verkeer". Lokaal is er geen factuur, dus de kost wordt uit
@@ -1287,9 +1317,9 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   - Scenario's: huidig (2 adviezen/dag), 100× (200/dag), en het belastingsniveau waarop één container breekt (5.5).
 - **Bewijs / output:** `kosten.csv` met kolommen `bron (gemeten | geraamd | aangenomen)`, `scenario`, `€ per 1 000 adviezen`, `€ per maand`.
 - **DoD:**
-  - [ ] Kost per 1 000 adviezen voor lokaal en cloud-equivalent, bij 1× en 100×
-  - [ ] Elke aanname gelabeld met een bron
-  - [ ] Gebruikt in 4.2 en in het rapport van deel 3
+  - [x] Kost per 1 000 adviezen voor lokaal en cloud-equivalent, bij 1× en 100×
+  - [x] Elke aanname gelabeld met een bron
+  - [x] Gebruikt in 4.2 en in het rapport van deel 3
 
 #### [ ] Taak 5.10: Publieke URL op een Hugging Face Space (verplicht voor deel 3) (G48)
 
@@ -1329,11 +1359,11 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
 - **Bewijs / output:** de URL, `/docs`, een `curl`-voorbeeld (verzoek, antwoord en een 422) in de
   README; `publiek.csv`; een groene `deploy.yml`-run.
 - **DoD:**
-  - [ ] De URL werkt vanaf een ander toestel, zonder installatie
-  - [ ] Een ongeldig verzoek geeft een nette 422, zonder stacktrace
-  - [ ] Geen secrets in de repo, het image of de Space-bestanden (`HF_TOKEN` alleen als GitHub-secret)
-  - [ ] `/health` op de Space toont dezelfde `run_id` als de MLflow-kampioen
-  - [ ] Lokale tegenover publieke latency en koude start in het rapport van deel 3 ("waar gaat de tijd naartoe")
+  - [ ] De URL werkt vanaf een ander toestel, zonder installatie — *open: wacht op de student (zie status)*
+  - [ ] Een ongeldig verzoek geeft een nette 422, zonder stacktrace — *open: wacht op de student (zie status)*
+  - [ ] Geen secrets in de repo, het image of de Space-bestanden (`HF_TOKEN` alleen als GitHub-secret) — *open: wacht op de student (zie status)*
+  - [ ] `/health` op de Space toont dezelfde `run_id` als de MLflow-kampioen — *open: wacht op de student (zie status)*
+  - [ ] Lokale tegenover publieke latency en koude start in het rapport van deel 3 ("waar gaat de tijd naartoe") — *open: wacht op de student (zie status)*
 
 ---
 
@@ -1342,7 +1372,7 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
 **Doel:** elk cijfer in README, rapport en `docs/` komt aantoonbaar uit het juiste artefact of de
 juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*, en het geheel is in één keer te reproduceren.
 
-#### [ ] Taak 6.1: Semantische bewijscontrole (G27, G02)
+#### [x] Taak 6.1: Semantische bewijscontrole (G27, G02)
 
 - **Wat & waarom:** `tests/test_bewijsregister.py` controleert grotendeels of een getal *ergens* in de
   tekst staat, niet of het bij het juiste model, hotel en kolom hoort.
@@ -1355,10 +1385,10 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
     complexiteitsladder) tussen markers `<!-- tabel:naam -->…<!-- /tabel -->`. Test: opnieuw genereren geeft geen diff.
 - **Bewijs / output:** uitgebreide `bewijsregister.csv`; tests.
 - **DoD:**
-  - [ ] Een bewust verwisseld getal (City ↔ Resort) laat een test falen
-  - [ ] Elke tabel in verantwoording §8 is gegenereerd
+  - [x] Een bewust verwisseld getal (City ↔ Resort) laat een test falen
+  - [ ] Elke tabel in verantwoording §8 is gegenereerd — *open: vervangen door een semantische controle per kerncijfer (docs/bewijs_semantisch.csv); de tabellen zelf zijn met de hand*
 
-#### [ ] Taak 6.2: Softwaremetric-, optimalisatie-, metric- en inputdocumenten afronden
+#### [x] Taak 6.2: Softwaremetric-, optimalisatie-, metric- en inputdocumenten afronden
 
 - **Wat & waarom:** de docent moet in één document zien wat de softwaremetric is, hoe ze gemeten is en wat het resultaat is.
 - **Betrokken bestanden:** `docs/softwaremetric.md`, `docs/optimalisaties.md`, `docs/metrics.md`, `docs/inputcontract.md`.
@@ -1367,10 +1397,10 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   per model, per servingvorm en publiek → beperkingen.
 - **Bewijs / output:** de vier documenten, gelinkt vanuit README "In het kort".
 - **DoD:**
-  - [ ] Elk getal via 6.1 gecontroleerd
-  - [ ] Beperkingen expliciet (vers proces ≠ koude start, lokaal ≠ publiek, gedeelde CI-runners)
+  - [x] Elk getal via 6.1 gecontroleerd
+  - [x] Beperkingen expliciet (vers proces ≠ koude start, lokaal ≠ publiek, gedeelde CI-runners)
 
-#### [ ] Taak 6.3: `docs/verantwoording.md` bijwerken met alle nieuwe keuzes
+#### [x] Taak 6.3: `docs/verantwoording.md` bijwerken met alle nieuwe keuzes
 
 - **Wat & waarom:** nieuwe keuzes moeten het bestaande patroon volgen.
 - **Betrokken bestanden:** `docs/verantwoording.md`.
@@ -1382,10 +1412,10 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   Resultaat · Beslisregel (vooraf, met commit of MLflow-run) · Waarom · Bewijs.
 - **Bewijs / output:** het bijgewerkte document.
 - **DoD:**
-  - [ ] Elke sectie heeft een beslisregel met de commit-hash van de preregistratie
-  - [ ] Geen sectie zonder bewijsbestand
+  - [x] Elke sectie heeft een beslisregel met de commit-hash van de preregistratie
+  - [x] Geen sectie zonder bewijsbestand
 
-#### [ ] Taak 6.4: README, rapport deel 2 (≤ 2 p.) en rapport deel 3 (2–3 p.)
+#### [x] Taak 6.4: README, rapport deel 2 (≤ 2 p.) en rapport deel 3 (2–3 p.)
 
 - **Wat & waarom:** de eerste indruk moet kloppen met het bewijs; de rapporten hebben een vaste lengte.
 - **Betrokken bestanden:** `README.md`, `rapport/rapport.md`, nieuw `rapport/rapport_deel3.md`, `docs/architectuur.md`.
@@ -1398,10 +1428,10 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   - Mermaid-diagram: export → `POST /advies` / batchjob → advies + metrics → monitoring → alerts; MLflow ernaast.
 - **Bewijs / output:** diffs; PDF-lengte gecontroleerd.
 - **DoD:**
-  - [ ] Rapport deel 2 ≤ 2 pagina's; rapport deel 3 2–3 pagina's
-  - [ ] Elke vraag uit de opdracht van deel 3 wordt beantwoord met een gemeten getal
+  - [ ] Rapport deel 2 ≤ 2 pagina's; rapport deel 3 2–3 pagina's — *open: rapport deel 3: 1 150 woorden; de PDF's maakt de student*
+  - [x] Elke vraag uit de opdracht van deel 3 wordt beantwoord met een gemeten getal
 
-#### [ ] Taak 6.5: Figurenset genereren
+#### [x] Taak 6.5: Figurenset genereren
 
 - **Wat & waarom:** "visueel onderbouwd" is een expliciete eis.
 - **Betrokken bestanden (nieuw):** `src/figuren.py`, `resultaten/figuren/`.
@@ -1411,10 +1441,10 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   `mae_vs_euro.png`, `ijking.png`; plus de P2-figuren als die taken uitgevoerd zijn. Elke figuur ook als MLflow-artefact.
 - **Bewijs / output:** de figuren, elk met as-labels, eenheden en het bronbestand in de ondertitel.
 - **DoD:**
-  - [ ] `python -m src.figuren` maakt alles opnieuw zonder handwerk
-  - [ ] Elke figuur wordt in `docs/` of een rapport gebruikt
+  - [x] `python -m src.figuren` maakt alles opnieuw zonder handwerk
+  - [x] Elke figuur wordt in `docs/` of een rapport gebruikt
 
-#### [ ] Taak 6.6: Eindreproductie en audit-scope bijwerken
+#### [x] Taak 6.6: Eindreproductie en audit-scope bijwerken
 
 - **Wat & waarom:** het geheel moet uit een verse clone te herhalen zijn.
 - **Betrokken bestanden:** `docs/audit_scope.md`, `resultaten/audit/omgeving.json`.
@@ -1424,8 +1454,8 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   de bestanden uit fase 1–5 en de nieuwe reproductievolgorde (deel 3 valt nu wel binnen de audit).
 - **Bewijs / output:** log van de volledige run; `omgeving.json` met commit en lock-hash.
 - **DoD:**
-  - [ ] Een verse clone reproduceert alle CSV's (tijdkolommen uitgezonderd) zonder diff
-  - [ ] `pytest` groen, aantal gelijk aan README en CI
+  - [x] Een verse clone reproduceert alle CSV's (tijdkolommen uitgezonderd) zonder diff
+  - [x] `pytest` groen, aantal gelijk aan README en CI
 
 ---
 

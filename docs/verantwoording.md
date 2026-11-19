@@ -111,24 +111,28 @@ Volledig register: [feature_beschikbaarheid.csv](feature_beschikbaarheid.csv), m
 
 ## 8. Model
 
-Validatie, beide hotels samen, zonder maximum per nacht (de huidige regel). "Leren": de volledige
-training. "Voorspellen": één getimede `predict_proba()`-aanroep op de validatieset, omgerekend
-per 1 000 boekingen. Dat is een **microbenchmark van het model alleen**, één keer gemeten op de
-machine in `resultaten/audit/omgeving.json`; geen latency van het hele pad. De softwaremetriek
-staat in [softwaremetric.md](softwaremetric.md).
+Validatie, beide hotels samen, zonder maximum per nacht (de huidige regel). "Leren": mediaan
+van 10 keer de hertraining. "Kern p95": de adviesjob over het hele pad zonder HTTP, normale
+portefeuille van 358 boekingen, 200 runs (`resultaten/software/modellen_software.csv`). De
+softwaremetriek staat in [softwaremetric.md](softwaremetric.md).
 
-| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | voorspellen per 1 000 | **kern p95, hele pad** |
-|---|---|---|---|---|---|---|---|---|---|---|
-| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,01 s | 1,2 ms | 66 ms |
-| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 1,40 s | 6,6 ms | 68 ms |
-| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 0,47 s | 11,0 ms | 75 ms |
+Vroeger stond hier één getimede `predict_proba()`-aanroep per model (`modelvergelijking.csv`,
+kolom `voorspeltijd_ms_per_1000`). Die verschilt van run tot run: voor boosting 14,9 ms per 1 000
+boekingen in de ene run, 11,0 in de volgende, 8,0 na een verse clone. Precies daarom is de
+softwaremetriek nu een herhaalde meting met een percentiel.
+
+| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | **kern p95, hele pad** |
+|---|---|---|---|---|---|---|---|---|---|
+| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,01 s | 66 ms |
+| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 1,40 s | 68 ms |
+| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 0,81 s | 75 ms |
 
 Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 
 | | |
 |---|---|
 | Keuze | boosting zonder land |
-| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (11,0 tegenover 6,6 ms per 1 000 boekingen; een eerdere run gaf 14,9 en 10,0: één getimede aanroep is ruis, daarom de softwaremetriek met 200 herhalingen). Op het hele pad (de kern van een adviesjob, normale portefeuille van 358 boekingen, 200 runs) is het verschil 7 ms: p95 75 tegenover 68 ms, tegen een grens van 1 000 ms. Les 06 p. 22, "Is 1 % het waard?": voor 25 % minder fout en 150 € meer per volle nacht, ja ([softwaremetric.md](softwaremetric.md), `modellen_software.csv`) |
+| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. Per voorspelling is boosting iets trager dan logreg. Op het hele pad (de kern van een adviesjob, normale portefeuille van 358 boekingen, 200 runs) is het verschil 7 ms: p95 75 tegenover 68 ms, tegen een grens van 1 000 ms. Les 06 p. 22, "Is 1 % het waard?": voor 25 % minder fout en 150 € meer per volle nacht, ja ([softwaremetric.md](softwaremetric.md), `modellen_software.csv`) |
 | Euro's | zonder maximum (de huidige regel): boosting 480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). Gepoold gaat de vuistregel over de risicogrens (23 % en 31 % te veel), boosting niet (11 % en 16 %). **Per hotel niet overal:** boosting zit in City op 6 % (validatie) en **22 % (test)**, in Resort op 16 % en 10 %. Op de test overschrijdt City dus de grens; de test kiest niets, dus dat is gemeten en niet weggewerkt. Met het oude maximum van 5 % waren ze gelijk. Zie sectie 13 |
 | Bewijs | `modelvergelijking.csv`, `resultaten/evaluatie.csv` |
 
