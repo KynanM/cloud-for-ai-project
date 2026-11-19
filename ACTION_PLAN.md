@@ -85,12 +85,13 @@ zolang je pc aan en verbonden is, tot na het mondeling.
 | 2 Contract, API & releasegates | **klaar, gecontroleerd** | `bb08aed` |
 | 3 ML-metric, statistiek & experimenten | **klaar, gecontroleerd** (P1 én P2) | `fdaf74d` |
 | 4 Businessmetric | **klaar, gecontroleerd** | `fec3575` |
-| 5 Lokale MLOps-verharding | **klaar, behalve 5.8 (CI op GitHub) en 5.10 (Hugging Face Space)** | `d1d7a46` |
+| 5 Lokale MLOps-verharding | **klaar, behalve 5.10 (Hugging Face Space)**; CI groen op `audit-opvolging` | `d1d7a46` |
 | 6 Documentatie & bewijsvoering | **klaar** | zie git log |
 
 **Wat nog van de student afhangt:**
 
-1. **Pushen** van `audit-opvolging` naar GitHub, zodat `ci.yml` draait (taak 5.8).
+1. ~~Pushen van `audit-opvolging`~~: gedaan op 19-11-2026; de CI is groen
+   ([run 44622702109](https://github.com/KynanM/cloud-for-ai-project/actions/runs/44622702109)). Nog open: de merge naar `main` (via een pull request).
 2. **Hugging Face Space** (taak 5.10): een Space met de Docker SDK aanmaken, een token met
    schrijfrechten als GitHub-secret `HF_TOKEN` en de naam als repositoryvariabele `HF_SPACE`
    zetten, en `deploy.yml` starten. Daarna `python -m benchmarks.bench --doelen http --url
@@ -1268,7 +1269,7 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   - [x] De monitor op de replay toont de City-overschrijding (diagnose) en vuurt een alert
   - [x] In het rapport staat wat werkt en wat plan is (deel-3-plan C7: "niet als werkend beschrijven zonder bewijs")
 
-#### [ ] Taak 5.8: CI met kwaliteits- en performancegate (G26, G11)
+#### [x] Taak 5.8: CI met kwaliteits- en performancegate (G26, G11)
 
 - **Wat & waarom:** er is geen CI; testaantallen en cijfers lopen uiteen, en er is geen
   automatische performancegrens. GitHub Actions staat in de stack van het vak (`CFAI-les01`).
@@ -1297,9 +1298,9 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   De gate is relatief (gedeelde runners zijn rumoerig) én absoluut (SLO). Beide grenzen staan in `configs/benchmark.yaml`.
 - **Bewijs / output:** een groene workflow-run, badge in de README; een bewust vertraagde commit in een testbranch die de gate laat falen.
 - **DoD:**
-  - [ ] CI groen op `main` — *open: vereist een push naar GitHub*
-  - [ ] Bewijs van een falende performancegate — *open: vereist een push naar GitHub*
-  - [ ] Het testaantal in de README komt uit CI (0.4) — *open: vereist een push naar GitHub*
+  - [ ] CI groen op `main` — *open: groen op `audit-opvolging` ([run 44622702109](https://github.com/KynanM/cloud-for-ai-project/actions/runs/44622702109): ruff, training met poorten, 277 tests, gate p95 48,9 ms, Docker-build en rooktest); `main` volgt na de merge*
+  - [x] Bewijs van een falende performancegate — `tests/test_gate.py`, dat in elke CI-run meedraait: de gate faalt boven de SLO en bij een verslechtering ×2 tegenover de referentie. *Anders dan gepland: een test in plaats van een vertraagde commit in een testbranch, zodat het bewijs bij elke run opnieuw geleverd wordt.* De referentie voor de CI-runner (`Linux-x86_64`, 48,9 ms) komt uit de eerste groene run; zonder die referentie controleerde de relatieve grens in CI niets.
+  - [x] Het testaantal in de README komt uit CI (0.4), met een badge
 
 #### [x] Taak 5.9: Kost per advies, lokaal en bij 100× verkeer (G37)
 
