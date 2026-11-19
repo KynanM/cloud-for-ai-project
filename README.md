@@ -16,7 +16,10 @@ manager beslist.
 - **Model:** `HistGradientBoostingClassifier`, zonder het land als feature
 - **Gekozen op** de MAE van het aantal annulaties per hotel-nacht, op de validatie (Q1 2017):
   4,72 tegenover 6,36 voor de vuistregel van de revenue manager. Op de test (april tot
-  augustus 2017, alleen gerapporteerd): 5,11 tegenover 6,87
+  augustus 2017, alleen gerapporteerd): 5,11 tegenover 6,87. **Over vier kwartalen**
+  (rolling origin, april 2016 tot maart 2017) zijn boosting (7,10) en logistische regressie
+  (7,25) niet te onderscheiden: boosting is aantoonbaar beter op het recentste kwartaal, niet
+  in elk seizoen ([docs/verantwoording.md](docs/verantwoording.md), sectie 8)
 - **Split** in de tijd, op aankomstdatum, met een embargo van 31 dagen
 - **Poort:** een model wordt alleen weggeschreven als het de vuistregel verslaat op de
   validatie, en een AUC van minstens 0,60 haalt
@@ -234,9 +237,10 @@ Een willekeurige split laat de toekomst in de training lekken: een boeking van a
 helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
 Met een willekeurige split haalt de logistische regressie een AUC van 0,756, met de split in de
 tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil wijst
-op optimisme door de tijd te mengen, en mogelijk door exacte kopieën (27 % van de rijen) die
-over de split vallen. De twee splits meten ook niet op dezelfde boekingen, dus het hele verschil
-is niet zomaar lek.
+op optimisme door de tijd te mengen, en deels op exacte kopieën die over de split vallen. Met
+de kopieën samen aan één kant zakt de willekeurige AUC naar 0,735 (logreg) en 0,759 (boosting):
+kopieën verklaren 16 % en 37 % van het verschil (`resultaten/audit/split_duplicaten.csv`). De
+twee splits meten ook niet op dezelfde boekingen, dus het hele verschil is niet zomaar lek.
 
 Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
 afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
@@ -567,8 +571,10 @@ Wat dit project niet doet, of vereenvoudigt:
   vergelijken. Daarom wordt gekozen op de MAE (164 hotel-nachten) en volgt de drempel uit de
   bedragen.
 - **Seizoensbias.** De fout wisselt van teken tussen winter en zomer. Met twee jaar data is dat
-  binnen dit project niet op te lossen; een korter venster, herijken en elke maand hertrainen zijn
-  getest en afgewezen.
+  binnen dit project niet op te lossen; een korter venster, herijken, elke maand hertrainen, weging
+  met herijking en een zekerheid per hotel zijn getest en afgewezen. Het risico per hotel en per
+  maand gaat er soms over de grens (Resort maart 2017: 39 %); dat bewaakt de monitoring
+  ([docs/verantwoording.md](docs/verantwoording.md), sectie 13).
 - **Segment en agent wijzen naar het land.** Ze blijven features, want ze zijn bij het boeken
   gekend, maar zo ziet het model het land deels toch. Een eerlijke controle per land kan pas met
   een land dat bij het boeken ingevuld is.

@@ -63,15 +63,16 @@ theorie**, niet gedraaid.
 | | |
 |---|---|
 | Opties | willekeurig · in de tijd zonder embargo · in de tijd met embargo |
-| Resultaat | logreg AUC 0,756 met een willekeurige split, 0,627 in de tijd; boosting 0,797 tegenover 0,695. Het verschil wijst op optimisme door de tijd te mengen, en mogelijk door exacte kopieën (27 % van de rijen) die over de split vallen. De willekeurige split meet bovendien op andere boekingen (de hele periode, niet Q1 2017), dus het hele verschil is niet zomaar lek |
+| Resultaat | logreg AUC 0,756 met een willekeurige split, 0,627 in de tijd; boosting 0,797 tegenover 0,695. Het verschil wijst op optimisme door de tijd te mengen, en mogelijk door exacte kopieën (27 % van de rijen) die over de split vallen. De willekeurige split meet bovendien op andere boekingen (de hele periode, niet Q1 2017), dus het hele verschil is niet zomaar lek. **Gemeten** (`split_duplicaten.csv`): met de kopieën samen aan één kant van de willekeurige split zakt de AUC van 0,797 naar 0,759 (boosting) en van 0,756 naar 0,735 (logreg). Kopieën verklaren dus ongeveer 37 % (boosting) en 16 % (logreg) van het verschil met de split in de tijd; de rest is tijd en populatie |
 | Keuze | in de tijd, op aankomstdatum, met een embargo van horizon + 1 dag |
 | Waarom | les 4: preprocessing en training mogen niets leren uit de evaluatieperiode, en een label moet gekend zijn op het beslismoment. Zie [label_beschikbaarheid.md](label_beschikbaarheid.md) |
 | Bewijs | `split.csv`, `grenzen()` in `src/train.py`, `tests/test_split.py` |
 
-Geen k-voudige kruisvalidatie: een willekeurige vouw mengt de tijd. Een tijdreeks-kruisvalidatie
-met meerdere blokken (rolling origin, met hetzelfde embargo) is **niet uitgevoerd**. Dat elk blok
-een ander seizoen is, is geen reden om ze af te wijzen: het is juist een toets of de modelkeuze
-over seizoenen heen standhoudt. **Beperking:** de keuze steunt op één validatieblok (Q1 2017, winter).
+Geen k-voudige kruisvalidatie: een willekeurige vouw mengt de tijd. Wel een **rolling origin**:
+vier kwartalen vóór de test (april 2016 tot maart 2017), elk geleerd op alles vóór het embargo van
+dat kwartaal, met dezelfde formule als de split (`src/folds.py`, getest in
+`tests/test_robuustheid.py`). Dat elk blok een ander seizoen is, is net de toets. Resultaat en
+heroverweging: sectie 8.
 
 ## 5. Features
 
@@ -81,9 +82,12 @@ over seizoenen heen standhoudt. **Beperking:** de keuze steunt op één validati
 | adr | met · zonder | 4,72 met, 4,72 zonder (verschil per nacht −0,10 tot +0,10) | **met** | geen lek gevonden (notebook sectie 10), en zonder is niet aantoonbaar beter. Met 200 iteraties hielp adr wel (4,87 tegenover 5,08). Weglaten zou een feature schrappen die het hotel kent en die de europroxy toch nodig heeft, zonder winst |
 | weeknummer | zonder · met `arrival_date_week_number` | 4,72 zonder, 4,77 met | **zonder** | de maand zit er al in; het weeknummer voegt op de validatie niets toe |
 | kolommen pas bij aankomst gekend | — | parkeerplaats: 0 annulaties op 3 265 | **uit** | lek, afgewezen op theorie en lekcontrole |
+| conservatieve set (S1) | huidig · zonder adults, children, babies, previous_*, meal, reserved_room_type, customer_type | 4,72 tegenover 4,84; verschil per nacht +0,12, interval −0,25 tot +0,49 (blokken van 7 dagen) | **huidig**, en de conclusie is robuust | de features die na het beslismoment konden wijzigen, bepalen het resultaat niet: zonder hen blijft de MAE binnen het interval. Dat bewijst niet dat er geen lek is |
+| zonder `previous_*` (S2a) | met · zonder | 4,72 tegenover 4,54; −0,18, interval −0,53 tot +0,18 | **met** | niet aantoonbaar beter; geen reden om te wijzigen |
+| zonder `customer_type` (S2c) | met · zonder | 4,72 tegenover 5,04; +0,32, interval **+0,07 tot +0,56** | **met** | aantoonbaar slechter zonder: het model leunt op een kolom die kan wijzigen (Transient wordt Transient-Party). Een **risico**, vermeld in het register |
 
-Volledig register: [feature_beschikbaarheid.csv](feature_beschikbaarheid.csv). Bewijs:
-`experimenten.csv`, `modelvergelijking.csv`.
+Volledig register: [feature_beschikbaarheid.csv](feature_beschikbaarheid.csv), met de kolom
+`gemeten_effect`. Bewijs: `experimenten.csv`, `modelvergelijking.csv`, `features.csv`.
 
 ## 6. Imputatie, schalen en encoderen
 
@@ -115,18 +119,41 @@ staat in [softwaremetric.md](softwaremetric.md).
 
 | Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | voorspellen per 1 000 | **kern p95, hele pad** |
 |---|---|---|---|---|---|---|---|---|---|---|
-| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,06 s | 2,7 ms | 66 ms |
-| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 3,55 s | 10,0 ms | 68 ms |
-| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 1,36 s | 14,9 ms | 75 ms |
+| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,01 s | 1,2 ms | 66 ms |
+| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 1,40 s | 6,6 ms | 68 ms |
+| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 0,47 s | 11,0 ms | 75 ms |
 
 Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 
 | | |
 |---|---|
 | Keuze | boosting zonder land |
-| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (14,9 tegenover 10,0 ms per 1 000 boekingen). Op het hele pad (de kern van een adviesjob, normale portefeuille van 358 boekingen, 200 runs) is het verschil 7 ms: p95 75 tegenover 68 ms, tegen een grens van 1 000 ms. Les 06 p. 22, "Is 1 % het waard?": voor 25 % minder fout en 150 € meer per volle nacht, ja ([softwaremetric.md](softwaremetric.md), `modellen_software.csv`) |
+| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (11,0 tegenover 6,6 ms per 1 000 boekingen; een eerdere run gaf 14,9 en 10,0: één getimede aanroep is ruis, daarom de softwaremetriek met 200 herhalingen). Op het hele pad (de kern van een adviesjob, normale portefeuille van 358 boekingen, 200 runs) is het verschil 7 ms: p95 75 tegenover 68 ms, tegen een grens van 1 000 ms. Les 06 p. 22, "Is 1 % het waard?": voor 25 % minder fout en 150 € meer per volle nacht, ja ([softwaremetric.md](softwaremetric.md), `modellen_software.csv`) |
 | Euro's | zonder maximum (de huidige regel): boosting 480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). Gepoold gaat de vuistregel over de risicogrens (23 % en 31 % te veel), boosting niet (11 % en 16 %). **Per hotel niet overal:** boosting zit in City op 6 % (validatie) en **22 % (test)**, in Resort op 16 % en 10 %. Op de test overschrijdt City dus de grens; de test kiest niets, dus dat is gemeten en niet weggewerkt. Met het oude maximum van 5 % waren ze gelijk. Zie sectie 13 |
 | Bewijs | `modelvergelijking.csv`, `resultaten/evaluatie.csv` |
+
+### Rolling origin: houdt de keuze stand over vier kwartalen?
+
+Vooraf vastgelegde regel (`configs/experimenten/e5_rolling.yaml`): boosting blijft als het
+gemiddeld de laagste MAE heeft, in minstens 3 van de 4 kwartalen van logreg wint, en geen
+kwartaal × hotel boven de risicogrens zit. Spreidingsfactor uit het vorige kwartaal.
+
+| Kwartaal | Leerboekingen | vuistregel | logreg | boosting |
+|---|---|---|---|---|
+| 2016-04 | 10 048 | 12,03 | **6,53** | 7,01 |
+| 2016-07 | 16 982 | 9,01 | 8,26 | **8,08** |
+| 2016-10 | 24 627 | **6,34** | 8,45 | 8,61 |
+| 2017-01 | 31 840 | 6,36 | 5,77 | **4,72** |
+| **MAE gemiddeld** | | 8,43 | 7,25 | **7,10** |
+| € per volle nacht, gemiddeld | | 281 | **302** | 266 |
+| kwartaal × hotel boven 20 % te veel | | 4 van 8 | **1 van 8** | 2 van 8 |
+
+| | |
+|---|---|
+| Uitkomst van de regel | **niet gehaald**: boosting heeft gemiddeld de laagste MAE, maar wint maar 2 van de 4 kwartalen van logreg, en zit twee keer boven de risicogrens (City 2016-07: 22 %, Resort 2016-10: 37 %). Het verschil logreg − boosting over alle nachten: +0,14 per nacht, interval −0,31 tot +0,58 (blokken van 7 dagen): **niet aantoonbaar** |
+| Heroverweging | over vier kwartalen zijn boosting en logreg op de MAE niet te onderscheiden; logreg haalt er gemiddeld meer euro's en gaat minder vaak over de risicogrens. Op het recentste kwartaal (Q1 2017, de validatie) is boosting wel aantoonbaar beter (logreg +1,06 per nacht, interval +0,45 tot +1,68, sectie 9). Het model dat het hotel krijgt, is getraind op de recentste data |
+| Besluit | **boosting blijft**, met een zwakkere claim: "beter op het recentste kwartaal, over vier kwartalen gelijkwaardig met logreg". De modelkeuze is niet seizoensrobuust aangetoond. Wat wel overal terugkomt, is risico per hotel in sommige seizoenen, voor beide modellen: dat is een taak voor de zekerheid en de monitoring (sectie 13), niet voor de modelkeuze |
+| Bewijs | `rolling_origin.csv`, `resultaten/figuren/rolling_origin_mae.png`, `configs/experimenten/e5_rolling.yaml` |
 
 ## 9. Hyperparameters
 
@@ -139,6 +166,31 @@ Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 | Waarom | dezelfde regel als voor de drempel: een variant vervangt de referentie alleen als ze aantoonbaar beter is. 100 iteraties haalt dat net; de sterk geregulariseerde variant is niet aantoonbaar beter dan 100 iteraties |
 | Beperking | het interval raakt bijna 0, en er zijn twee varianten getest: toeval is niet uitgesloten. Daarom geen tweede ronde: verder zoeken op 164 nachten wordt afstellen op de validatie. Er is niet aangetoond dat dit de beste instellingen zijn, alleen dat ze volstaan |
 | Bewijs | `experimenten.csv` (kolommen `train_auc`, `mae_verschil`, `interval_laag`, `interval_hoog`) |
+| **Hercontrole met blokken** | het interval hierboven trekt losse hotel-nachten. Maar nachten hangen samen (lange verblijven, groepen, seizoen). Met blokken van 7 en 14 kalenderdagen, beide hotels samen, wordt het interval van 200 tegenover 100 iteraties −0,12 tot +0,41 en −0,17 tot +0,48: **niet meer aantoonbaar** (`bootstrap_gevoeligheid.csv`). Volgens de vooraf vastgelegde regel blijft 100 iteraties staan, met een andere reden: niet slechter, half zo groot (79 tegenover 150 KB) en sneller te leren (`complexiteit.csv`). Boosting tegenover logreg en tegenover de vuistregel blijven aantoonbaar, ook met blokken van 28 dagen |
+
+### Complexiteitsladder (les 06 p. 23): de MAE optimaliseren, de latency als grens
+
+Negen treden van eenvoudig naar complex, elk op de validatie gemeten én op de kern van een
+adviesjob (normale portefeuille, 50 runs). Vooraf vastgelegd in
+`configs/experimenten/e6_complexiteit.yaml`.
+
+| Trede | MAE | Verschil met huidig (90 %, blokken 7 d) | Te veel City / Resort | € per volle nacht | Kern p95 | Model |
+|---|---|---|---|---|---|---|
+| 0 vuistregel | 6,36 | +1,64 [+0,58; +2,71] | 12 % / 35 % | 328 | 73 ms | 2 KB |
+| 1 logreg | 5,77 | +1,06 [+0,45; +1,68] | 12 % / 14 % | 331 | 69 ms | 5 KB |
+| 2 boosting 50 it., 7 bladeren | 4,81 | +0,09 [−0,16; +0,32] | 0 % / 18 % | 487 | 107 ms | 22 KB |
+| 3 boosting 100 it., 7 bladeren, ≥ 300 per blad | 4,59 | −0,13 [−0,33; +0,06] | 4 % / 15 % | 483 | 109 ms | 38 KB |
+| **4 boosting, huidig** | **4,72** | — | 6 % / 16 % | 480 | 110 ms | 79 KB |
+| 5 boosting 200 it. | 4,87 | +0,15 [−0,12; +0,41] | 6 % / 19 % | 478 | 116 ms | 150 KB |
+| 6 boosting 400 it., lr 0,025, 31 bladeren | 5,08 | +0,36 [+0,01; +0,70] | 6 % / **22 %** | 459 | 119 ms | 596 KB |
+| 7 boosting 1 000 it., lr 0,01, 63 bladeren | 5,15 | +0,43 [+0,01; +0,85] | 5 % / **27 %** | 462 | 138 ms | 3 006 KB |
+| 8 random forest, 300 bomen | 4,66 | −0,06 [−0,38; +0,28] | 9 % / **20 %** | 463 | 95 ms | 4 075 KB |
+
+| | |
+|---|---|
+| Uitkomst | **de latencygrens bindt nergens**: de zwaarste trede haalt 138 ms tegen 1 000 ms. Op deze infrastructuur begrenst niet de software de complexiteit, maar de ML-metriek zelf: meer iteraties en bladeren maken de MAE slechter (treden 6 en 7 aantoonbaar) en gaan in Resort over de risicogrens (treden 6, 7 en 8). Geen trede is aantoonbaar beter dan de huidige; de beste MAE (trede 3) haalt het interval net niet |
+| Besluit | **trede 4 blijft** (vooraf vastgelegde regel). Les 06 p. 23, stap 4: "Aanvaard" |
+| Bewijs | `complexiteit.csv`, `resultaten/figuren/complexiteit.png` |
 
 ## 10. Weging en trainingsvenster
 
@@ -154,8 +206,12 @@ of de kleine klasse beter herkend moet worden (weging).
 **Weging:** de kansen worden opgeteld tot verwachte aantallen. Een weging die de kleine klasse
 zwaarder doet doorwegen, schuift alle kansen omhoog: het model voorspelt 2,7 keer te veel
 annulaties. Ze verbetert de rangschikking niet eens (AUC 0,688). Voor een som van kansen moet de
-kans geijkt zijn, en deze weging zonder herijking breekt dat. Of weging gevolgd door een
-herijking op een apart tijdsblok wel werkt, is **niet getest**. **Venster:** minder bias, maar een duidelijk hogere
+kans geijkt zijn, en deze weging zonder herijking breekt dat. **Met herijking** (isotoon, op de
+laatste twee maanden van de training, apart gehouden): de som van de kansen schiet nu de andere
+kant op (voorspeld/echt 1,29 zonder weging, 1,32 met), en de MAE wordt 7,51 en 7,64: aantoonbaar
+slechter dan de referentie (interval +1,20 tot +4,40 en +0,83 tot +5,14, `weging.csv`). Herijken
+op november-december maakt januari-maart slechter: dezelfde seizoensbias als in sectie 11. De
+referentie zonder weging en zonder herijking blijft. **Venster:** minder bias, maar een duidelijk hogere
 MAE en lagere AUC: minder data weegt zwaarder dan recentere data. Bewijs: `experimenten.csv`.
 
 ### Elke maand hertrainen
@@ -218,6 +274,45 @@ Drie begrippen die niet hetzelfde zijn:
 | gemeten overschrijding (`te_veel`) | `beoordeel()` in `src/nachten.py` | bij de evaluatie | nee, gemeten |
 | risicogrens 20 % | `drempel()` in `src/experimenten.py`; `beleidspoorten()` in `src/poorten.py` | bij het kiezen van de zekerheid; bij elke training, **per hotel** op de validatie | ja, als releasepoort per hotel (sectie 14). Bij het voorspellen grijpt ze niet in: dat kan pas als de echte annulaties bekend zijn (monitoring, deel 3) |
 
+### Risico per hotel en per maand
+
+Een gepoold aandeel kan één hotel verbergen (City op de test: 22 %). Per maand verbergt het nog
+meer. `risico_per_groep.csv`, figuur `resultaten/figuren/risico_per_maand.png`, met een interval
+uit blokken van 7 dagen (nachten zijn niet onafhankelijk; het Wilson-interval in dezelfde tabel
+is daarom te smal).
+
+| Boosting | Maand | Te veel | 90 %-interval | Rol |
+|---|---|---|---|---|
+| Resort | **maart 2017** | **39 %** | 13 tot 65 % | validatie: keuzeset |
+| City | juni 2017 | 30 % | 13 tot 47 % | test: alleen diagnose |
+| City | juli 2017 | 45 % | 29 tot 65 % | test: alleen diagnose |
+| alle andere hotel × maanden | | ≤ 19 % | | |
+
+Op de volgeboekte nachten, waar de euro's vallen, is het risico hoger dan over alle nachten:
+Resort 31 % op de validatie, City 27 % op de test (`evaluatie.csv`, kolom `te_veel_vol`). Het
+gemiddelde aantal kamers te veel is klein (City test 0,7 per nacht), maar in de staart tot 8
+kamers op één nacht (City, test).
+
+### Zekerheid per hotel
+
+De vooraf vastgelegde regel van het risico-experiment (`configs/experimenten/e3_risico.yaml`): zit
+boosting op de validatie in een hotel × maand boven 20 %, dan volgt een zekerheid per hotel. Die
+is afgestemd op de drie kwartalen van 2016 (rolling origin) en gemeten op Q1 2017
+(`configs/experimenten/e3b_zekerheid_hotel.yaml`, `zekerheid_per_hotel.csv`).
+
+| | 0,80 voor beide hotels | Per hotel: City 0,85, Resort 0,875 |
+|---|---|---|
+| te veel, alle nachten | 11 % | 5,5 % |
+| hoogste hotel × maand | 39 % (Resort maart) | **23 %** (Resort maart) |
+| € per volle nacht | 480 | 469 (−2 %) |
+| doorverwezen per volle nacht | 0,43 | **0,07** |
+
+| | |
+|---|---|
+| Beslisregel, vooraf | de zekerheid per hotel vervangt 0,80 alleen als ze op de validatie in geen enkele maand van een hotel boven 20 % zit, en de € per volle nacht hoogstens 10 % daalt |
+| Uitkomst | **0,80 blijft**: Resort maart blijft boven 20 % (23 %). Wel een duidelijk inzicht: zes keer minder doorverwezen gasten voor 2 % minder euro's. Dat is een **beleidskeuze voor het hotel**, geen modelkeuze; zie de businessscenario's |
+| Gevolg | het risico per hotel en per maand wordt bewaakt waar het kan: na de nacht, in de monitoring (`src/monitoring.py`, deel 3) |
+
 ## 14. Poorten vóór het wegschrijven
 
 Eerst waren er twee poorten (AUC en MAE). Een model met een goede MAE maar te veel
@@ -270,7 +365,25 @@ voor metingen), weigert de API te laden.
 | Bewijs | `resultaten/software/summary.csv`, `raw_runs.csv` |
 | Resultaat | kern p95 73 ms op de normale portefeuille (358 boekingen); 100 000 boekingen 1 368 ms en 393 MB. Zie [softwaremetric.md](softwaremetric.md) |
 
-## 17. Inferentiemodus: batch
+## 17. IJking per hotel
+
+| | |
+|---|---|
+| Vraag | het advies telt kansen op tot een verwacht aantal; dat werkt alleen als de kansen geijkt zijn. Klopt dat per hotel, en waar niet? |
+| Methode | per hotel tien kwantielbakken op de validatie, met het aantal boekingen per bak en een 95 %-Wilson-interval; ECE = gewogen gemiddelde afstand tot de diagonaal |
+| Resultaat | ECE boosting: City 0,049, Resort 0,027. Logreg 0,059 en 0,040; vuistregel 0,040 en 0,073. Boosting onderschat in City (voorspeld/echt 0,85) |
+| Bewijs | `kalibratie.csv`, `resultaten/figuren/ijking_intervallen.png` |
+
+## 18. Experimenten vastleggen: MLflow
+
+| | |
+|---|---|
+| Opties | CSV-tabellen in git (zoals in deel 2) · MLflow · Weights & Biases |
+| Keuze | **MLflow**, lokaal (sqlite), met daarnaast de CSV's in `resultaten/` en een export van alle runs (`resultaten/runs.csv`) |
+| Waarom | elke run legt automatisch config, commit, data-hash, versies, hypothese en beslisregel vast; `src/tracking.py` weigert een run zonder beslisregel of met niet-gecommitte code. MLflow wordt ook in het vak Deep Learning gebruikt. De registry bewaart elke modelversie met haar poorten (deel 3). De CSV's blijven, omdat de documentatie en de tests in de repository moeten werken zonder MLflow-server |
+| Bewijs | `src/tracking.py`, `configs/experimenten/`, `resultaten/runs.csv` |
+
+## 19. Inferentiemodus: batch
 
 | | |
 |---|---|
