@@ -21,8 +21,16 @@ manager beslist.
   (7,25) niet te onderscheiden: boosting is aantoonbaar beter op het recentste kwartaal, niet
   in elk seizoen ([docs/verantwoording.md](docs/verantwoording.md), sectie 8)
 - **Split** in de tijd, op aankomstdatum, met een embargo van 31 dagen
-- **Poort:** een model wordt alleen weggeschreven als het de vuistregel verslaat op de
-  validatie, en een AUC van minstens 0,60 haalt
+- **Drie metrieken** ([docs/metrics.md](docs/metrics.md)): de MAE per hotel-nacht wordt
+  geoptimaliseerd; de **softwaremetriek** is een grens: p95-latency van `POST /advies` ≤ 1 000 ms
+  op 1 vCPU en 1 GiB, gemeten in de container **183 ms** (koude start 3,6 s,
+  [docs/softwaremetric.md](docs/softwaremetric.md)); de businessmetriek is € per volgeboekte nacht
+- **Poorten:** een model wordt alleen gepubliceerd als het de vuistregel verslaat, een AUC van
+  minstens 0,60 haalt, per hotel geijkt is, per hotel hoogstens 20 % nachten met te veel kamers
+  heeft, en binnen de latencygrens blijft (`src/poorten.py`)
+- **Deel 3:** een API met nette fouten, Docker (670 MB, niet als root), een compose-stack met
+  MLflow en een batchjob, monitoring met geijkte driftdrempels, kosten 0,04 € per maand
+  ([rapport/rapport_deel3.md](rapport/rapport_deel3.md))
 - **Advies k:** het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80. Geen maximum per
   nacht meer: het maximum van 5 % uit deel 1 is weggehaald (zie bevinding 3)
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
@@ -34,7 +42,7 @@ manager beslist.
   (validatie 6 %), Resort op 10 % (validatie 16 %). Zie bevinding 3
 - **Onder andere aannames** (108 scenario's met de echte kamers): boosting verslaat de vuistregel
   alleen als de nacht op het beslismoment echt vol is. Bij lege kamers niet. Netto, geraamd:
-  2 918 € per maand in het basisscenario, maar negatief in het pessimistische
+  2 923 € per maand in het basisscenario, maar negatief in het pessimistische
   ([docs/business_roi.md](docs/business_roi.md))
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 

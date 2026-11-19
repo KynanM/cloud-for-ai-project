@@ -467,7 +467,7 @@ en de drempel uit de kosten afgeleid, niet uit de curve.
 | Beslisregel, vooraf | businessrobuust als boosting in ≥ 90 % van de scenario's ≥ vuistregel scoort |
 | Resultaat | **49 %**: niet businessrobuust. In 0 van de 36 scenario's waarin de nacht op T maar voor 95 % geboekt is, is boosting beter; in 92 % van de scenario's met een overvolle nacht wel. Tegenover niet overboeken: 93 % |
 | Wat het betekent | de waarde van het model zit in de nachten die op het beslismoment echt vol zijn: daar gaat overboeken over. Bij lege kamers verkoopt wie meer adviseert meer, zonder doorverwijzing. Gevolg voor de uitrol: het advies alleen voor volle nachten gebruiken, en de boekingsstand op T meten in shadow mode |
-| Netto, geraamd | basis 2 918 € per maand, terugverdiend in 2,5 maanden; pessimistisch −3 990 €. Een raming onder aannames, geen gemeten ROI |
+| Netto, geraamd | basis 2 923 € per maand, terugverdiend in 2,5 maanden; pessimistisch −3 985 €. Een raming onder aannames, geen gemeten ROI |
 | ML ↔ business | Spearman ρ = −0,72 (p < 0,001, 38 varianten): een lagere MAE gaat samen met meer euro's |
 | Bewijs | [business_roi.md](business_roi.md), [metrics.md](metrics.md), [shadow_protocol.md](shadow_protocol.md), `business_scenario.csv`, `roi.csv`, `metriekverband.csv`, `replay.csv` |
 
