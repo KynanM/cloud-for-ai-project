@@ -117,14 +117,17 @@ def test_te_veel_per_hotel_in_de_tekst(periode):
             assert procent in tekst, f"{document} noemt te veel {procent} ({hotel}, {periode}) niet"
 
 
-def test_microbenchmark_in_de_verantwoording():
-    """De tijden in verantwoording §8 zijn die uit modelvergelijking.csv."""
-    tabel = pd.read_csv(PROJECT / "resultaten" / "audit" / "modelvergelijking.csv")
-    validatie = tabel[tabel["periode"] == "validatie"].set_index("model")
+def test_softwaretijden_in_de_verantwoording():
+    """De tijden in verantwoording §8 zijn de herhaalde metingen uit modellen_software.csv.
+
+    Niet de microbenchmark uit modelvergelijking.csv: één getimede aanroep verschilt van run tot
+    run, zodat elke reproductie de tekst zou tegenspreken (gezien na een verse clone).
+    """
+    tabel = pd.read_csv(PROJECT / "resultaten" / "software" / "modellen_software.csv")
     tekst = (PROJECT / "docs" / "verantwoording.md").read_text(encoding="utf-8")
-    for model in ("vuistregel", "logreg zonder land", "boosting zonder land"):
-        ms = komma(validatie.loc[model, "voorspeltijd_ms_per_1000"], 1) + " ms"
-        assert ms in tekst, f"verantwoording noemt {ms} voor {model} niet"
+    for _, rij in tabel.iterrows():
+        ms = f"{rij['kern_p95_ms']:.0f} ms |"
+        assert ms in tekst, f"verantwoording noemt {ms} voor {rij['model']} niet"
 
 
 # ------------------------------------------------------------------ semantische controle (taak 6.1)

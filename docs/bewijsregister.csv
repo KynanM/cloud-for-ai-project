@@ -44,8 +44,8 @@ hertraining,MAE test vast / elke maand (alleen gerapporteerd),5.11 / 5.08 (inter
 reproduceerbaarheid,logreg met land MAE test bij tol 1e-4 op twee machines,5.135 / 5.113; met tol 1e-6: 5.116,configs/default.yaml (model.logreg.tol); resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
 veiligheid,te veel per hotel boosting validatie City / Resort,5.9 % / 16.5 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
 veiligheid,te veel per hotel boosting test City / Resort,22.2 % / 9.6 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
-software,leertijd validatie vuistregel / logreg / boosting (microbenchmark),0.01 / 1.40 / 0.47 s,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
-software,predict_proba per 1 000 boekingen vuistregel / logreg / boosting (microbenchmark),1.2 / 6.6 / 11.0 ms,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+software,leertijd (mediaan van 10) vuistregel / logreg / boosting,0.01 / 1.40 / 0.81 s,resultaten/software/modellen_software.csv,uitgevoerd en reproduceerbaar
+software,kern p95 per model (200 runs) vuistregel / logreg / boosting,66 / 68 / 75 ms,resultaten/software/modellen_software.csv,uitgevoerd en reproduceerbaar
 rolling origin,MAE gemiddeld over 4 kwartalen vuistregel / logreg / boosting,8.43 / 7.25 / 7.10,resultaten/audit/rolling_origin.csv,uitgevoerd en reproduceerbaar
 rolling origin,logreg − boosting per nacht (blokken 7 dagen),+0.14 [−0.31; +0.58],resultaten/audit/rolling_origin.csv,uitgevoerd en reproduceerbaar
 bootstrap,200 tegenover 100 iteraties met blokken van 7 dagen,+0.15 [−0.12; +0.41],resultaten/audit/bootstrap_gevoeligheid.csv,uitgevoerd en reproduceerbaar
