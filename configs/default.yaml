@@ -125,6 +125,20 @@ bedragen:
     - {r: 0.3, w: 2.0}
     - {r: 0.5, w: 3.0}
 
+# Bij voorspellen: wat met boekingen buiten het toepassingsdomein van het model (src/scope.py,
+# docs/inputcontract.md). sluit_uit: advies over de rest, de uitgesloten boekingen met reden
+# erbij. weiger: het hele verzoek faalt.
+inferentie:
+  buiten_scope: sluit_uit
+
+# Releasepoorten bovenop model.minimum_auc en de vuistregel (src/poorten.py). Allemaal op de
+# validatie. Het risico per hotel gebruikt advies.risicogrens; de latency de grens uit
+# configs/benchmark.yaml.
+poorten:
+  # voorspeld / echt per hotel: een som van kansen moet geijkt zijn
+  ijking_per_hotel: [0.8, 1.25]
+  max_model_mb: 50
+
 model:
   # vuistregel | logreg | boosting. Gekozen op de MAE per hotel-nacht op de validatie, nooit op
   # de test: boosting 4,72, logreg 5,77, vuistregel 6,36. Zie python -m src.evaluate.

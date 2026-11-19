@@ -26,7 +26,7 @@ from src.predict import (
 )
 
 NACHT = pd.Timestamp("2017-08-15")
-FASES = {"schema", "voorspellen", "aggregeren", "advies", "advies_valideren"}
+FASES = {"schema", "scope", "voorspellen", "aggregeren", "advies", "advies_valideren"}
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +42,8 @@ def onderdelen(cfg):
 def test_elke_fase_wordt_gemeten(onderdelen, cfg):
     model, instellingen, nieuw = onderdelen
     meting = Meting()
-    tabel, kansen = voer_job_uit(nieuw, model, instellingen, cfg, NACHT, meting)
+    job = voer_job_uit(nieuw, model, instellingen, cfg, NACHT, meting)
+    tabel, kansen = job.advies, job.kansen
     resultaat = meting.als_dict()
 
     assert FASES <= set(resultaat["fases_ms"])
@@ -55,7 +56,7 @@ def test_elke_fase_wordt_gemeten(onderdelen, cfg):
 
 def test_zelfde_advies_als_adviseer(onderdelen, cfg):
     model, instellingen, nieuw = onderdelen
-    tabel, kansen = voer_job_uit(nieuw, model, instellingen, cfg, NACHT)
+    tabel = voer_job_uit(nieuw, model, instellingen, cfg, NACHT).advies
 
     pd.testing.assert_frame_equal(tabel, adviseer(model, instellingen, nieuw, cfg, NACHT))
     pd.testing.assert_frame_equal(
