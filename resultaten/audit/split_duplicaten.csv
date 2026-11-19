@@ -1,0 +1,7 @@
+model,split,auc,meet_boekingen,aandeel_rijen_met_kopie
+logreg,willekeurig,0.7558,7256,0.3284
+logreg,"willekeurig, kopieën samen",0.7349,7008,0.3284
+logreg,in de tijd,0.6274,4439,0.3284
+boosting,willekeurig,0.7974,7256,0.3284
+boosting,"willekeurig, kopieën samen",0.7591,7008,0.3284
+boosting,in de tijd,0.6954,4439,0.3284

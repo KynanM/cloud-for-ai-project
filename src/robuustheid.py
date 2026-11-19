@@ -37,7 +37,7 @@ from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score  # noqa: E
 
 from .config import laad_config  # noqa: E402
 from .data import aankomstdatum, laad_data  # noqa: E402
-from .evaluate import met  # noqa: E402
+from .evaluate import met, zekerheden_winstcurve  # noqa: E402
 from .experimenten import GEKOZEN, Opzet, beide, bootstrap, modelvergelijking, variant  # noqa: E402
 from .folds import folds  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
@@ -939,6 +939,101 @@ def claims(o: Opzet) -> tuple[pd.DataFrame, pd.DataFrame]:
     return a, b
 
 
+# ------------------------------------------------------------------- 3.4b zekerheid per hotel
+
+
+def per_hotel_beoordeeld(nachten, factor, cap, bezet, cfg, zekerheden: dict) -> pd.DataFrame:
+    """Beoordeel elk hotel met zijn eigen zekerheid; één rij per hotel-nacht (detail)."""
+    delen = []
+    for hotel, z in zekerheden.items():
+        _, n = beoordeel(
+            nachten[nachten["hotel"] == hotel], factor, cap, bezet, cfg, z, detail=True
+        )
+        delen.append(n)
+    return pd.concat(delen, ignore_index=True)
+
+
+def zekerheid_per_hotel(o: Opzet) -> pd.DataFrame:
+    """Taak 3.4b: een zekerheid per hotel, afgestemd op de folds van 2016, gemeten op Q1 2017."""
+    exp = laad_experiment("e3b_zekerheid_hotel")
+    cfg = met(o.cfg, *GEKOZEN)
+    grens = o.cfg["advies"]["risicogrens"]
+    zekerheden = zekerheden_winstcurve(o.cfg)
+    rijen, vorige = [], None
+    for fold in [f for f in folds(o.df, o.cfg) if f.einde < o.g["validatie_start"]]:
+        model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(fold.train, cfg))
+        _, eigen, _, _, nachten = meet_fold(model, fold, o, cfg, vorige)
+        factor = vorige if vorige is not None else eigen
+        cap = capaciteit(o.bezet, fold.train_einde, cfg["advies"]["capaciteit_percentiel"])
+        for z in zekerheden:
+            t = beoordeel(nachten, factor, cap, o.bezet, cfg, z)
+            for _, r in t[t["hotel"] != "beide"].iterrows():
+                rijen.append(
+                    {"fold": fold.naam, "zekerheid": round(float(z), 3), "hotel": r["hotel"],
+                     "te_veel": r["te_veel"], "euro": r["euro_per_volle_nacht"]}
+                )  # fmt: skip
+        vorige = eigen
+    afstemming = pd.DataFrame(rijen)
+    gekozen = {}
+    for hotel, g in afstemming.groupby("hotel"):
+        per_z = g.groupby("zekerheid").agg(max_te_veel=("te_veel", "max"), euro=("euro", "mean"))
+        binnen = per_z[per_z["max_te_veel"] <= grens]
+        gekozen[hotel] = float(binnen["euro"].idxmax()) if len(binnen) else float(per_z.index.max())
+    logger.info("Zekerheid per hotel, afgestemd op 2016: %s", gekozen)
+
+    r = o.draai(cfg, "validatie", "training", "validatie")
+    factor = spreidingsfactor(r["nachten"])
+    uit = []
+    for naam, z in [("0,80 voor beide hotels", dict.fromkeys(gekozen, cfg["advies"]["zekerheid"])),
+                    ("zekerheid per hotel", gekozen)]:  # fmt: skip
+        n = per_hotel_beoordeeld(r["nachten"], factor, o.cap, o.bezet, cfg, z)
+        n["maand"] = pd.to_datetime(n["nacht"]).dt.strftime("%Y-%m")
+        n["te_veel_nacht"] = (n["echt"] < n["k"]).astype(float)
+        maand = n.groupby(["hotel", "maand"])["te_veel_nacht"].mean()
+        vol = n[n["vol"]]
+        uit.append(
+            {
+                "variant": naam,
+                "zekerheid_city": z["City Hotel"],
+                "zekerheid_resort": z["Resort Hotel"],
+                "te_veel": n["te_veel_nacht"].mean(),
+                "max_te_veel_hotel_maand": maand.max(),
+                "hotel_maand_boven_grens": int((maand > grens).sum()),
+                "euro_per_volle_nacht": vol["euro"].mean(),
+                "doorverwezen": vol["doorverwezen"].mean(),
+                **{f"te_veel_{h.split()[0].lower()}_{m}": v for (h, m), v in maand.items()},
+            }
+        )
+    tabel = pd.DataFrame(uit)
+    basis, alt = tabel.iloc[0], tabel.iloc[1]
+    vervangt = bool(
+        alt["hotel_maand_boven_grens"] == 0
+        and alt["euro_per_volle_nacht"] >= 0.9 * basis["euro_per_volle_nacht"]
+    )
+    tabel["besluit"] = (
+        "zekerheid per hotel" if vervangt else "0,80 blijft; risico per maand naar de monitoring"
+    )
+    pad = schrijf(tabel, "zekerheid_per_hotel.csv")
+    afstemming.to_csv(
+        pad.with_name("zekerheid_per_hotel_afstemming.csv"), index=False, float_format="%.4f"
+    )
+    for _, rij in tabel.iterrows():
+        with experimentrun(
+            "e3b_zekerheid_hotel", rij["variant"], exp, o.cfg, besluit=rij["besluit"]
+        ):
+            log_metrics(
+                {
+                    "beleid.max_te_veel_hotel_maand": rij["max_te_veel_hotel_maand"],
+                    "beleid.hotel_maand_boven_grens": rij["hotel_maand_boven_grens"],
+                    "business.euro_per_volle_nacht": rij["euro_per_volle_nacht"],
+                    "business.doorverwezen": rij["doorverwezen"],
+                }
+            )
+            log_tabel(tabel, pad.name)
+            log_tabel(afstemming, "zekerheid_per_hotel_afstemming.csv")
+    return tabel
+
+
 # --------------------------------------------------------------------------- main
 
 TAKEN = {
@@ -950,6 +1045,7 @@ TAKEN = {
     "features": featuresets,
     "kalibratie": kalibratie,
     "claims": claims,
+    "zekerheid_hotel": zekerheid_per_hotel,
 }
 
 

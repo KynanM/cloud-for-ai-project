@@ -1,0 +1,10 @@
+trede,soort,mae,bias,auc,brier,te_veel_city,te_veel_resort,euro_per_volle_nacht,kern_p50_ms,kern_p95_ms,model_kb,leertijd_s,duur_s,delta_mae,delta_blok7_laag,delta_blok7_hoog,binnen_grenzen,aantoonbaar_beter_dan_huidig,gekozen,bindt_de_latencygrens
+0 vuistregel,vuistregel,6.3566,1.6890,0.5573,0.1398,0.1176,0.3544,327.5722,50.7272,72.5186,1.6084,0.0141,3.1404,1.6377,0.5839,2.7063,False,False,False,False
+1 logreg,logreg,5.7745,-0.3313,0.6274,0.1402,0.1176,0.1392,331.3142,59.5308,69.0462,5.0664,1.3497,6.1793,1.0555,0.4527,1.6789,True,False,False,False
+"2 boosting 50 it, 7 bladeren",boosting,4.8059,-1.7886,0.6891,0.1320,0.0000,0.1772,487.4702,93.2448,106.9885,21.6621,0.2952,5.7910,0.0869,-0.1619,0.3184,True,False,False,False
+"3 boosting 100 it, 7 bladeren, 300/blad",boosting,4.5861,-1.5319,0.6846,0.1318,0.0353,0.1519,482.5012,92.6354,108.6165,37.6025,0.3772,6.2289,-0.1328,-0.3274,0.0549,True,False,False,False
+4 boosting huidig,boosting,4.7190,-1.5915,0.6954,0.1302,0.0588,0.1646,480.1901,91.2487,110.4682,78.7939,0.4768,6.3189,0.0000,0.0000,0.0000,True,False,True,False
+5 boosting 200 it,boosting,4.8714,-1.1408,0.6869,0.1307,0.0588,0.1899,478.1092,93.8828,116.1482,149.5762,0.7286,6.9641,0.1524,-0.1237,0.4107,True,False,False,False
+"6 boosting 400 it, lr 0,025, 31 bladeren",boosting,5.0805,-0.8650,0.6800,0.1316,0.0588,0.2152,459.2538,96.3958,119.3070,596.0273,1.8556,9.6227,0.3615,0.0092,0.7042,False,False,False,False
+"7 boosting 1000 it, lr 0,01, 63 bladeren, 20/blad",boosting,5.1491,-0.6680,0.6638,0.1332,0.0471,0.2658,461.8869,113.1041,137.7641,3005.8447,7.2086,21.8559,0.4301,0.0052,0.8488,False,False,False,False
+"8 random forest, 300 bomen",randomforest,4.6584,-0.4458,0.6756,0.1319,0.0941,0.2025,463.1321,85.5508,95.3864,4075.3789,5.1116,16.0727,-0.0606,-0.3838,0.2791,False,False,False,False

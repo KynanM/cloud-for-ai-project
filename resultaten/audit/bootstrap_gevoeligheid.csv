@@ -1,0 +1,5 @@
+vergelijking,eenheid,nachten,verschil,losse_nachten_laag,losse_nachten_hoog,blok1_laag,blok1_hoog,blok7_laag,blok7_hoog,blok14_laag,blok14_hoog,blok28_laag,blok28_hoog,conclusie_losse_nachten,conclusie_blok7_en_14,blijft_staan
+200 tegenover 100 iteraties,Δ MAE,164,0.1524,0.0024,0.3047,-0.0104,0.3095,-0.1237,0.4107,-0.1662,0.4770,-0.2165,0.5330,aantoonbaar,niet aantoonbaar,False
+logreg tegenover boosting,Δ MAE,164,1.0555,0.6307,1.5415,0.5883,1.4992,0.4527,1.6789,0.5542,1.5778,0.7137,1.3904,aantoonbaar,aantoonbaar,True
+vuistregel tegenover boosting,Δ MAE,164,1.6377,1.1459,2.1382,1.0810,2.1748,0.5839,2.7063,0.4176,2.9846,0.2991,3.0390,aantoonbaar,aantoonbaar,True
+"zekerheid 0,725 tegenover 0,80",Δ € per volle nacht,30,13.8714,-34.8969,56.5836,-36.5063,60.8193,-43.9696,66.2507,-39.6203,63.2238,13.8714,13.8714,niet aantoonbaar,niet aantoonbaar,True
