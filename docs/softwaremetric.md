@@ -159,10 +159,58 @@ Bij 10 000 boekingen weegt het zwaarder (436 tegenover 199 ms): elke boeking wor
 gevalideerd en van JSON naar een tabel omgezet. Ook bij 100× de portefeuille van één hotel blijft
 het verzoek onder de grens.
 
+### De primaire metriek op de referentie-infrastructuur (fase 5)
+
+In de container, `docker run --cpus=1 --memory=1g`, `OMP_NUM_THREADS=1`, 10 opwarm + 200
+gemeten `POST /advies` op de normale portefeuille (`benchmarks/container.py`,
+`resultaten/serving/container.csv`; ruwe tijden in sessie `fase5_container`). Geheugen en CPU
+uit de cgroup van de container.
+
+| Image | Grootte | p50 | **p95** | Koude start (p50, max van 20) | Piekgeheugen | CPU per advies |
+|---|---|---|---|---|---|---|
+| **multi-stage, slank** (`Dockerfile`) | 670 MB | 70 ms | **183 ms** | 3,6 s, max 3,9 s | 152 MB | 0,07 CPU-s |
+| één stage, alles (`Dockerfile.enkel`) | 2 776 MB | 83 ms | 96 ms | 3,2 s, max 3,4 s | 173 MB | 0,08 CPU-s |
+
+| Grens | Gemeten | |
+|---|---|---|
+| p95 ≤ 1 000 ms | 183 ms | **gehaald** |
+| koude start ≤ 60 s | 3,6 s (max 3,9) | **gehaald** |
+| piekgeheugen ≤ 1 024 MB | 152 MB | **gehaald** |
+| 5xx onder belasting 0 % | 0 % tot 2 verzoeken/s per container (taak 5.5) | **gehaald** |
+| 10 000 boekingen zonder OOM | ook 100 000, zelfs in 512 MB | **gehaald** |
+
+De staart (p95) is bij 1 vCPU twee keer zo lang als bij 2 vCPU (183 tegenover 90 ms), bij een
+gelijke mediaan: een CPU-limiet van één kern geeft af en toe een wachtmoment. Dat zit ruim binnen
+de grens.
+
+### Sizing (taak 5.6)
+
+| vCPU | Geheugen | Threads | p50 | p95 | CPU per advies | 100 000 boekingen (CLI) |
+|---|---|---|---|---|---|---|
+| **0,5** | **512 MB** | 1 | 198 ms | **259 ms** | 0,10 s | 14,7 s, geen OOM |
+| 1 | 512 MB | 1 | 70 ms | 190 ms | 0,07 s | 5,1 s |
+| 1 | 1 GB | 1 | 69 ms | 150 ms | 0,07 s | 4,8 s |
+| 2 | 1 GB | 1 | 68 ms | 90 ms | 0,07 s | 4,7 s |
+| 2 | 1 GB | 2 | 67 ms | 124 ms | 0,09 s | 4,5 s |
+| 2 | 2 GB | 2 | 67 ms | 85 ms | 0,09 s | 4,6 s |
+
+Beslisregel (taak 5.6): de kleinste combinatie die de grens haalt en niet OOM gaat bij 10 000
+boekingen. Dat is **0,5 vCPU en 512 MB**; die limieten staan in `compose.yaml`. Les 06 p. 16: "Mag
+de throughput zakken? Kleinere instance." Twee threads in plaats van één geven geen consistente
+winst (p95 124 tegenover 90 ms bij 2 vCPU) en kosten 30 % meer CPU: het blijft bij één thread
+(de open vraag uit taak 1.8).
+
+### Wat er gebeurt als het druk wordt (taak 5.5)
+
+Zie [optimalisaties.md](optimalisaties.md) en `resultaten/serving/vergelijking.csv`. Eén
+container van 0,5 vCPU houdt 2 verzoeken per seconde binnen de grens, twee of vier containers
+achter nginx 8 per seconde. Wat eerst breekt, is de latency (de wachtrij groeit), daarna de
+foutrate (time-outs); het geheugen nooit. 100× meer verkeer dan vandaag is 100 verzoeken per dag:
+duizenden keren onder het breekpunt.
+
 ### Nog te meten
 
-- `koude_start` en de referentie-infrastructuur (1 vCPU, 1 GiB): fase 5, in de container
-- de publieke URL (Hugging Face Space): taak 5.10
+- de publieke URL (Hugging Face Space): taak 5.10, wacht op een Space en een `HF_TOKEN`
 
 ## Beperkingen
 

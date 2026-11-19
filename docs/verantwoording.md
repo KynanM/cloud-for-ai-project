@@ -470,3 +470,52 @@ en de drempel uit de kosten afgeleid, niet uit de curve.
 | Netto, geraamd | basis 2 918 € per maand, terugverdiend in 2,5 maanden; pessimistisch −3 990 €. Een raming onder aannames, geen gemeten ROI |
 | ML ↔ business | Spearman ρ = −0,72 (p < 0,001, 38 varianten): een lagere MAE gaat samen met meer euro's |
 | Bewijs | [business_roi.md](business_roi.md), [metrics.md](metrics.md), [shadow_protocol.md](shadow_protocol.md), `business_scenario.csv`, `roi.csv`, `metriekverband.csv`, `replay.csv` |
+
+## 21. Waar het draait en in welke vorm
+
+| | |
+|---|---|
+| Opties (les 06 p. 18) | eigen desktop (on-premises) · cloud · op het toestel; en: een batchjob per ochtend · een service die altijd draait · model laden per verzoek |
+| Keuze | **lokaal** (docker compose: API, MLflow, batchjob, nginx) voor ontwikkelen, meten en monitoren; **Hugging Face Space** voor de publieke URL; de API als service met het model geladen, de batchjob als alternatief voor een geplande taak |
+| Gemeten (taak 5.5) | batchjob met een vers container: 3,9 s per advies (tien geslaagde runs, `batchjob.csv`); service: p50 70 ms. Model laden per verzoek, online per boeking: 55 s per nacht. Eén container (0,5 vCPU) houdt 2 verzoeken/s, twee of vier achter nginx 8/s; eerst breekt de latency (`belasting.csv`) |
+| Waarom | de desktop geeft vaste infrastructuur voor de metingen; een publieke URL kan hij niet waarmaken. Vandaag is het één verzoek per dag; 100× meer verkeer ligt duizenden keren onder het breekpunt van één container |
+| Bewijs | [adr/0001-waar-het-draait.md](adr/0001-waar-het-draait.md), [architectuur.md](architectuur.md), `resultaten/serving/vergelijking.csv` |
+
+## 22. Image en infrastructuur
+
+| | |
+|---|---|
+| Opties | één stage met alles · multi-stage, slank, niet als root; 0,5 / 1 / 2 vCPU × 512 MB / 1 GB / 2 GB × 1 / 2 threads |
+| Resultaat | slank image 670 MB tegenover 2 776 MB, geen secrets in de lagen. Op 1 vCPU / 1 GiB: p95 183 ms, koude start 3,6 s, piek 152 MB. 0,5 vCPU / 512 MB haalt de grens (p95 259 ms) en verwerkt 100 000 boekingen zonder OOM |
+| Keuze | **multi-stage slank**, **0,5 vCPU / 512 MB** in `compose.yaml`, **1 thread** |
+| Waarom | de kleinste infrastructuur die de grens haalt (les 06 p. 16); twee threads geven geen consistente winst en kosten 30 % meer CPU |
+| Bewijs | `container.csv`, `sizing.csv`, `koude_start_*.csv`, [softwaremetric.md](softwaremetric.md) |
+
+## 23. Kost
+
+| | |
+|---|---|
+| Gemeten | 0,07 CPU-seconden per advies (cgroup), latency p50 70 ms, een draaiende container zonder verzoeken 48 CPU-seconden per uur |
+| Aangenomen | 15 W per belaste kern, 0,30 € per kWh, 0,92 € per dollar |
+| Resultaat | lokaal 0,04 € per maand (bijna alles stilstand). Cloud Run (prijslijst 19-11-2026): 0,002 € per 1 000 adviezen; bij 100× meer verkeer (100 per dag) 0,006 € per maand, binnen de gratis tier 0 €. Pas bij het breekpunt van één container (~176 000 verzoeken per dag) ~5 € per maand |
+| Wat het betekent | de infrastructuur is voor dit advies geen kostenpost; de beheeruren wel (sectie 20) |
+| Bewijs | `resultaten/serving/kosten.csv`, `kosten.json`, [kosten.md](kosten.md) |
+
+## 24. Monitoring
+
+| | |
+|---|---|
+| Service | één JSON-logregel per verzoek: latency, status, uitgesloten per reden, aandeel onbekende categorieën, drift per kolom (`src/api.py`, `logs/api.log`, 30 dagen) |
+| Invoerdrift | PSI per verzoek tegen de verdelingen van de hertraining (in het manifest). Een vaste drempel van 0,2 alarmeert elke dag: een nacht-portefeuille wijkt structureel af van alle boekingen (adr: PSI 0,59 op een gewone nacht). Drempel per kolom = max(0,2; 1,5 × de hoogste PSI van een normale validatienacht). Op de 153 testnachten: 0 valse alarmen; adr per verblijf 153 keer gevangen (PSI 5,2 tegen drempel 3,3). Die regel is gekozen nadat ook het 95e percentiel op de replay bekeken was (37 alarmen, zomerprijzen) |
+| Risico na de nacht | `python -m src.monitoring labels` op de replay: City boven 20 % te veel in drie vensters van vier weken (eind mei 25 %, juni-juli 57 %, augustus 23 %). In productie had het alarm eind juni afgegaan |
+| Alarmen | `python -m src.monitoring controleer`: p95 boven de grens, 5xx, onbekende categorieën > 5 %, drift, geen verzoek in 24 uur; één alarm per soort. Demo: `resultaten/monitoring/alerts_demo.jsonl` (drift in adr 5,2; 7,9 % onbekende agents: agents van na februari 2017, een reden om opnieuw te trainen) |
+| Bewijs | `src/monitoring.py`, `tests/test_monitoring.py`, `resultaten/monitoring/` |
+
+## 25. Publiceren en terugdraaien
+
+| | |
+|---|---|
+| Opties | `models/` overschrijven (deel 2) · een registry met versies |
+| Keuze | **MLflow-registry**: elke training een versie met haar poorten als tags; de alias `kampioen` alleen als alle poorten slagen; export naar `models/actief/` via een tijdelijke map en één hernoeming; rollback = de alias terugzetten |
+| Waarom | een crash halverwege liet vroeger een gemengde set achter; nu blijft de vorige versie staan (getest). De API heeft MLflow niet nodig: het image bevat de export |
+| Bewijs | `src/publiceer.py`, `tests/test_publiceer.py`, `python -m src.publiceer --lijst` |

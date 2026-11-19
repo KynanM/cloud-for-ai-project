@@ -58,3 +58,9 @@ business,scenario's waarin boosting >= vuistregel (validatie),49 % van 108,resul
 business,netto per maand pessimistisch / basis / optimistisch (raming),-3990 / 2918 / 9518 €,resultaten/business/roi.csv,uitgevoerd en reproduceerbaar
 business,Spearman MAE en € per volle nacht,-0.72 (p < 0.001; n = 38),resultaten/audit/metriekverband.csv,uitgevoerd en reproduceerbaar
 replay,testnachten via de API / p95,153 nachten / 127 ms,resultaten/business/replay.csv,uitgevoerd en reproduceerbaar
+deployment,container 1 vCPU 1 GiB: p95 / koude start / piek,183 ms / 3.6 s / 152 MB,resultaten/serving/container.csv,uitgevoerd en reproduceerbaar
+deployment,image slank / een stage,670 / 2776 MB,resultaten/serving/container.csv,uitgevoerd en reproduceerbaar
+deployment,kleinste infrastructuur binnen de grens,0.5 vCPU / 512 MB (p95 259 ms),resultaten/serving/sizing.csv,uitgevoerd en reproduceerbaar
+deployment,throughput binnen de grens 1 / 2 / 4 containers,2 / 8 / 8 verzoeken per s,resultaten/serving/belasting.csv,uitgevoerd en reproduceerbaar
+kosten,lokaal per maand / Cloud Run bij 100x verkeer,0.04 € / 0.006 € (gratis tier 0),resultaten/serving/kosten.csv,uitgevoerd en reproduceerbaar
+monitoring,valse driftalarmen op testnachten / adr per verblijf gevangen,0 van 153 / 153 van 153,src/monitoring.py,uitgevoerd en reproduceerbaar
