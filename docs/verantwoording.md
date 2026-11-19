@@ -113,18 +113,18 @@ per 1 000 boekingen. Dat is een **microbenchmark van het model alleen**, één k
 machine in `resultaten/audit/omgeving.json`; geen latency van het hele pad. De softwaremetriek
 staat in [softwaremetric.md](softwaremetric.md).
 
-| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | voorspellen per 1 000 |
-|---|---|---|---|---|---|---|---|---|---|
-| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,06 s | 2,7 ms |
-| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 3,55 s | 10,0 ms |
-| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 1,36 s | 14,9 ms |
+| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | voorspellen per 1 000 | **kern p95, hele pad** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,06 s | 2,7 ms | 66 ms |
+| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 3,55 s | 10,0 ms | 68 ms |
+| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 1,36 s | 14,9 ms | 75 ms |
 
 Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 
 | | |
 |---|---|
 | Keuze | boosting zonder land |
-| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (14,9 tegenover 10,0 ms per 1 000 boekingen). Of dat ertoe doet, beslist de softwaremetriek op het hele pad, niet deze microbenchmark |
+| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (14,9 tegenover 10,0 ms per 1 000 boekingen). Op het hele pad (de kern van een adviesjob, normale portefeuille van 358 boekingen, 200 runs) is het verschil 7 ms: p95 75 tegenover 68 ms, tegen een grens van 1 000 ms. Les 06 p. 22, "Is 1 % het waard?": voor 25 % minder fout en 150 € meer per volle nacht, ja ([softwaremetric.md](softwaremetric.md), `modellen_software.csv`) |
 | Euro's | zonder maximum (de huidige regel): boosting 480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). Gepoold gaat de vuistregel over de risicogrens (23 % en 31 % te veel), boosting niet (11 % en 16 %). **Per hotel niet overal:** boosting zit in City op 6 % (validatie) en **22 % (test)**, in Resort op 16 % en 10 %. Op de test overschrijdt City dus de grens; de test kiest niets, dus dat is gemeten en niet weggewerkt. Met het oude maximum van 5 % waren ze gelijk. Zie sectie 13 |
 | Bewijs | `modelvergelijking.csv`, `resultaten/evaluatie.csv` |
 
@@ -268,6 +268,18 @@ voor metingen), weigert de API te laden.
 | Waarom | de revenue manager wacht op het antwoord (mens in de lus, les 06 p. 24); latency over het hele pad (p. 13); throughput is bij 2 adviezen per dag nooit de grens. Les 06 p. 23: de ML-metriek optimaliseer je, de softwaremetriek is de grens |
 | Vooraf vastgelegd | `configs/benchmark.yaml` en [softwaremetric.md](softwaremetric.md), gecommit vóór de eerste meting |
 | Bewijs | `resultaten/software/summary.csv`, `raw_runs.csv` |
+| Resultaat | kern p95 73 ms op de normale portefeuille (358 boekingen); 100 000 boekingen 1 368 ms en 393 MB. Zie [softwaremetric.md](softwaremetric.md) |
+
+## 17. Inferentiemodus: batch
+
+| | |
+|---|---|
+| Vraag (les 06 p. 9) | "Bestaat mijn input vooraf?" Ja: de actieve boekingen van een nacht bestaan op het beslismoment, 30 dagen vooraf |
+| Opties | batch: één verzoek met alle boekingen van een nacht · online: één verzoek per boeking · online met het model geladen per verzoek |
+| Resultaat (normale portefeuille, 358 boekingen) | batch 187 ms · online 31,6 s (**169× trager**) · online met laden per verzoek 55,5 s (**297×**). Identieke k |
+| Keuze | **batch**, achter een HTTP-endpoint: transport (HTTP, want de opdracht vraagt een URL) en inferentiemodus (batch) zijn twee verschillende keuzes |
+| Waarom | elke aanroep heeft een vaste kost (les 07 p. 8, hier met het eigen model gemeten), en k hangt af van alle boekingen van een nacht samen, niet van één. Alleen batch blijft binnen de grens van 1 000 ms |
+| Bewijs | `resultaten/software/modus.csv`, [optimalisaties.md](optimalisaties.md) |
 
 ---
 

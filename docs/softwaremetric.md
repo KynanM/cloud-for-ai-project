@@ -85,14 +85,66 @@ grootte van "normaal" is niet gekozen maar gemeten: de mediaan van de echte port
 nacht over alle nachten van de testperiode. Zie `resultaten/software/workloads.json` en
 `benchmarks/workloads.py`.
 
-## Resultaten
-
-Worden ingevuld vanuit `resultaten/software/summary.csv`; zie de sectie "Metingen" hieronder,
-die na elke meting bijgewerkt wordt.
-
 ## Metingen
 
-*(nog niet gemeten)*
+Bron: `resultaten/software/summary.csv` (sessie `fase1`, code van commit `99a932b`) en
+`raw_runs.csv`. Machine: Windows 11, Intel Core (12 logische kernen), 16 GB; `OMP_NUM_THREADS=1`,
+zonder CPU- of geheugenlimiet (de container met 1 vCPU / 1 GiB volgt in fase 5). Boosting,
+het gepubliceerde model. p95 met een 95 %-bootstrapinterval.
+
+### De kern (`voer_job_uit()`, zonder HTTP), 10 opwarm + 200 gemeten
+
+| Workload | Boekingen | Boeking-nachten | p50 (ms) | p95 (ms) [95 %-interval] | max (ms) | Aandeel voorspellen | Piek-RSS (MB) | Mislukt / ongeldig |
+|---|---|---|---|---|---|---|---|---|
+| smoke | 76 | 321 | 60 | 72 [70–75] | 115 | 20 % | 190 | 0 / 0 |
+| **normaal** | **358** | **1 478** | **64** | **73 [71–78]** | 107 | 23 % | 191 | 0 / 0 |
+| kort verblijf | 358 | 602 | 63 | 74 [70–75] | 80 | 23 % | 192 | 0 / 0 |
+| lang verblijf | 358 | 2 952 | 62 | 76 [72–78] | 94 | 23 % | 193 | 0 / 0 |
+| 10 000 | 10 000 | 40 990 | 178 | 199 [195–203] | 219 | 58 % | 216 | 0 / 0 |
+| 100 000 | 100 000 | 413 977 | 1 292 | 1 368 [1 355–1 381] | 1 414 | 76 % | 393 | 0 / 0 |
+
+### Een vers proces (`python -m src.predict`), 30 keer
+
+| Workload | p50 (ms) | p95 (ms) | Piek-RSS (MB) |
+|---|---|---|---|
+| normaal | 2 763 | 2 845 | 185 |
+| 10 000 | 2 956 | 3 090 | 208 |
+| 100 000 | 4 908 | 5 058 | 350 |
+
+### Wat dit zegt
+
+- **De kern haalt de grens ruim:** p95 73 ms op de normale portefeuille, een veertiende van
+  1 000 ms. Dat is een ondergrens voor de primaire metriek: HTTP en JSON komen er nog bij
+  (fase 2), en de container met 1 vCPU (fase 5).
+- **Waar de tijd naartoe gaat** (opdracht deel 3): bij een gewone portefeuille is voorspellen maar
+  23 % van de kern; de rest is validatie (schema, scope), aggregatie en advies. Pas bij 100 000
+  boekingen wordt het model de grootste post (76 %). Les 06 p. 13: "Meestal zit de tijd niet in
+  het model."
+- **Een vers proces kost ~2,8 s**, bijna allemaal opstarten: Python, pandas en scikit-learn laden
+  en het model inlezen. Dat is het argument om het model in een draaiende service geladen te
+  houden in plaats van per verzoek een proces te starten (modus, `docs/optimalisaties.md`).
+- **Schalen:** van 358 naar 100 000 boekingen (×280) stijgt de kern van 73 naar 1 368 ms (×19)
+  en het geheugen van 191 naar 393 MB. Ruim binnen 1 GiB: geen OOM-risico bij 100× zoveel verkeer
+  in één batch.
+
+### De drie modellen (taak 1.9, "Is 1 % het waard?", les 06 p. 22)
+
+Sessie `modellen_software_…` in `summary.csv`, `resultaten/software/modellen_software.csv`.
+
+| Model | MAE validatie | € per volle nacht | Kern p95 (ms) | Vers proces p95 (ms) | Model (KB) | Leren (s) |
+|---|---|---|---|---|---|---|
+| vuistregel | 6,36 | 328 | 66 | 2 918 | 1,6 | 0,01 |
+| logreg | 5,77 | 331 | 68 | 3 237 | 5,1 | 1,40 |
+| **boosting** | **4,72** | **480** | 75 | 3 023 | 79 | 0,81 |
+
+Boosting is 7–9 ms trager dan de andere twee op de kern: 1 % van de grens. Voor 25 % minder fout
+dan de vuistregel en 150 € meer per volle nacht is dat "1 %" het waard. De vooraf vastgelegde
+regel (laagste MAE binnen de grens) kiest boosting.
+
+### Nog te meten
+
+- `http` (de primaire metriek over HTTP): fase 2, tegen `uvicorn src.api:app`
+- `koude_start` en de referentie-infrastructuur (1 vCPU, 1 GiB): fase 5, in de container
 
 ## Beperkingen
 
