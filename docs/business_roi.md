@@ -59,9 +59,9 @@ terugverdientijd  = eenmalige ontwikkeluren × uurtarief / netto per maand
 | Δ € per volle nacht | −141 (p10 van de scenario's) | +158 (geboekt = cap., verkoopkans 1, w = 2) | +454 (p90) | **gemeten** op de validatie, scenario: aangenomen |
 | volle hotel-nachten per maand (beide hotels) | 21,5 | 21,5 | 21,5 | **gemeten**: bezetting in de training |
 | bruto per maand | −3 025 € | 3 403 € | 9 763 € | berekend |
-| infrastructuur per maand | 5 € | 5 € | 5 € | **aangenomen** tot taak 5.9 het meet |
+| infrastructuur per maand | 0,04 € | 0,04 € | 0,04 € | **gemeten** (`resultaten/serving/kosten.json`) |
 | beheer per maand | 16 u → 960 € | 8 u → 480 € | 4 u → 240 € | **aangenomen** (`configs/roi.yaml`, 60 €/u) |
-| **netto per maand** | **−3 990 €** | **2 918 €** | **9 518 €** | berekend |
+| **netto per maand** | **−3 985 €** | **2 923 €** | **9 523 €** | berekend |
 | eenmalig (120 u) | 7 200 € | 7 200 € | 7 200 € | **aangenomen** |
 | terugverdientijd | nooit | **2,5 maanden** | 0,8 maand | berekend |
 

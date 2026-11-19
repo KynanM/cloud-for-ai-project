@@ -125,3 +125,62 @@ def test_microbenchmark_in_de_verantwoording():
     for model in ("vuistregel", "logreg zonder land", "boosting zonder land"):
         ms = komma(validatie.loc[model, "voorspeltijd_ms_per_1000"], 1) + " ms"
         assert ms in tekst, f"verantwoording noemt {ms} voor {model} niet"
+
+
+# ------------------------------------------------------------------ semantische controle (taak 6.1)
+
+SEMANTISCH = PROJECT / "docs" / "bewijs_semantisch.csv"
+VENSTER = 12  # tekens na het anker waarin het getal moet staan
+
+
+def waarde_uit_bron(rij: dict) -> float:
+    tabel = pd.read_csv(PROJECT / rij["bestand"])
+    for voorwaarde in filter(None, rij["filter"].split("&")):
+        kolom, waarde = voorwaarde.split("=", 1)
+        tabel = tabel[tabel[kolom].astype(str) == waarde]
+    reeks = tabel[rij["kolom"]].astype(float)
+    assert len(reeks), f"{rij['id']}: geen rij in {rij['bestand']} voor {rij['filter']}"
+    bewerking = {
+        "eerste": lambda r: r.iloc[0],
+        "gemiddelde": lambda r: r.mean(),
+        "max": lambda r: r.max(),
+        "aandeel_ge_0": lambda r: (r >= 0).mean(),
+    }[rij["bewerking"]]
+    return float(bewerking(reeks)) * float(rij["schaal"])
+
+
+def als_tekst(waarde: float, decimalen: int) -> str:
+    """Zoals in de documentatie: komma, duizendtallen met een spatie, min als − (U+2212)."""
+    tekst = f"{abs(waarde):,.{decimalen}f}".replace(",", " ").replace(".", ",")
+    return ("−" if round(waarde, decimalen) < 0 else "") + tekst
+
+
+def staat_achter_het_anker(rij: dict, tekst: str) -> bool:
+    plek = tekst.find(rij["anker"])
+    assert plek >= 0, f"{rij['id']}: anker niet gevonden in {rij['document']}"
+    na = tekst[plek + len(rij["anker"]) : plek + len(rij["anker"]) + VENSTER]
+    verwacht = als_tekst(waarde_uit_bron(rij), int(rij["decimalen"])) + (rij["achter"] or "")
+    return na.startswith(verwacht)
+
+
+def semantische_rijen() -> list[dict]:
+    with SEMANTISCH.open(encoding="utf-8") as f:
+        return [{k: (v or "") for k, v in r.items()} for r in csv.DictReader(f)]
+
+
+@pytest.mark.parametrize("rij", semantische_rijen(), ids=lambda r: r["id"])
+def test_het_juiste_getal_op_de_juiste_plek(rij):
+    tekst = (PROJECT / rij["document"]).read_text(encoding="utf-8")
+    verwacht = als_tekst(waarde_uit_bron(rij), int(rij["decimalen"]))
+    assert staat_achter_het_anker(rij, tekst), (
+        f"{rij['document']}: na '{rij['anker']}' hoort {verwacht} te staan ({rij['bestand']})"
+    )
+
+
+def test_een_verwisseling_van_city_en_resort_valt_op():
+    # Zelfde getallen, verkeerde hotels: een gewone zoektocht naar "22 %" ziet dat niet
+    rij = next(r for r in semantische_rijen() if r["id"] == "risico-city-test-readme")
+    tekst = (PROJECT / rij["document"]).read_text(encoding="utf-8")
+    verwisseld = tekst.replace(rij["anker"] + "22 %", rij["anker"] + "10 %")
+    assert staat_achter_het_anker(rij, tekst)
+    assert not staat_achter_het_anker(rij, verwisseld)
