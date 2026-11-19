@@ -19,6 +19,9 @@ def zet_logging_op(cfg: dict, opdracht: str) -> Path:
     zo blijft terug te vinden wat er eerder gebeurde. `force=True` vervangt wat er al stond,
     zodat twee opdrachten in hetzelfde proces niet dubbel loggen.
     """
+    # Windows-console (cp1252): tekens als ≤ en € mogen een logregel niet laten mislukken
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     logmap = Path(cfg["logs"])
     logmap.mkdir(parents=True, exist_ok=True)
     bestand = logmap / f"{opdracht}.log"
