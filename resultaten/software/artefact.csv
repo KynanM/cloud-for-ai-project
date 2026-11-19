@@ -1,0 +1,7 @@
+variant,grootte_kb,laden_p50_ms,laden_p95_ms,kern_p50_ms,kern_p95_ms,voorspellen_p50_ms,aandeel_voorspellen
+compress=0,254.1270,3291.5706,3899.2300,,,,
+compress=3,78.6416,3491.0438,4386.9215,,,,
+compress=9,72.2207,4789.7797,6092.6378,,,,
+OMP_NUM_THREADS=1,,,,281.0655,356.2985,78.4800,0.2792
+OMP_NUM_THREADS=2,,,,240.9075,306.5307,68.9935,0.2864
+OMP_NUM_THREADS=4,,,,217.1100,281.0411,57.8075,0.2663

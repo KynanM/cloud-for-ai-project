@@ -1,0 +1,4 @@
+sessie,doel,model,workload,cpus,geheugen,threads,n,n_boekingen,p50_ms,p95_ms,p95_laag,p95_hoog,max_ms,std_ms,piek_rss_mb,mislukt,ongeldig,aandeel_voorspellen,slo_gehaald
+artefact_threads_1,kern,boosting,normaal,host,host,1,30,358,281.066,356.298,312.720,379.745,379.745,36.731,182.300,0,0,0.279,True
+artefact_threads_2,kern,boosting,normaal,host,host,2,30,358,240.907,306.531,293.493,319.459,319.459,36.276,182.800,0,0,0.286,True
+artefact_threads_4,kern,boosting,normaal,host,host,4,30,358,217.110,281.041,256.860,305.019,305.019,28.906,184.000,0,0,0.266,True
