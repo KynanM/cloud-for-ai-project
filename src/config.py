@@ -1,5 +1,6 @@
 """De configuratie inlezen. Geen paden of parameters hardcoded in de rest van de code."""
 
+import os
 from pathlib import Path
 
 import yaml
@@ -15,6 +16,14 @@ def laad_config(pad: str | Path = PROJECT / "configs" / "default.yaml") -> dict:
     cfg["model"]["pad"] = PROJECT / cfg["model"]["pad"]
     cfg["model"]["advies_pad"] = PROJECT / cfg["model"]["advies_pad"]
     cfg["model"]["manifest_pad"] = PROJECT / cfg["model"]["manifest_pad"]
+    # Het gepubliceerde model (python -m src.publiceer, het image): OVERBOEKING_MODELMAP wijst
+    # naar de map met model, advies en manifest. Geldt voor de API én de opdrachtregel.
+    modelmap = os.environ.get("OVERBOEKING_MODELMAP")
+    if modelmap:
+        map_ = Path(modelmap) if Path(modelmap).is_absolute() else PROJECT / modelmap
+        cfg["model"]["pad"] = map_ / "model.joblib"
+        cfg["model"]["advies_pad"] = map_ / "advies.json"
+        cfg["model"]["manifest_pad"] = map_ / "manifest.json"
     cfg["resultaten"] = PROJECT / cfg["resultaten"]
     cfg["logs"] = PROJECT / cfg["logs"]
     return cfg
