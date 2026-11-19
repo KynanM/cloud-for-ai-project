@@ -1,0 +1,41 @@
+# Naar de Hugging Face Space (taak 5.10), na een groene CI op main, of met de hand.
+# Vereist het GitHub-secret HF_TOKEN (schrijfrechten op de Space) en de repositoryvariabele
+# HF_SPACE ("gebruiker/naam"). Geen van beide staat in de repository.
+name: deploy
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  space:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install --require-hashes -r requirements-dev.lock
+      - run: python -m src.train && python -m src.publiceer
+      - name: Space-repo samenstellen
+        run: |
+          mkdir -p space-repo/data space-repo/models
+          cp -r Dockerfile .dockerignore requirements.lock src configs space-repo/
+          cp data/nieuwe_boekingen.csv space-repo/data/
+          cp -r models/actief space-repo/models/
+          cp space/README.md space-repo/README.md
+      - name: Naar de Space pushen
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "HF_TOKEN ontbreekt als GitHub-secret"; exit 1; }
+          cd space-repo
+          git init -q -b main
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -q -m "deploy ${GITHUB_SHA}"
+          git push -f "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" main
