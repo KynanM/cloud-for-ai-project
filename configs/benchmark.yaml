@@ -1,0 +1,65 @@
+# De softwaremetriek, vooraf vastgelegd. Zie docs/softwaremetric.md.
+#
+# Vastgelegd op 19-11-2026, vóór de eerste meting. Niet aanpassen na het meten: wie een grens
+# verandert, schrijft in docs/softwaremetric.md waarom, en meet alles opnieuw.
+
+# Les 06 p. 23, stap 1: eerst de infrastructuur vastleggen. Alle metingen gebeuren hierop,
+# behalve de experimenten die net de infrastructuur variëren (sizing).
+infrastructuur:
+  cpus: 1 # docker --cpus
+  geheugen: 1g # docker --memory
+  threads: # zelfde waarde in- en buiten de container
+    OMP_NUM_THREADS: "1"
+    OPENBLAS_NUM_THREADS: "1"
+    MKL_NUM_THREADS: "1"
+
+metriek:
+  # Primair en bewakend: p95 van de latency van één adviesverzoek, over het hele pad
+  # (verzoek → validatie → scope → voorspellen → aggregeren → advies → antwoord), warm.
+  primair: p95_latency_ms
+  secundair:
+    - p50_latency_ms
+    - max_latency_ms
+    - koude_start_s
+    - piek_rss_mb
+    - fout_5xx_aandeel
+    - throughput_rps
+    - cpu_s_per_advies
+
+slo:
+  normaal:
+    p95_latency_ms: 1000 # bewakend: de grens bij elke modelkeuze
+    piek_rss_mb: 1024
+    fout_5xx_aandeel: 0.0
+    ongeldige_output: 0
+  koude_start_s: 60 # container start → eerste geslaagd antwoord
+  schaal_10k:
+    oom: false # geen grens op de latency, wel: mag niet crashen
+
+herhalingen:
+  warm: { opwarmen: 10, gemeten: 200 }
+  vers_proces: 30
+  koude_start: 20
+  vergelijking: 30 # per variant in een experiment, tenzij het experiment anders zegt
+
+# De adviesnacht voor alle workloads. In de testperiode, dus nooit gebruikt om te kiezen.
+nacht: 2017-05-15
+seed: 42
+
+# Workloads: zie benchmarks/workloads.py. Elke workload is een geldige portefeuille voor de
+# adviesnacht: boekingen uit de testperiode, actief op hun beslismoment, zonder label, met de
+# aankomst zo verschoven dat het verblijf de adviesnacht bevat. "normaal" is geen gekozen
+# getal: het is de mediaan van de werkelijke portefeuille van één adviesnacht (beide hotels)
+# over alle nachten van de testperiode.
+workloads:
+  smoke: { bron: voorbeeld } # data/nieuwe_boekingen.csv
+  normaal: { n: mediaan } # mediaan van de echte portefeuilles
+  kort_verblijf: { n: mediaan, nachten_max: 2 }
+  lang_verblijf: { n: mediaan, nachten_min: 7 }
+  schaal_10k: { n: 10000 }
+  schaal_100k: { n: 100000 }
+
+# CI-poort (taak 5.8): rumoerige gedeelde runners, dus relatief én absoluut.
+ci:
+  relatieve_marge: 1.5 # p95 ≤ referentie × 1,5
+  runs: 30

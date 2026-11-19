@@ -229,6 +229,17 @@ Model, advies en config worden samen weggeschreven met een manifest (`src/manife
 niet bij elkaar, of is een beleidsinstelling in de config veranderd na het trainen, dan weigert
 `src.predict` (`tests/test_systeem.py`).
 
+## 15. Softwaremetriek: van deel 1 naar deel 3
+
+| | |
+|---|---|
+| Vraag | de softwaremetriek uit deel 1 ("klaar binnen 60 seconden") was nooit gemeten, had geen percentiel en geen infrastructuur, en werd altijd gehaald. Welke metriek beslist wel iets? |
+| Opties | latency van de dagelijkse batch (deel 1) · p95-latency van één adviesverzoek over het hele pad · throughput · kost per advies |
+| Keuze | **p95-latency van `POST /advies`, normale workload, warm, op 1 vCPU en 1 GiB: ≤ 1 000 ms.** Daarnaast koude start ≤ 60 s, piek-RSS ≤ 1 GiB, 0 % 5xx, en kost en throughput gerapporteerd |
+| Waarom | de revenue manager wacht op het antwoord (mens in de lus, les 06 p. 24); latency over het hele pad (p. 13); throughput is bij 2 adviezen per dag nooit de grens. Les 06 p. 23: de ML-metriek optimaliseer je, de softwaremetriek is de grens |
+| Vooraf vastgelegd | `configs/benchmark.yaml` en [softwaremetric.md](softwaremetric.md), gecommit vóór de eerste meting |
+| Bewijs | `resultaten/software/summary.csv`, `raw_runs.csv` |
+
 ---
 
 ## Foutenanalyse
