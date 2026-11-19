@@ -63,14 +63,15 @@ theorie**, niet gedraaid.
 | | |
 |---|---|
 | Opties | willekeurig · in de tijd zonder embargo · in de tijd met embargo |
-| Resultaat | logreg AUC 0,756 met een willekeurige split, 0,627 in de tijd; boosting 0,797 tegenover 0,695. Het verschil is de toekomst die in de training lekt |
+| Resultaat | logreg AUC 0,756 met een willekeurige split, 0,627 in de tijd; boosting 0,797 tegenover 0,695. Het verschil wijst op optimisme door de tijd te mengen, en mogelijk door exacte kopieën (27 % van de rijen) die over de split vallen. De willekeurige split meet bovendien op andere boekingen (de hele periode, niet Q1 2017), dus het hele verschil is niet zomaar lek |
 | Keuze | in de tijd, op aankomstdatum, met een embargo van horizon + 1 dag |
 | Waarom | les 4: preprocessing en training mogen niets leren uit de evaluatieperiode, en een label moet gekend zijn op het beslismoment. Zie [label_beschikbaarheid.md](label_beschikbaarheid.md) |
 | Bewijs | `split.csv`, `grenzen()` in `src/train.py`, `tests/test_split.py` |
 
-Geen k-voudige kruisvalidatie: een willekeurige vouw mengt de tijd. Een tijdreeks-kruisvalidatie met
-meerdere blokken is mogelijk, maar met twee jaar data en een seizoenspatroon zou elk blok een ander
-seizoen zijn. **Afgewezen op theorie.**
+Geen k-voudige kruisvalidatie: een willekeurige vouw mengt de tijd. Een tijdreeks-kruisvalidatie
+met meerdere blokken (rolling origin, met hetzelfde embargo) is **niet uitgevoerd**. Dat elk blok
+een ander seizoen is, is geen reden om ze af te wijzen: het is juist een toets of de modelkeuze
+over seizoenen heen standhoudt. **Beperking:** de keuze steunt op één validatieblok (Q1 2017, winter).
 
 ## 5. Features
 
@@ -106,22 +107,25 @@ Volledig register: [feature_beschikbaarheid.csv](feature_beschikbaarheid.csv). B
 
 ## 8. Model
 
-Validatie, beide hotels samen. Tijden op deze machine, voor de volledige training en per 1 000
-boekingen voorspellen.
+Validatie, beide hotels samen, zonder maximum per nacht (de huidige regel). "Leren": de volledige
+training. "Voorspellen": één getimede `predict_proba()`-aanroep op de validatieset, omgerekend
+per 1 000 boekingen. Dat is een **microbenchmark van het model alleen**, één keer gemeten op de
+machine in `resultaten/audit/omgeving.json`; geen latency van het hele pad. De softwaremetriek
+staat in [softwaremetric.md](softwaremetric.md).
 
-| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | leren | voorspellen |
-|---|---|---|---|---|---|---|---|---|
-| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 352 | 0,02 s | 1 ms |
-| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 356 | 0,3 s | 3 ms |
-| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 357 | 0,3 s | 5 ms |
+| Model | MAE | bias | voorsp/echt | AUC | Brier | € per volle nacht | te veel City / Resort | leren | voorspellen per 1 000 |
+|---|---|---|---|---|---|---|---|---|---|
+| vuistregel | 6,36 | +1,69 | 1,11 | 0,557 | 0,140 | 328 | 12 % / 35 % | 0,06 s | 2,7 ms |
+| logreg | 5,77 | −0,33 | 0,98 | 0,627 | 0,140 | 331 | 12 % / 14 % | 3,55 s | 10,0 ms |
+| **boosting** | **4,72** | −1,59 | 0,90 | 0,695 | 0,130 | 480 | 6 % / 16 % | 1,36 s | 14,9 ms |
 
 Test (alleen gerapporteerd): vuistregel 6,87, logreg 5,35, boosting **5,11**.
 
 | | |
 |---|---|
 | Keuze | boosting zonder land |
-| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. Het kost 0,3 s om te leren en 5 ms per 1 000 boekingen: geen reden om het eenvoudigere model te nemen |
-| Euro's | zonder maximum (de huidige regel): boosting 480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). De vuistregel gaat over de risicogrens (23 % en 31 % te veel), boosting niet (11 % en 16 %). Met het oude maximum van 5 % waren ze gelijk. Zie sectie 13 |
+| Waarom | laagste MAE op de validatie, de ML-metriek uit deel 1. De test bevestigt de volgorde tegenover de vuistregel. In de microbenchmark is boosting per voorspelling trager dan logreg (14,9 tegenover 10,0 ms per 1 000 boekingen). Of dat ertoe doet, beslist de softwaremetriek op het hele pad, niet deze microbenchmark |
+| Euro's | zonder maximum (de huidige regel): boosting 480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). Gepoold gaat de vuistregel over de risicogrens (23 % en 31 % te veel), boosting niet (11 % en 16 %). **Per hotel niet overal:** boosting zit in City op 6 % (validatie) en **22 % (test)**, in Resort op 16 % en 10 %. Op de test overschrijdt City dus de grens; de test kiest niets, dus dat is gemeten en niet weggewerkt. Met het oude maximum van 5 % waren ze gelijk. Zie sectie 13 |
 | Bewijs | `modelvergelijking.csv`, `resultaten/evaluatie.csv` |
 
 ## 9. Hyperparameters
@@ -150,7 +154,8 @@ of de kleine klasse beter herkend moet worden (weging).
 **Weging:** de kansen worden opgeteld tot verwachte aantallen. Een weging die de kleine klasse
 zwaarder doet doorwegen, schuift alle kansen omhoog: het model voorspelt 2,7 keer te veel
 annulaties. Ze verbetert de rangschikking niet eens (AUC 0,688). Voor een som van kansen moet de
-kans geijkt zijn, en dat breekt elke weging. **Venster:** minder bias, maar een duidelijk hogere
+kans geijkt zijn, en deze weging zonder herijking breekt dat. Of weging gevolgd door een
+herijking op een apart tijdsblok wel werkt, is **niet getest**. **Venster:** minder bias, maar een duidelijk hogere
 MAE en lagere AUC: minder data weegt zwaarder dan recentere data. Bewijs: `experimenten.csv`.
 
 ### Elke maand hertrainen
@@ -199,11 +204,19 @@ Zonder maximum per nacht (de huidige regel, sectie 13).
 | Vraag | houden het maximum van 5 % uit deel 1 en de spreidingsfactor het model tegen? |
 | Opties | met en zonder maximum, met en zonder spreidingsfactor, voor elk model, zelfde beslisregel |
 | Resultaat, € per volle nacht | met 5 %: vuistregel 352 / 638, boosting 357 / 633 (validatie / test). Zonder maximum: vuistregel 328 / 540, logreg 331 / 671, **boosting 480 / 715**. Zonder maximum en zonder factor: boosting 466 / 518 |
-| Risico zonder maximum (test) | te veel: vuistregel 31 %, logreg 9 %, boosting 16 %; boosting zonder factor 33 % |
+| Risico zonder maximum (test) | te veel, gepoold: vuistregel 31 %, logreg 9 %, boosting 16 %; boosting zonder factor 33 %. Per hotel voor boosting: City **22 %**, Resort 10 % |
 | Conclusie | **het maximum was de rem**: in City bond het op 98 % van de testnachten, en het verborg zowel de waarde van het model als de fout van de vuistregel. **De spreidingsfactor is geen rem**: zonder factor verliest het model geld en gaat het over de risicogrens |
-| Keuze | **geen maximum** (`advies.max_aandeel: null`), model opnieuw getraind. Het advies wordt begrensd door de zekerheid en de risicogrens |
-| Prijs | 0,54 doorverwezen gasten per volle nacht op de test in plaats van 0,09 (City 0,86). Dat zit in de europroxy en blijft binnen de risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel`; `maximum.csv` toont 5, 7,5 en 10 % |
-| Bewijs | `zonder_rem.csv`, `maximum.csv` |
+| Keuze | **geen maximum** (`advies.max_aandeel: null`), model opnieuw getraind. Het advies wordt begrensd door de zekerheid; de risicogrens grijpt niet in bij het voorspellen (zie de tabel hieronder) |
+| Prijs | 0,54 doorverwezen gasten per volle nacht op de test in plaats van 0,09 (City 0,86). Dat zit in de europroxy. Gepoold blijft het binnen de risicogrens (16 %), maar City alleen gaat er op de test over (22 %). Wil het hotel toch een maximum, dan volstaat `max_aandeel`; `maximum.csv` toont 5, 7,5 en 10 % |
+| Bewijs | `zonder_rem.csv`, `maximum.csv`, `resultaten/evaluatie.csv` (per hotel) |
+
+Drie begrippen die niet hetzelfde zijn:
+
+| Begrip | Waar in de code | Wanneer | Afgedwongen? |
+|---|---|---|---|
+| nominale zekerheid 0,80 | `advies()` in `src/nachten.py` | bij elke voorspelling | ja: k is het grootste aantal met P(minstens k annulaties) ≥ 0,80 |
+| gemeten overschrijding (`te_veel`) | `beoordeel()` in `src/nachten.py` | bij de evaluatie | nee, gemeten |
+| risicogrens 20 % | `drempel()` in `src/experimenten.py` | bij het kiezen van de zekerheid op de validatie | nee: een keuzecriterium, geen controle bij het voorspellen |
 
 ## 14. Poorten vóór het wegschrijven
 
