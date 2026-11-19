@@ -54,3 +54,7 @@ risico,zekerheid per hotel: hoogste hotel x maand / doorverwezen,23 % / 0.07,res
 complexiteit,hoogste p95 van de kern over 9 treden,138 ms,resultaten/audit/complexiteit.csv,uitgevoerd en reproduceerbaar
 split,AUC willekeurig met kopieën samen logreg / boosting,0.735 / 0.759,resultaten/audit/split_duplicaten.csv,uitgevoerd en reproduceerbaar
 contract,MAE boosting tegen label A / B,4.72 / 5.18,resultaten/audit/contract_mae.csv,uitgevoerd en reproduceerbaar
+business,scenario's waarin boosting >= vuistregel (validatie),49 % van 108,resultaten/audit/business_scenario_samenvatting.json,uitgevoerd en reproduceerbaar
+business,netto per maand pessimistisch / basis / optimistisch (raming),-3990 / 2918 / 9518 €,resultaten/business/roi.csv,uitgevoerd en reproduceerbaar
+business,Spearman MAE en € per volle nacht,-0.72 (p < 0.001; n = 38),resultaten/audit/metriekverband.csv,uitgevoerd en reproduceerbaar
+replay,testnachten via de API / p95,153 nachten / 127 ms,resultaten/business/replay.csv,uitgevoerd en reproduceerbaar
