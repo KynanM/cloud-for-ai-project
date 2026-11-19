@@ -64,3 +64,14 @@ maar tellen niet mee voor deze nacht. Ze worden niet als uitgesloten gemeld.
 
 Het advies zelf wordt gecontroleerd tegen `schema.ADVIES` vóór het het systeem verlaat: `k ≥ 0`,
 `k ≤ maximum`, één rij per hotel-nacht.
+
+## Gemeten (taak 2.4)
+
+`python -m benchmarks.bench_foutgedrag` stuurt 18 gevallen naar de API en 17 naar de opdrachtregel
+(ongeldige JSON bestaat alleen voor de API): geldig, elke reden van laag 2 apart, 10 % Non Refund
+tussen geldige boekingen, zonder `country`, een onbekende agent, een lege lijst, 31 februari, een
+onbekend segment of hotel, een verkeerd type, een verkeerd beslismoment, alles buiten scope, een
+nacht zonder portefeuille en geen JSON. **35 van 35 kloppen**: juiste uitkomst, juiste status of
+exitcode, juiste reden, en geen enkele traceback in een API-antwoord. Een weigering door de API
+duurt 3 tot 55 ms. Resultaat: `resultaten/software/foutgedrag.csv`; dezelfde lijst draait in
+`tests/test_foutgedrag.py`.
