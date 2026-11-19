@@ -1,5 +1,7 @@
 # Overboeken per hotel-nacht op basis van annulatiekansen
 
+[![ci](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml/badge.svg?branch=audit-opvolging)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml)
+
 Cloud for AI, 2026-2027. Kynan Melsens
 
 Een hotel beslist hoeveel kamers het extra mag verkopen. Voor de boekingen die op een nacht
@@ -58,7 +60,7 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # alle tests groen, ±30 s (het aantal: pytest --collect-only -q)
+pytest                          # 281 tests groen in CI (19-11-2026), ±50 s
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
