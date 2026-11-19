@@ -70,6 +70,16 @@ split:
   test_start: 2017-04-01
   test_einde: 2017-08-31
 
+# Rolling origin (src/folds.py, taak 3.6): vier meetblokken vóór de test, elk geleerd op alles
+# vóór het embargo van dat blok (dezelfde formule als de split). Alleen om de modelkeuze over
+# seizoenen heen te toetsen; de split hierboven blijft de evaluatie.
+rolling:
+  meetblokken:
+    - [2016-04-01, 2016-06-30]
+    - [2016-07-01, 2016-09-30]
+    - [2016-10-01, 2016-12-31]
+    - [2017-01-01, 2017-03-31]
+
 # Welke hotel-nachten meetellen in de evaluatie. De eerste nachten van een periode missen de
 # gasten die vóór de periode aankwamen en dan nog blijven: hun portefeuille is onvolledig.
 # Een nacht telt pas mee als minstens dit aandeel van haar boeking-nachten in de periode zit.
@@ -165,6 +175,11 @@ model:
     max_leaf_nodes: 15
     min_samples_leaf: 100
     l2_regularization: 1.0
+  # Alleen voor de complexiteitsladder (src/robuustheid.py): een bos als extra modelklasse.
+  randomforest:
+    n_estimators: 300
+    min_samples_leaf: 50
+    max_features: sqrt
   # Twee poorten vóór het wegschrijven, allebei op de validatie:
   # - de MAE per hotel-nacht moet lager zijn dan die van de vuistregel (src/train.py)
   # - de AUC moet minstens dit zijn. Zonder land: logreg 0,63, boosting 0,69. Zie de README.

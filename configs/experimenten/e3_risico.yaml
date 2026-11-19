@@ -1,0 +1,14 @@
+# Taak 3.4 (E3). Vastgelegd vóór de meting.
+hypothese: >
+  Een aanvaardbaar gepoold aandeel nachten met te veel kamers kan per hotel en per maand over de
+  risicogrens van 20 % gaan (City op de test: 22 %).
+baseline: "vuistregel"
+alternatieven: ["logreg", "boosting"]
+metrics:
+  ml: "MAE per hotel × maand"
+  software: "n.v.t.: zelfde modellen"
+  business: "te veel per hotel × maand met drie noemers, tekort (k − echt) gemiddeld en p95"
+beslisregel: >
+  Geen modelkeuze op basis van deze tabel. De test is alleen diagnose. Zit op de validatie
+  minstens één hotel × maand van boosting boven 20 %, dan neemt de complexiteitsladder (3.7) een
+  per-hotelzekerheid als extra trede mee.

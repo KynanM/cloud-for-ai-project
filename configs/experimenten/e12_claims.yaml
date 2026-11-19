@@ -1,0 +1,12 @@
+# Taak 3.12. Vastgelegd vóór de meting.
+hypothese: >
+  (1) Het label van contract B verandert de MAE van hetzelfde model minder dan het verschil tussen
+  de labels doet vermoeden: de getallen zijn niet optelbaar. (2) Een deel van de hogere AUC bij een
+  willekeurige split komt van exacte kopieën die over de split vallen.
+baseline: "MAE tegen het label van contract A; willekeurige split"
+alternatieven: ["MAE tegen het label van contract B", "willekeurige split met kopieën samen", "split in de tijd"]
+metrics:
+  ml: "MAE per hotel-nacht tegen label A en B; AUC per split"
+  software: "n.v.t."
+  business: "n.v.t."
+beslisregel: "Beschrijvend: de cijfers vervangen de tekstclaims in README en besliscontract."

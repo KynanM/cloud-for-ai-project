@@ -1,0 +1,14 @@
+# Taak 3.8. Vastgelegd vóór de meting.
+hypothese: >
+  class_weight balanced zonder herijking schuift alle kansen omhoog (voorspeld/echt 2,73). Met een
+  isotone herijking op een tijdsgescheiden stuk komt de som van de kansen weer goed; of de MAE dan
+  beter wordt dan de referentie, is de vraag.
+baseline: "referentie (boosting zonder weging, zonder herijking)"
+alternatieven: ["referentie + isotoon", "balanced", "balanced + isotoon"]
+metrics:
+  ml: "MAE, voorspeld/echt, Brier, logloss (validatie)"
+  software: "p95 van de kern (de herijking voegt een stap toe)"
+  business: "€ per volle nacht, doorverwezen"
+beslisregel: >
+  Een variant vervangt de referentie alleen als het 90 %-interval van het verschil in absolute fout
+  per nacht (blokbootstrap, 7 dagen) volledig onder 0 ligt en de p95 binnen de grens blijft.
