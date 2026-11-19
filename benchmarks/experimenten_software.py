@@ -446,7 +446,8 @@ def modellen() -> pd.DataFrame:
         "logreg": "logreg zonder land",
         "boosting": "boosting zonder land",
     }
-    sessie = "modellen_software"
+    # Eén sessie per run: een afgebroken run mag niet meetellen met een nieuwe
+    sessie = f"modellen_software_{time.strftime('%Y%m%dT%H%M%S')}"
     subprocess.run(
         [
             sys.executable,
