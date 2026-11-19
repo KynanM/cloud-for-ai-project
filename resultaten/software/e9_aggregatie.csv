@@ -1,0 +1,11 @@
+workload,n_boekingen,n_boeking_nachten,variant,aggregatie_p50_ms,aggregatie_p95_ms,aggregatie_piek_mb,kern_p50_ms,kern_p95_ms,uitvoer_identiek,kern_p95_delta_pct,piek_delta_pct,besluit
+normaal,358,1478,per_nacht (uitrollen),32.1994,34.2433,0.1530,170.3752,188.3653,True,0.0000,0.0000,overnemen
+normaal,358,1478,per_nacht_enkel,28.7473,31.0869,0.0731,163.8616,171.5904,True,-8.9056,-52.2575,overnemen
+kort_verblijf,358,602,per_nacht (uitrollen),30.7702,34.4939,0.0777,170.1995,186.7546,True,0.0000,0.0000,overnemen
+kort_verblijf,358,602,per_nacht_enkel,30.2525,35.7740,0.0729,166.8366,244.4994,True,30.9201,-6.2544,overnemen
+lang_verblijf,358,2952,per_nacht (uitrollen),33.8338,35.7380,0.2800,167.3983,172.6595,True,0.0000,0.0000,overnemen
+lang_verblijf,358,2952,per_nacht_enkel,28.9295,31.2376,0.0730,167.4858,183.1485,True,6.0750,-73.9381,overnemen
+schaal_10k,10000,40990,per_nacht (uitrollen),83.1145,114.6487,4.0221,510.0881,541.8139,True,0.0000,0.0000,overnemen
+schaal_10k,10000,40990,per_nacht_enkel,54.3602,71.4504,1.5225,513.4280,605.7664,True,11.8034,-62.1476,overnemen
+schaal_100k,100000,413977,per_nacht (uitrollen),465.6558,496.1882,40.4679,3845.2243,4007.6350,True,0.0000,0.0000,overnemen
+schaal_100k,100000,413977,per_nacht_enkel,250.3225,269.5686,15.1383,3669.9130,3926.7780,True,-2.0176,-62.5918,overnemen

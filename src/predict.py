@@ -24,7 +24,7 @@ from .kenmerken import als_tekst
 from .logboek import zet_logging_op
 from .manifest import controleer
 from .meting import Meting
-from .nachten import met_advies, per_nacht
+from .nachten import met_advies, per_nacht, per_nacht_enkel
 from .train import Model
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
@@ -104,7 +104,8 @@ def voer_job_uit(
     with meting.fase("voorspellen"):
         kansen = voorspel(model, df, cfg)
     with meting.fase("aggregeren"):
-        nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
+        # Eén nacht: niet elk verblijf uitrollen (E9, resultaten/software/e9_aggregatie.csv)
+        nachten = per_nacht_enkel(df, kansen, cfg, nacht)
     with meting.fase("advies"):
         tabel = met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
     with meting.fase("advies_valideren"):
