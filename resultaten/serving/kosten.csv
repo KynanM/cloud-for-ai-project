@@ -1,0 +1,4 @@
+scenario,verzoeken_per_dag,lokaal_eur_per_1000,lokaal_eur_per_maand,cloud_eur_per_1000_zonder_gratis,cloud_eur_per_maand_zonder_gratis,cloud_eur_per_maand_met_gratis
+vandaag (1 verzoek per dag),1.000000,0.000089,0.043428,0.002065,0.000062,0.000000
+100x meer verkeer,100.000000,0.000089,0.043692,0.002065,0.006194,0.000000
+breekpunt van één container,175737.600000,0.000089,0.511327,0.002065,10.884601,5.346201
