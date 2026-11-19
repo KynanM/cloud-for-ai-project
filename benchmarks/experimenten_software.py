@@ -179,7 +179,8 @@ def geheugenpiek_mb(functie) -> float:
 
 
 def kopie_job(df, model, instellingen, cfg, nacht):
-    return voer_job_uit(df.copy(), model, instellingen, cfg, nacht)
+    as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
+    return voer_job_uit(df.copy(), model, instellingen, cfg, nacht, as_of=as_of)
 
 
 def e9() -> pd.DataFrame:
@@ -286,7 +287,7 @@ def modus() -> pd.DataFrame:
     h = exp["herhalingen"]
 
     def batch():
-        return voer_job_uit(df.copy(), model, instellingen, cfg, nacht)[0]
+        return kopie_job(df, model, instellingen, cfg, nacht).advies
 
     def online(laden: bool):
         def draai():

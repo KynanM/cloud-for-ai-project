@@ -67,6 +67,37 @@ De waarschuwing is terecht. Agent 229 boekt pas voor aankomsten vanaf april 2017
 einde van de hertraining (28-02-2017). Het model heeft die agent nooit gezien en behandelt hem als
 een lege waarde. Het gaat om één van de 76 boekingen.
 
+Met `--uitvoer advies.csv` komt het advies ook in een bestand (gecontroleerd tegen
+`schema.ADVIES`), met `--metrics-json m.json` de tijd per fase en de geheugenpiek
+([docs/softwaremetric.md](docs/softwaremetric.md)), met `--as-of JJJJ-MM-DD` het beslismoment.
+Boekingen buiten het toepassingsdomein (Non Refund, `lead_time` onder 30, ...) tellen niet mee en
+staan met hun reden in `advies.csv.uitgesloten.csv` ([docs/inputcontract.md](docs/inputcontract.md)).
+
+### De API
+
+Hetzelfde advies achter een endpoint (`src/api.py`, FastAPI). Batch: één verzoek met alle
+boekingen van een nacht, beide hotels.
+
+```bash
+uvicorn src.api:app --port 7860          # daarna http://127.0.0.1:7860/docs
+```
+
+| Endpoint | Wat |
+|---|---|
+| `POST /advies` | `{"nacht", "as_of", "boekingen": [...]}` → advies k per hotel, uitgesloten boekingen met reden, latency |
+| `POST /kansen` | `{"boekingen": [...]}` → de kans per boeking, zonder advies |
+| `GET /health` | draait de service, en welk model (`run_id`, `commit`) |
+| `GET /docs` | de documentatie die FastAPI uit de type-annotaties maakt |
+
+Een ongeldig verzoek krijgt een **422** met per veld wat er mis is, nooit een stacktrace. Een
+verzoek buiten het besliscontract (beslismoment niet 30 dagen vóór de nacht, geen enkele boeking
+in de nacht) krijgt een 422 met een reden. Elk geval staat in `resultaten/software/foutgedrag.csv`.
+
+```bash
+curl -X POST http://127.0.0.1:7860/advies -H "content-type: application/json" \
+  -d '{"nacht": "2017-08-15", "as_of": "2017-07-16", "boekingen": [{"hotel": "City Hotel", "lead_time": 45, "arrival_date_year": 2017, "arrival_date_month": "August", "arrival_date_day_of_month": 15, "stays_in_weekend_nights": 1, "stays_in_week_nights": 2, "adults": 2, "children": 0, "babies": 0, "meal": "BB", "country": "PRT", "market_segment": "Online TA", "distribution_channel": "TA/TO", "is_repeated_guest": 0, "previous_cancellations": 0, "previous_bookings_not_canceled": 0, "reserved_room_type": "A", "deposit_type": "No Deposit", "customer_type": "Transient", "agent": 9, "adr": 120.0}]}'
+```
+
 ### Logging
 
 `src.train`, `src.predict`, `src.evaluate`, `src.audit` en `src.experimenten` schrijven geen

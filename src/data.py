@@ -20,7 +20,10 @@ def laad_data(
     Geef `valideer_met=None` om zonder validatie in te lezen. Dat doe je alleen om te zien
     wat er misloopt zonder.
     """
-    df = pd.read_csv(pad)
+    try:
+        df = pd.read_csv(pad)
+    except pd.errors.EmptyDataError:
+        raise SystemExit(f"{pad} is leeg: geen kolommen, geen boekingen.") from None
     if valideer_met is None:
         return df
     try:
@@ -85,16 +88,13 @@ def samenvatting(fouten: pa.errors.SchemaErrors, pad) -> str:
 
 
 def schoon_op(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Haal de boekingen weg die buiten de scope van deel 1 vallen. Zie configs/default.yaml."""
-    regels = cfg["opschoning"]
-    nachten = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
-    binnen_scope = (
-        (df["deposit_type"] != regels["uitgesloten_deposit"])
-        & (df["adr"] > regels["adr_min"])
-        & (df["adr"] < regels["adr_max"])
-        & (nachten > 0)
-    )
-    return df[binnen_scope]
+    """Haal de boekingen weg die buiten de scope van deel 1 vallen. Zie configs/default.yaml.
+
+    Dezelfde regels als bij voorspellen: src/scope.py is de enige plek waar ze staan.
+    """
+    from .scope import binnen_opschoning  # hier: scope gebruikt zelf aankomstdatum() uit data
+
+    return df[binnen_opschoning(df, cfg)]
 
 
 def aankomstdatum(df: pd.DataFrame) -> pd.Series:
