@@ -141,10 +141,28 @@ Boosting is 7–9 ms trager dan de andere twee op de kern: 1 % van de grens. Voo
 dan de vuistregel en 150 € meer per volle nacht is dat "1 %" het waard. De vooraf vastgelegde
 regel (laagste MAE binnen de grens) kiest boosting.
 
+### De primaire metriek: `POST /advies` over HTTP (fase 2)
+
+Sessie `fase2_http`: `uvicorn src.api:app` op dezelfde machine, één worker, 10 opwarm + 200
+gemeten, het hele pad inclusief JSON en Pydantic.
+
+| Workload | Boekingen | p50 (ms) | **p95 (ms)** [95 %-interval] | max (ms) | Mislukt / ongeldig | Grens gehaald |
+|---|---|---|---|---|---|---|
+| smoke | 76 | 68 | 80 [77–82] | 161 | 0 / 0 | — |
+| **normaal** | **358** | **77** | **91 [87–96]** | 98 | 0 / 0 | **ja (≤ 1 000 ms)** |
+| kort verblijf | 358 | 78 | 91 [89–96] | 181 | 0 / 0 | — |
+| lang verblijf | 358 | 78 | 88 [86–90] | 94 | 0 / 0 | — |
+| 10 000 | 10 000 | 375 | 436 [416–465] | 508 | 0 / 0 | — |
+
+HTTP en JSON kosten bij een gewone portefeuille ~18 ms bovenop de kern (p95 91 tegenover 73 ms).
+Bij 10 000 boekingen weegt het zwaarder (436 tegenover 199 ms): elke boeking wordt door Pydantic
+gevalideerd en van JSON naar een tabel omgezet. Ook bij 100× de portefeuille van één hotel blijft
+het verzoek onder de grens.
+
 ### Nog te meten
 
-- `http` (de primaire metriek over HTTP): fase 2, tegen `uvicorn src.api:app`
 - `koude_start` en de referentie-infrastructuur (1 vCPU, 1 GiB): fase 5, in de container
+- de publieke URL (Hugging Face Space): taak 5.10
 
 ## Beperkingen
 

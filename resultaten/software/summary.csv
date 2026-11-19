@@ -14,6 +14,11 @@ fase1,kern,boosting,normaal,host,host,1,200,358,63.653,72.835,70.930,78.469,106.
 fase1,kern,boosting,schaal_100k,host,host,1,200,100000,1292.418,1368.401,1355.131,1380.900,1413.758,41.339,392.900,0,0,0.763,False
 fase1,kern,boosting,schaal_10k,host,host,1,200,10000,178.407,198.746,195.155,203.054,219.136,10.478,216.000,0,0,0.580,False
 fase1,kern,boosting,smoke,host,host,1,200,76,60.183,72.432,69.941,74.648,114.617,6.631,190.000,0,0,0.198,False
+fase2_http,http,huidig,kort_verblijf,host,host,1,200,358,78.188,91.251,88.731,96.090,181.022,9.534,,0,0,,False
+fase2_http,http,huidig,lang_verblijf,host,host,1,200,358,77.602,88.239,86.413,90.195,94.122,5.757,,0,0,,False
+fase2_http,http,huidig,normaal,host,host,1,200,358,76.960,90.769,86.803,95.800,98.495,6.329,,0,0,,True
+fase2_http,http,huidig,schaal_10k,host,host,1,200,10000,374.935,436.010,416.239,465.208,507.531,28.531,,0,0,,False
+fase2_http,http,huidig,smoke,host,host,1,200,76,67.599,79.978,76.788,82.397,160.885,8.403,,0,0,,False
 modellen_software_20261119T181100,cli,boosting,normaal,host,host,1,30,358,2832.721,3023.437,2874.594,3748.004,3748.004,189.063,186.700,0,0,0.018,False
 modellen_software_20261119T181100,cli,logreg,normaal,host,host,1,30,358,2805.307,3237.494,2885.387,4258.582,4258.582,295.983,186.100,0,0,0.017,False
 modellen_software_20261119T181100,cli,vuistregel,normaal,host,host,1,30,358,2667.032,2918.221,2810.311,3017.649,3017.649,122.528,184.700,0,0,0.001,False

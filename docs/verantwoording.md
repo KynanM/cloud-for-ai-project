@@ -230,11 +230,11 @@ dan toch weggeschreven. Nu zijn er drie soorten (`src/poorten.py`), allemaal op 
 | ML | MAE per hotel-nacht | < vuistregel (6,36) | 4,72 |
 | ML | voorspeld / echt, per hotel | tussen 0,8 en 1,25 | City 0,85 · Resort 1,01 |
 | beleid | nachten met te veel kamers, **per hotel** | ≤ 20 % (`advies.risicogrens`) | City 6 % · Resort 16 % |
-| software | p95-latency van een adviesjob (één nacht van de validatie) | ≤ 1 000 ms (`configs/benchmark.yaml`) | zie `models/manifest.json` |
-| software | modelbestand | ≤ 50 MB | zie `models/manifest.json` |
+| software | p95-latency van een adviesjob (één nacht van de validatie) | ≤ 1 000 ms (`configs/benchmark.yaml`) | 123 ms |
+| software | modelbestand | ≤ 50 MB | 0,08 MB |
 
 Elke poort wordt gemeten en gelogd, ook als een eerdere faalt; de uitkomst staat in het manifest
-(`poorten`). Faalt er één, dan wordt niets weggeschreven (`tests/test_systeem.py`,
+(`poorten`; de waarden hierboven komen uit run `20261119T171016-2b8c16da`). Faalt er één, dan wordt niets weggeschreven (`tests/test_systeem.py`,
 `tests/test_poorten.py`). De softwarepoort maakt les 06 p. 23 letterlijk: de softwaremetriek is
 een grens, ook in de code.
 
