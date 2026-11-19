@@ -43,6 +43,10 @@ Per hotel-nacht verschilt het echte aantal annulaties tussen A en B gemiddeld me
 validatie en **1,02** op de test (maximaal 8). De MAE van het model is 4,72 en 5,11. Die getallen
 meten iets anders (het verschil tussen twee labels tegenover de fout van het model op één label)
 en zijn niet optelbaar: hieruit volgt niet welk deel van de modelfout door het contract komt.
+**Gemeten** (`resultaten/audit/contract_mae.csv`): dezelfde voorspellingen van boosting hebben
+op de validatie een MAE van 4,72 tegen het label van contract A en 5,18 tegen dat van B (+0,46).
+Het label wisselen kost dus 0,46 per nacht, niet de 1,55 die het verschil tussen de labels doet
+vermoeden. Voor logreg +0,50, voor de vuistregel +0,57.
 
 ## Keuze en waarom
 
