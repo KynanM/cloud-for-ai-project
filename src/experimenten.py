@@ -62,7 +62,10 @@ RG = [("validatie", "training", "validatie"), ("test", "hertraining", "test")]
 class Opzet:
     """Wat elke vergelijking deelt: de data, de split, de capaciteit en de bezetting."""
 
-    def __init__(self, ruw: pd.DataFrame, cfg: dict):
+    def __init__(self, ruw: pd.DataFrame, cfg: dict, test_toegestaan: bool = False):
+        """`test_toegestaan`: alleen voor wat als "alleen rapporteren" gemerkt is. Een experiment
+        dat kiest, mag de test niet zien (docs/testlogboek.md)."""
+        self.test_toegestaan = test_toegestaan
         self.cfg = cfg
         self.df = bereid_voor(ruw, cfg)
         self.delen = splits(self.df, cfg)
@@ -84,6 +87,10 @@ class Opzet:
         Met `venster_maanden` leert het model alleen van de laatste maanden vóór het einde
         van de training.
         """
+        if meet == "test" and not self.test_toegestaan:
+            raise PermissionError(
+                "De test is afgeschermd: geef test_toegestaan=True, en alleen voor rapporteren"
+            )
         train_deel = self.delen[leer]
         if venster_maanden is not None:
             aankomst = aankomstdatum(train_deel)
@@ -865,7 +872,8 @@ def main() -> None:
     zet_logging_op(cfg, "experimenten")
     uit = cfg["resultaten"] / "audit"
     uit.mkdir(parents=True, exist_ok=True)
-    o = Opzet(laad_data(cfg["data"]["pad"]), cfg)
+    # De modelvergelijking rapporteert ook de test (alleen rapporteren, niets kiezen)
+    o = Opzet(laad_data(cfg["data"]["pad"]), cfg, test_toegestaan=True)
     for periode in ["validatie", "test"]:
         logger.info(
             "%s: aankomst %s tot %s",

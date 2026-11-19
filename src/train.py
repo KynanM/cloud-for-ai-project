@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
@@ -110,7 +110,20 @@ def bouw_pijplijn(cfg: dict) -> Model:
             [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
         )
 
-    raise ValueError(f"Onbekend model.soort {soort!r}: kies vuistregel, logreg of boosting")
+    if soort == "randomforest":
+        # Alleen voor de complexiteitsladder (taak 3.7). Zelfde voorbewerking als boosting;
+        # scikit-learn-bossen kunnen sinds 1.4 met lege waarden om.
+        encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
+        model = RandomForestClassifier(
+            **cfg["model"]["randomforest"], random_state=cfg["model"]["seed"], n_jobs=1
+        )
+        return Pipeline(
+            [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
+        )
+
+    raise ValueError(
+        f"Onbekend model.soort {soort!r}: kies vuistregel, logreg, boosting of randomforest"
+    )
 
 
 def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
@@ -121,11 +134,12 @@ def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
     2 december beslis je voor 1 januari. Een no-show ken je pas de dag na de aankomst, vandaar
     de extra dag. Zo eindigt de training op 30-11-2016 en de hertraining op 28-02-2017.
     """
+    from .folds import embargo_einde  # één formule voor de split en de rolling-origin-folds
+
     s = cfg["split"]
-    embargo = pd.Timedelta(days=cfg["label"]["horizon_dagen"] + 1)
     g = {sleutel: pd.Timestamp(s[sleutel]) for sleutel in s}
-    g["training_einde"] = g["validatie_start"] - embargo - pd.Timedelta(days=1)
-    g["hertraining_einde"] = g["test_start"] - embargo - pd.Timedelta(days=1)
+    g["training_einde"] = embargo_einde(g["validatie_start"], cfg)
+    g["hertraining_einde"] = embargo_einde(g["test_start"], cfg)
 
     volgorde = ["validatie_start", "validatie_einde", "test_start", "test_einde"]
     if any(g[a] >= g[b] for a, b in zip(volgorde, volgorde[1:], strict=False)):

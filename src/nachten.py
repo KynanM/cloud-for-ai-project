@@ -246,7 +246,9 @@ def beoordeel(
     bias                 gemiddelde (verwacht - echt) per hotel-nacht. Negatief: onderschat
     voorspeld_echt       som verwacht / som echt. 1 is goed geijkt
     te_veel              aandeel nachten met minder annulaties dan k: de gemeten overschrijding.
-                         Nominaal hoogstens 1 - zekerheid
+                         Nominaal hoogstens 1 - zekerheid. Ook alleen over de volgeboekte
+                         nachten (te_veel_vol) en de nachten met k > 0 (te_veel_k_pos)
+    tekort_gem/p95/max   max(k - echt, 0): hoeveel kamers te veel, gemiddeld en in de staart
     nul_advies           aandeel nachten met k = 0
     max_advies           aandeel nachten waarop k het maximum per nacht raakt
     euro_per_volle_nacht europroxy per volgeboekte nacht, met r en w uit de config
@@ -265,6 +267,8 @@ def beoordeel(
 
     def samenvatting(groep: pd.DataFrame) -> pd.Series:
         vol = groep[groep["vol"]]
+        te_veel = groep["echt"] < groep["k"]
+        tekort = np.maximum(groep["k"] - groep["echt"], 0)
         uit = {
             "nachten": len(groep),
             "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
@@ -273,6 +277,14 @@ def beoordeel(
             "te_veel": (groep["echt"] < groep["k"]).mean(),
             "gem_k": groep["k"].mean(),
             "nul_advies": (groep["k"] == 0).mean(),
+            # Drie noemers voor het risico: alle nachten (te_veel), alleen de volgeboekte, alleen
+            # de nachten waarop er overboekt wordt (k > 0). En hoeveel kamers te veel.
+            "te_veel_vol": te_veel[groep["vol"]].mean() if groep["vol"].any() else np.nan,
+            "nachten_k_pos": int((groep["k"] > 0).sum()),
+            "te_veel_k_pos": te_veel[groep["k"] > 0].mean() if (groep["k"] > 0).any() else np.nan,
+            "tekort_gem": tekort.mean(),
+            "tekort_p95": tekort.quantile(0.95),
+            "tekort_max": tekort.max(),
             "max_advies": ((groep["k"] == groep["maximum"]) & (groep["maximum"] > 0)).mean(),
             "volle_nachten": len(vol),
             "euro_per_volle_nacht": vol["euro"].mean(),
