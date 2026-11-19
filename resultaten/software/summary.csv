@@ -19,6 +19,14 @@ fase2_http,http,huidig,lang_verblijf,host,host,1,200,358,77.602,88.239,86.413,90
 fase2_http,http,huidig,normaal,host,host,1,200,358,76.960,90.769,86.803,95.800,98.495,6.329,,0,0,,True
 fase2_http,http,huidig,schaal_10k,host,host,1,200,10000,374.935,436.010,416.239,465.208,507.531,28.531,,0,0,,False
 fase2_http,http,huidig,smoke,host,host,1,200,76,67.599,79.978,76.788,82.397,160.885,8.403,,0,0,,False
+fase5_container,http,overboeking:enkel,normaal,1,1g,1,200,358,83.151,96.388,92.189,106.099,224.535,17.505,,0,0,,True
+fase5_container,http,overboeking:lokaal,normaal,1,1g,1,200,358,69.588,182.571,82.322,190.422,206.116,29.878,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,0.5,512m,1,100,358,195.109,272.868,211.975,297.833,314.918,35.279,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,1,1g,1,100,358,67.656,187.201,164.089,190.786,195.368,38.629,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,1,512m,1,100,358,72.704,178.847,91.235,197.870,289.504,35.481,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,2,1g,1,100,358,67.810,85.570,74.635,159.291,189.896,19.399,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,2,1g,2,100,358,66.894,77.434,72.551,179.684,205.973,23.046,,0,0,,True
+fase5_sizing,http,overboeking:lokaal,normaal,2,2g,2,100,358,67.810,96.518,80.966,181.433,194.986,23.284,,0,0,,True
 modellen_software_20261119T181100,cli,boosting,normaal,host,host,1,30,358,2832.721,3023.437,2874.594,3748.004,3748.004,189.063,186.700,0,0,0.018,False
 modellen_software_20261119T181100,cli,logreg,normaal,host,host,1,30,358,2805.307,3237.494,2885.387,4258.582,4258.582,295.983,186.100,0,0,0.017,False
 modellen_software_20261119T181100,cli,vuistregel,normaal,host,host,1,30,358,2667.032,2918.221,2810.311,3017.649,3017.649,122.528,184.700,0,0,0.001,False

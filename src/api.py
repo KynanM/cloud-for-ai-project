@@ -23,7 +23,6 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import date
-from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -114,15 +113,7 @@ def laad(config_pad=None) -> None:
     """Config, manifest, model en advies laden. OVERBOEKING_MODELMAP wijst naar het gepubliceerde
     model (models/actief/, `python -m src.publiceer`); zonder: de paden uit de config."""
     pad = config_pad or os.environ.get("OVERBOEKING_CONFIG", PROJECT / "configs" / "default.yaml")
-    cfg = laad_config(pad)
-    modelmap = os.environ.get("OVERBOEKING_MODELMAP")
-    if modelmap:
-        map_ = Path(modelmap) if Path(modelmap).is_absolute() else PROJECT / modelmap
-        cfg["model"].update(
-            pad=map_ / "model.joblib",
-            advies_pad=map_ / "advies.json",
-            manifest_pad=map_ / "manifest.json",
-        )
+    cfg = laad_config(pad)  # met OVERBOEKING_MODELMAP: het gepubliceerde model
     zet_logging_op(cfg, "api")
     manifest = controleer(cfg)
     if manifest.get("poorten_overgeslagen"):

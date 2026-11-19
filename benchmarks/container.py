@@ -173,12 +173,16 @@ def sizing(args) -> None:
     for cpus, geheugen, threads in combinaties:
         w = warm("overboeking:lokaal", cpus, geheugen, threads, "fase5_sizing", args.gemeten)
         groot = schaal_cli("overboeking:lokaal", cpus, geheugen, threads, "schaal_10k")
+        heel = schaal_cli("overboeking:lokaal", cpus, geheugen, threads, "schaal_100k")
         rijen.append(
             {
                 **w,
                 "cli_10k_s": groot["duur_s"],
-                "oom_10k": groot["oom"],
                 "exit_10k": groot["exitcode"],
+                "oom_10k": groot["oom"],
+                "cli_100k_s": heel["duur_s"],
+                "exit_100k": heel["exitcode"],
+                "oom_100k": heel["oom"],
             }
         )
         print(json.dumps(rijen[-1]), flush=True)
