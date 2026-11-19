@@ -35,7 +35,7 @@ from .kenmerken import als_tekst, land_als_groep
 from .logboek import zet_logging_op
 from .manifest import bestand_hash as manifest_hash
 from .manifest import maak_manifest
-from .monitoring import referentie
+from .monitoring import drift_drempels, referentie
 from .nachten import (
     alleen_volledig,
     beoordeel,
@@ -346,6 +346,13 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     manifest["poorten"] = als_dicts(lijst)
     # Verdelingen van de hertraining, voor de driftmeting per verzoek (src/monitoring.py)
     manifest["referentie"] = referentie(splits(df, cfg)["hertraining"])
+    # Alarmdrempels voor de drift, geijkt op de portefeuilles van de validatie (src/monitoring.py)
+    manifest["drift_drempels"] = drift_drempels(
+        df,
+        manifest["referentie"],
+        g["validatie_start"],
+        g["validatie_einde"],
+    )
     advies = {
         "run_id": manifest["run_id"],
         "model": soort,

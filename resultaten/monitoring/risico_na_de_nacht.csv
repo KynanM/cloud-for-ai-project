@@ -1,0 +1,13 @@
+hotel,venster_start,nachten,te_veel,mae,alert
+City Hotel,2017-04-01,28,0.1786,7.0151,False
+City Hotel,2017-04-29,28,0.0357,5.2588,False
+City Hotel,2017-05-27,28,0.2500,8.7361,True
+City Hotel,2017-06-24,28,0.5714,9.1077,True
+City Hotel,2017-07-22,28,0.1786,5.8389,False
+City Hotel,2017-08-19,13,0.2308,5.6588,True
+Resort Hotel,2017-04-01,28,0.1786,4.1416,False
+Resort Hotel,2017-04-29,28,0.1429,2.3482,False
+Resort Hotel,2017-05-27,28,0.1786,4.1494,False
+Resort Hotel,2017-06-24,28,0.1786,2.5994,False
+Resort Hotel,2017-07-22,28,0.0000,3.4385,False
+Resort Hotel,2017-08-19,13,0.0000,4.2590,False

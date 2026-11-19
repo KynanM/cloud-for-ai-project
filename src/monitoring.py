@@ -74,6 +74,46 @@ def drift(df: pd.DataFrame, ref: dict) -> dict[str, float]:
     return {k: round(v, 4) for k, v in uit.items()}
 
 
+def portefeuilles(df: pd.DataFrame, begin, einde):
+    """Per nacht tussen begin en einde: de boekingen die er verblijven (zoals in een verzoek)."""
+    from .data import aankomstdatum
+
+    aankomst = aankomstdatum(df)
+    vertrek = aankomst + pd.to_timedelta(
+        df["stays_in_weekend_nights"] + df["stays_in_week_nights"], unit="D"
+    )
+    for nacht in pd.date_range(begin, einde, freq="D"):
+        deel = df[(aankomst <= nacht) & (nacht < vertrek)]
+        if len(deel):
+            yield nacht, deel
+
+
+def drift_drempels(
+    alle: pd.DataFrame, ref: dict, begin, einde, factor: float = 1.5, kwantiel: float = 1.0
+) -> dict:
+    """De alarmdrempel per kolom, geijkt op normale portefeuilles (de validatie, nooit de test).
+
+    Eén nacht-portefeuille is geen representatieve steekproef van alle boekingen: lange
+    verblijven en groepen wegen zwaarder, en prijzen stijgen van jaar tot jaar. Op een gewone
+    nacht van de validatie is de PSI van adr al 0,59 (mediaan); met een vaste drempel van 0,2
+    gaat het alarm elke dag af. Daarom per kolom max(0,2; factor × de hoogste PSI van een
+    normale nacht). Het doel is eenheids- en definitiefouten vangen (adr per verblijf: PSI 5 of
+    meer), zonder dagelijkse valse alarmen. Op de testnachten (replay): 0 van 153 nachten met een
+    alarm, en adr per verblijf 153 van 153 keer gevangen. Met het 95e percentiel (`kwantiel=0.95`)
+    ging het alarm op 37 van 153 nachten af, bijna altijd op de zomerprijzen. Die keuze is gemaakt
+    nadat beide op de replay bekeken waren; seizoensdrift in het risico bewaakt de labelmonitor.
+    `alle`: alle actieve boekingen, zodat elke portefeuille volledig is.
+    """
+    waarden: dict[str, list[float]] = {}
+    for _, deel in portefeuilles(alle, begin, einde):
+        for kolom, waarde in drift(deel, ref).items():
+            waarden.setdefault(kolom, []).append(waarde)
+    return {
+        k: round(max(DREMPELS["psi"], factor * float(np.quantile(v, kwantiel))), 4)
+        for k, v in waarden.items()
+    }
+
+
 # --------------------------------------------------------------------------- labels
 
 
@@ -125,6 +165,10 @@ def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[di
     regels = [
         r for r in lees_jsonlog(Path(cfg["logs"]) / "api.log", sinds) if r.get("soort") == "verzoek"
     ]
+    manifest_pad = Path(cfg["model"]["manifest_pad"])
+    drempels = {}
+    if manifest_pad.exists():
+        drempels = json.loads(manifest_pad.read_text(encoding="utf-8")).get("drift_drempels", {})
     alerts = []
     if regels:
         lat = np.array([r["latency_ms"] for r in regels if r.get("status") == 200])
@@ -133,20 +177,34 @@ def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[di
         fouten = [r for r in regels if r.get("status", 200) >= 500]
         if fouten:
             alerts.append({"alert": "5xx-fouten", "waarde": len(fouten)})
+        # Eén alarm per soort, met het aantal verzoeken en de hoogste waarde: geen alarm per verzoek
+        onbekend = [
+            r["onbekend_aandeel"]
+            for r in regels
+            if r.get("onbekend_aandeel", 0) > DREMPELS["onbekend_aandeel"]
+        ]
+        if onbekend:
+            alerts.append(
+                {
+                    "alert": "veel onbekende categorieën",
+                    "waarde": max(onbekend),
+                    "verzoeken": len(onbekend),
+                }
+            )
+        per_kolom: dict[str, list[float]] = {}
         for r in regels:
-            if r.get("onbekend_aandeel", 0) > DREMPELS["onbekend_aandeel"]:
-                alerts.append(
-                    {
-                        "alert": "veel onbekende categorieën",
-                        "waarde": r["onbekend_aandeel"],
-                        "tijd": r["tijd"],
-                    }
-                )
             for kolom, waarde in (r.get("drift_psi") or {}).items():
-                if waarde > DREMPELS["psi"]:
-                    alerts.append(
-                        {"alert": f"drift in {kolom}", "waarde": waarde, "tijd": r["tijd"]}
-                    )
+                if waarde > drempels.get(kolom, DREMPELS["psi"]):
+                    per_kolom.setdefault(kolom, []).append(waarde)
+        for kolom, waarden in per_kolom.items():
+            alerts.append(
+                {
+                    "alert": f"drift in {kolom}",
+                    "waarde": max(waarden),
+                    "drempel": drempels.get(kolom, DREMPELS["psi"]),
+                    "verzoeken": len(waarden),
+                }
+            )
     else:
         alerts.append({"alert": "geen enkel verzoek in de laatste 24 uur", "waarde": 0})
     uit = PROJECT / "uitvoer" if uitmap is None else Path(uitmap)

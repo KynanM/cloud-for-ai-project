@@ -59,7 +59,7 @@ def test_controleer_maakt_alerts_uit_de_logs(cfg, tmp_path):
     basis = {"tijd": nu, "soort": "verzoek", "status": 200}
     regels = [
         {**basis, "latency_ms": 50, "onbekend_aandeel": 0.0, "drift_psi": {"adr": 0.01}},
-        {**basis, "latency_ms": 60, "onbekend_aandeel": 0.2, "drift_psi": {"adr": 0.9}},
+        {**basis, "latency_ms": 60, "onbekend_aandeel": 0.2, "drift_psi": {"adr": 9.0}},
         {**basis, "status": 500, "latency_ms": 0},
     ]
     logmap = tmp_path / "logs"
@@ -104,3 +104,17 @@ def test_de_api_logt_elk_verzoek_met_drift(cfg):
     assert velden["status"] == 200
     assert {"latency_ms", "n_boekingen", "onbekend_aandeel", "drift_psi"} <= set(velden)
     assert np.isfinite(velden["latency_ms"])
+
+
+def test_drempels_geijkt_op_de_validatie_vangen_adr_per_verblijf(df, cfg, ref):
+    from src.monitoring import drift_drempels, portefeuilles
+    from src.train import grenzen
+
+    g = grenzen(cfg)
+    drempels = drift_drempels(df, ref, g["validatie_start"], g["validatie_einde"])
+    assert all(v >= 0.2 for v in drempels.values())
+    nacht, deel = next(portefeuilles(df, g["test_start"], g["test_start"]))
+    fout = deel.copy()
+    fout["adr"] = fout["adr"] * (fout["stays_in_weekend_nights"] + fout["stays_in_week_nights"])
+    assert drift(fout[fout["adr"] < 1000], ref)["adr"] > drempels["adr"]
+    assert drift(deel, ref)["adr"] <= drempels["adr"]
