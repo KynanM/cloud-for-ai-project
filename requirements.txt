@@ -1,16 +1,4 @@
-# Vastgelegd op de versies waarmee pytest groen is, getest met Python 3.13.
-# Alleen de rechtstreekse afhankelijkheden: pip haalt de rest zelf op.
-pandas==3.1.1
-numpy==2.5.4
-scikit-learn==1.9.1
-pandera==0.35.0
-pyyaml==6.0.3
-joblib==1.6.0
-scipy==1.18.1
-matplotlib==3.11.2
-# Voor het exploratienotebook
-ipykernel==7.4.0
-nbconvert==7.17.2
-# Tests, stijl en opmaak
-pytest==9.2.0
-ruff==0.17.4
+# Alles om het project te draaien en te ontwikkelen: pip install -r requirements.txt
+# Exact reproduceerbaar, met hashes: pip install --require-hashes -r requirements-dev.lock
+# Alleen de runtime (de API, het image): requirements.in / requirements.lock
+-r requirements-dev.in

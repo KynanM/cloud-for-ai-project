@@ -23,8 +23,10 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -37,7 +39,8 @@ from .data import OngeldigeDataError, valideer
 from .logboek import zet_logging_op
 from .manifest import controleer
 from .meting import Meting
-from .predict import laad_advies, laad_model, voer_job_uit, voorspel
+from .monitoring import drift
+from .predict import laad_advies, laad_model, onbekende_categorieen, voer_job_uit, voorspel
 from .scope import BuitenScopeError
 
 logger = logging.getLogger(__name__)
@@ -108,8 +111,18 @@ toestand = Toestand()
 
 
 def laad(config_pad=None) -> None:
+    """Config, manifest, model en advies laden. OVERBOEKING_MODELMAP wijst naar het gepubliceerde
+    model (models/actief/, `python -m src.publiceer`); zonder: de paden uit de config."""
     pad = config_pad or os.environ.get("OVERBOEKING_CONFIG", PROJECT / "configs" / "default.yaml")
     cfg = laad_config(pad)
+    modelmap = os.environ.get("OVERBOEKING_MODELMAP")
+    if modelmap:
+        map_ = Path(modelmap) if Path(modelmap).is_absolute() else PROJECT / modelmap
+        cfg["model"].update(
+            pad=map_ / "model.joblib",
+            advies_pad=map_ / "advies.json",
+            manifest_pad=map_ / "manifest.json",
+        )
     zet_logging_op(cfg, "api")
     manifest = controleer(cfg)
     if manifest.get("poorten_overgeslagen"):
@@ -136,6 +149,37 @@ app = FastAPI(
 )
 
 
+def log_verzoek(pad: str, status: int, latency_ms: float, **velden) -> None:
+    """Eén gestructureerde regel per verzoek: de servicemetrieken voor src.monitoring."""
+    logger.info(
+        "verzoek %s %d %.1f ms",
+        pad,
+        status,
+        latency_ms,
+        extra={
+            "velden": {
+                "soort": "verzoek",
+                "pad": pad,
+                "status": status,
+                "latency_ms": round(latency_ms, 2),
+                "run_id": getattr(toestand, "manifest", {}).get("run_id"),
+                **velden,
+            }
+        },
+    )
+
+
+def onbekend_aandeel(df: pd.DataFrame) -> float:
+    """Aandeel boekingen met minstens één categorie die het model nooit zag."""
+    onbekend = onbekende_categorieen(toestand.model, df, toestand.cfg)
+    if not onbekend:
+        return 0.0
+    masker = np.zeros(len(df), dtype=bool)
+    for kolom, waarden in onbekend.items():
+        masker |= df[kolom].astype(str).isin(waarden).to_numpy()
+    return float(masker.mean())
+
+
 def als_df(boekingen: list[Boeking]) -> pd.DataFrame:
     df = pd.DataFrame([b.model_dump() for b in boekingen])
     df["country"] = df["country"].astype("str").where(df["country"].notna(), None)
@@ -148,12 +192,13 @@ async def ongeldig_verzoek(request: Request, fout: RequestValidationError):
         {"veld": ".".join(str(d) for d in f["loc"] if d != "body"), "melding": f["msg"]}
         for f in fout.errors()
     ]
-    logger.warning("422 op %s: %d fout(en), eerste %s", request.url.path, len(velden), velden[:1])
+    log_verzoek(request.url.path, 422, 0.0, fout="ongeldige invoer", velden_fout=velden[:5])
     return JSONResponse(status_code=422, content={"fout": "ongeldige invoer", "velden": velden})
 
 
 @app.exception_handler(OngeldigeDataError)
 async def ongeldige_data(request: Request, fout: OngeldigeDataError):
+    log_verzoek(request.url.path, 422, 0.0, fout="schema", velden_fout=fout.fouten[:5])
     return JSONResponse(
         status_code=422,
         content={"fout": "invoer voldoet niet aan het schema", "velden": fout.fouten},
@@ -162,7 +207,7 @@ async def ongeldige_data(request: Request, fout: OngeldigeDataError):
 
 @app.exception_handler(BuitenScopeError)
 async def buiten_scope(request: Request, fout: BuitenScopeError):
-    logger.warning("422 buiten scope (%s): %s", fout.reden, fout)
+    log_verzoek(request.url.path, 422, 0.0, fout="buiten scope", reden=fout.reden)
     return JSONResponse(
         status_code=422, content={"fout": "buiten scope", "reden": fout.reden, "melding": str(fout)}
     )
@@ -171,6 +216,7 @@ async def buiten_scope(request: Request, fout: BuitenScopeError):
 @app.exception_handler(Exception)
 async def onverwacht(request: Request, fout: Exception):
     logger.exception("500 op %s", request.url.path)
+    log_verzoek(request.url.path, 500, 0.0, fout=type(fout).__name__)
     return JSONResponse(
         status_code=500,
         content={"fout": "interne fout", "run_id": toestand.manifest.get("run_id")},
@@ -216,12 +262,18 @@ def advies(verzoek: AdviesVerzoek) -> dict:
     ]
     latency = (time.perf_counter() - start) * 1000
     resultaat = meting.als_dict()
-    logger.info(
-        "advies nacht=%s boekingen=%d uitgesloten=%d latency_ms=%.1f",
-        verzoek.nacht,
-        len(df),
-        len(job.uitgesloten),
+    log_verzoek(
+        "/advies",
+        200,
         latency,
+        nacht=verzoek.nacht.isoformat(),
+        n_boekingen=len(df),
+        n_uitgesloten=len(job.uitgesloten),
+        uitgesloten_per_reden=resultaat.get("uitgesloten_per_reden", {}),
+        onbekend_aandeel=round(onbekend_aandeel(df), 4),
+        drift_psi=drift(df, toestand.manifest.get("referentie", {})),
+        k={a["hotel"]: a["k"] for a in advies_},
+        verwacht={a["hotel"]: a["verwacht"] for a in advies_},
     )
     return {
         "run_id": toestand.manifest["run_id"],
