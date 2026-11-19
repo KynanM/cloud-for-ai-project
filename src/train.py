@@ -321,7 +321,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp:
         tijdelijk = Path(tmp) / "model.joblib"
-        joblib.dump(model, tijdelijk)
+        joblib.dump(model, tijdelijk, compress=3)  # zoals het weggeschreven wordt
         software = softwarepoorten(een_job, tijdelijk, cfg)
     controleer_poorten(software, poorten)
     lijst += software
