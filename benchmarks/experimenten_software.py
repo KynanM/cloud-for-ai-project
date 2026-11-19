@@ -17,6 +17,9 @@ from pathlib import Path
 import yaml
 
 PROJECT = Path(__file__).resolve().parent.parent
+# Windows-console: tabellen met é, ë en → zonder UnicodeEncodeError
+sys.stdout.reconfigure(encoding="utf-8")
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 _BENCH = yaml.safe_load((PROJECT / "configs" / "benchmark.yaml").read_text(encoding="utf-8"))
 for _sleutel, _waarde in _BENCH["infrastructuur"]["threads"].items():
     os.environ.setdefault(_sleutel, str(_waarde))
