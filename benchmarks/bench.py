@@ -20,6 +20,9 @@ from pathlib import Path
 import yaml
 
 PROJECT = Path(__file__).resolve().parent.parent
+# Windows-console: tabellen met é, ë en → zonder UnicodeEncodeError
+sys.stdout.reconfigure(encoding="utf-8")
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 BENCH = yaml.safe_load((PROJECT / "configs" / "benchmark.yaml").read_text(encoding="utf-8"))
 # Vóór numpy en scikit-learn geladen worden: de threadlimiet van de referentie-infrastructuur
 for _sleutel, _waarde in BENCH["infrastructuur"]["threads"].items():
