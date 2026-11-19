@@ -1469,9 +1469,9 @@ referentie-infrastructuur (1 vCPU, 1 GiB, 1 thread), tenzij de tabel iets anders
 
 | Model | MAE val | bias val | Brier val | te_veel City val | te_veel Resort val | p50 http (ms) | p95 http (ms) | koude start (s) | piek RSS (MB) | model (MB) | € / volle nacht val | doorverwezen val | € / 1 000 adviezen |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| vuistregel (baseline) | *6,36* | *+1,69* | *0,140* | *0,118* | *0,354* | | | | | | *328* | *2,23* | |
-| logreg zonder land | *5,77* | *−0,33* | *0,140* | *0,118* | *0,139* | | | | | | *331* | *1,43* | |
-| **boosting zonder land (ref)** | *4,72* | *−1,59* | *0,130* | *0,059* | *0,165* | | | | | | *480* | *0,43* | |
+| vuistregel (baseline) | 6,36 | +1,69 | 0,140 | 0,118 | 0,354 | kern 51 | kern 66 | — | 185 (cli) | 0,002 | 328 | 2,23 | — |
+| logreg zonder land | 5,77 | −0,33 | 0,140 | 0,118 | 0,139 | kern 59 | kern 68 | — | 186 (cli) | 0,005 | 331 | 1,43 | — |
+| **boosting zonder land (ref)** | 4,72 | −1,59 | 0,130 | 0,059 | 0,165 | **70** (container) | **183** (container) | **3,6** | **152** (container) | 0,077 | 480 | 0,43 | 0,00009 lokaal, 0,002 Cloud Run |
 | **SLO / guardrail** | — | — | — | ≤ 0,20 | ≤ 0,20 | — | **≤ 1 000** | **≤ 60** | **≤ 1 024** | ≤ 50 | — | — | — |
 
 Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
@@ -1486,13 +1486,15 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 | | Deel 1 | Nu (gemeten) | Grens | Gehaald? |
 |---|---|---|---|---|
-| Wat | "klaar binnen 60 s" (nooit gemeten) | p95 `POST /advies`, normale workload | ≤ 1 000 ms | |
-| Koude start | — | | ≤ 60 s | |
-| Geheugen | — | piek-RSS | ≤ 1 024 MB | |
-| Foutgedrag | — | 5xx onder belasting / 422 bij ongeldige invoer | 0 % / 100 % | |
-| Microbenchmark `predict_proba` (ter info) | — | *14,9 ms per 1 000 (boosting, validatie)* | — | — |
+| Wat | "klaar binnen 60 s" (nooit gemeten) | p95 `POST /advies`, normale workload: **183 ms** (container, 1 vCPU, 1 GiB); 91 ms zonder limiet | ≤ 1 000 ms | **ja** |
+| Koude start | — | 3,6 s (max 3,9 van 20) | ≤ 60 s | **ja** |
+| Geheugen | — | 152 MB (container); 100 000 boekingen ook in 512 MB | ≤ 1 024 MB | **ja** |
+| Foutgedrag | — | 0 % 5xx tot 2 verzoeken/s per container; 35 van 35 foutgevallen juist | 0 % / 100 % | **ja** |
+| Microbenchmark `predict_proba` (ter info) | — | 8 tot 15 ms per 1 000, verschilt per run | — | — |
 
 ### 4.3 Experimentlog (één rij per variant, ook afgewezen)
+
+*Ingevuld in `resultaten/runs.csv` (alle MLflow-runs, ook afgewezen), `docs/optimalisaties.md` en `docs/verantwoording.md` (secties 8–10, 13, 20).*
 
 | Exp | Variant | Baseline | Δ MAE (90 %-CI) | Δ te_veel max hotel | Δ p95 http (ms) | Δ piek RSS | Δ € / volle nacht | Beslisregel (commit / MLflow-run) | Besluit |
 |---|---|---|---|---|---|---|---|---|---|
@@ -1511,6 +1513,8 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 ### 4.4 Softwaremetric per workload (boosting, referentie-infrastructuur)
 
+*Ingevuld in `docs/softwaremetric.md` (sectie Metingen) en `resultaten/software/summary.csv`.*
+
 | Workload | n boekingen | n boeking-nachten | doel | n runs | p50 (ms) | p95 (ms) [95 %-CI] | max (ms) | aandeel voorspellen | piek RSS (MB) | mislukt | ongeldig | SLO |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | smoke | | | http | 200 | | | | | | | | |
@@ -1524,6 +1528,8 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 ### 4.5 Inferentiemodus (1.7, naar les 07 p. 8)
 
+*Ingevuld: batch 187 ms, online 31,6 s, online met model laden 55,5 s per adviesnacht (`resultaten/software/modus.csv`).*
+
 | Normale workload (één nacht) | tijd per adviesnacht p50 (ms) | p95 (ms) | CPU-s |
 |---|---|---|---|
 | batch, één verzoek | | | |
@@ -1531,6 +1537,8 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 | online, model laden per verzoek | | | |
 
 ### 4.6 Servingvormen en schaling (E10) en infrastructuur (E11)
+
+*Ingevuld in `resultaten/serving/vergelijking.csv`, `belasting.csv`, `sizing.csv` en `docs/softwaremetric.md`.*
 
 | Variant | p50 (ms) | p95 (ms) | max throughput (adviezen/s) bij p95 ≤ 1 000 ms | foutrate | wat breekt eerst | CPU-s / advies | idle-verbruik |
 |---|---|---|---|---|---|---|---|
@@ -1550,6 +1558,8 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 ### 4.7 Kost (5.9)
 
+*Ingevuld in `docs/kosten.md` en `resultaten/serving/kosten.csv`.*
+
 | Scenario | adviezen / dag | lokaal € / 1 000 adviezen | lokaal € / maand | cloud-equivalent € / 1 000 | cloud-equivalent € / maand | bron |
 |---|---|---|---|---|---|---|
 | huidig (2 hotels) | 2 | | | | | |
@@ -1558,12 +1568,16 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 ### 4.8 Risico per hotel (E3)
 
+*Ingevuld in `resultaten/audit/risico_per_groep.csv` en `docs/verantwoording.md` (sectie 13).*
+
 | Periode | Hotel | Maand | nachten | te_veel [90 %-CI] | te_veel_vol | te_veel_k_pos | tekort gem | tekort p95 | > 20 %? |
 |---|---|---|---|---|---|---|---|---|---|
 | validatie | City Hotel | 2017-01 | | | | | | | |
 | … | | | | | | | | | |
 
 ### 4.9 Business: scenario's en ROI
+
+*Ingevuld in `docs/business_roi.md` en `resultaten/business/roi.csv`.*
 
 | Scenario | geboekt/cap | verkoopkans | cap-factor | w | Δ € boosting − vuistregel / volle nacht | Δ € boosting − nulbeleid | doorverwezen |
 |---|---|---|---|---|---|---|---|
