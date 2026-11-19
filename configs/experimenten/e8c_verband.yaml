@@ -1,0 +1,13 @@
+# Taak 4.4. Vastgelegd vóór de berekening.
+hypothese: >
+  Deel 1 nam aan: als de fout op het aantal annulaties per nacht daalt, stijgt de winst per nacht.
+  Over alle varianten uit de experimenten hangt een lagere MAE dan samen met meer € per volle nacht.
+baseline: "geen: correlatie over alle varianten"
+alternatieven: ["varianten uit experimenten.csv, complexiteit.csv, features.csv, weging.csv, rolling_origin.csv"]
+metrics:
+  ml: "MAE, |bias|"
+  software: "n.v.t."
+  business: "€ per volle nacht, te veel"
+beslisregel: >
+  De uitspraak 'een lagere MAE gaat samen met meer euro's' alleen als Spearman ρ < 0 met p < 0,05.
+  Anders wordt de hypothese uit deel 1 als niet bevestigd gerapporteerd.

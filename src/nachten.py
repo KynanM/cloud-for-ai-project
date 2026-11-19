@@ -208,7 +208,7 @@ def winst(k, echt, adr, r: float, w: float) -> np.ndarray:
     return adr * (r * np.minimum(k, echt) - w * np.maximum(k - echt, 0))
 
 
-def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float) -> np.ndarray:
+def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float, verkoopkans=1.0) -> np.ndarray:
     """De referentie voor `winst()`: rekent met de echte kamers in plaats van alleen met k en echt.
 
     Op het beslismoment zijn er `geboekt` kamers verkocht, het hotel heeft er `cap`. Het hotel
@@ -218,8 +218,12 @@ def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float) -> np.ndarray:
     Bij geboekt = cap is dit precies `winst()`. Staat het hotel al boven de capaciteit, of
     blijven er kamers leeg, dan wijkt `winst()` af. Alleen voor de tests en de aannames: de
     dataset zegt niet hoeveel kamers er op het beslismoment verkocht waren.
+
+    `verkoopkans`: welk deel van de k geadviseerde kamers het hotel ook echt extra verkoopt
+    (afgerond naar beneden). 1: elke geadviseerde kamer vindt een koper, zoals `winst()` aanneemt.
     """
     k, echt, geboekt, cap, adr = (np.asarray(x, dtype=float) for x in (k, echt, geboekt, cap, adr))
+    k = np.floor(np.asarray(verkoopkans, dtype=float) * k)
     nodig = geboekt - echt + k
     doorverwezen = np.maximum(nodig - cap, 0)
     # Extra verkochte kamers die een plaats vinden: k min wie doorverwezen wordt, maar niet meer

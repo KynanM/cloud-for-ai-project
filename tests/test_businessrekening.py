@@ -63,3 +63,18 @@ def test_proxy_onderschat_bij_lege_kamers():
 def test_werkt_per_nacht_op_arrays():
     k, echt = np.array([0, 5, 12]), np.array([10, 10, 10])
     assert winst(k, echt, ADR, R, W).tolist() == pytest.approx([0.0, 250.0, 100.0])
+
+
+@pytest.mark.parametrize(("k", "echt"), [(0, 10), (5, 10), (10, 10), (12, 10), (3, 0)])
+def test_verkoopkans_1_is_de_proxy(k, echt):
+    # Taak 4.1: met geboekt = capaciteit en elke extra kamer verkocht is winst_fysiek() de proxy
+    assert winst_fysiek(k, echt, 100, 100, ADR, R, W, verkoopkans=1.0) == pytest.approx(
+        winst(k, echt, ADR, R, W)
+    )
+
+
+def test_niet_elke_extra_kamer_verkocht():
+    # 10 geadviseerd, de helft verkocht: 5 kamers gevuld, niemand doorverwezen
+    assert winst_fysiek(10, 10, 100, 100, ADR, R, W, verkoopkans=0.5) == pytest.approx(250.0)
+    # 12 geadviseerd, 0,5 → 6 verkocht, 10 vrij: geen doorverwijzing meer
+    assert winst_fysiek(12, 10, 100, 100, ADR, R, W, verkoopkans=0.5) == pytest.approx(300.0)

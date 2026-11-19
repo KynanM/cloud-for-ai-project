@@ -1,0 +1,17 @@
+# Taak 4.1 (E8). Vastgelegd vóór de meting.
+hypothese: >
+  Boosting blijft beter dan de vuistregel en het nulbeleid, ook als de nacht op het beslismoment
+  niet precies volgeboekt is, niet elke extra kamer verkocht wordt, de capaciteit anders is en een
+  doorverwezen gast meer of minder kost.
+baseline: "vuistregel (en het nulbeleid k = 0)"
+alternatieven: ["logreg", "boosting"]
+metrics:
+  ml: "MAE (constant over de scenario's)"
+  software: "n.v.t."
+  business: >
+    netto opbrengst per volle nacht met winst_fysiek(), incrementeel tegenover de vuistregel en het
+    nulbeleid, in 108 scenario's: geboekt/capaciteit {0,95; 1,00; 1,03} × verkoopkans {0,5; 0,8; 1,0}
+    × capaciteit {0,9; 1,0; 1,1} × w {1,5; 2; 3; 4}
+beslisregel: >
+  Boosting heet businessrobuust als het in minstens 90 % van de scenario's op de validatie minstens
+  zoveel oplevert als de vuistregel. Anders worden de scenario's benoemd waarin het verliest.
