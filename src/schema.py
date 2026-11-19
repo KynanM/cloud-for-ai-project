@@ -10,6 +10,7 @@ De ruwe export bevat bekende fouten (Non Refund, adr van 0 of minder, nul nachte
 laat het schema door, want ze zitten in de echte data. Ze gaan eruit in schoon_op().
 """
 
+import pandas as pd
 import pandera.pandas as pa
 
 MAANDEN = [
@@ -79,9 +80,30 @@ INVOER = pa.DataFrameSchema(
         "agent": pa.Column(float, pa.Check.ge(0), nullable=True),
         "adr": pa.Column(float, ADR_PER_RIJ),
     },
+    # Elke kolom apart kan kloppen terwijl de datum niet bestaat: 31 februari
+    checks=pa.Check(
+        lambda df: pd.to_datetime(
+            df["arrival_date_year"].astype(str)
+            + "-"
+            + df["arrival_date_month"].astype(str)
+            + "-"
+            + df["arrival_date_day_of_month"].astype(str),
+            format="%Y-%B-%d",
+            errors="coerce",
+        ).notna(),
+        error="aankomstdatum bestaat niet (bv. 31 februari)",
+    ),
     strict=False,
     name="Hotelboekingen",
 )
+
+
+def invoer_schema(cfg: dict) -> pa.DataFrameSchema:
+    """INVOER voor deze config: `country` is alleen verplicht als het model het land gebruikt."""
+    if cfg["features"]["gebruik_land"]:
+        return INVOER
+    return INVOER.update_column("country", required=False)
+
 
 # Op de hele trainingsset kan je ook naar de verdeling kijken, niet alleen per rij.
 # Een eenheid die verschuift (centen, weken) blijft per rij vaak binnen het bereik,

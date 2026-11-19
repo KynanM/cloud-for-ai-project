@@ -135,12 +135,15 @@ def meet_kern(config: Path, soort: str, naam: str, wl: dict, opwarmen: int, geme
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     df = pd.read_csv(PROJECT / wl["bestand"])
     nacht = pd.Timestamp(wl["nacht"])
+    as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
     rijen, referentie = [], None
     for i in range(opwarmen + gemeten):
         meting = Meting()
         start = time.perf_counter_ns()
         try:
-            tabel, _ = voer_job_uit(df.copy(), model, instellingen, cfg, nacht, meting)
+            tabel = voer_job_uit(
+                df.copy(), model, instellingen, cfg, nacht, meting, as_of=as_of
+            ).advies
             status, uitvoer = "ok", hash_tabel(tabel)
         except Exception as fout:  # noqa: BLE001 - een mislukte run is een meetresultaat
             status, uitvoer = f"fout: {type(fout).__name__}", ""
@@ -181,6 +184,8 @@ def meet_cli(config: Path, soort: str, naam: str, wl: dict, herhalingen: int) ->
                 str(config),
                 "--nacht",
                 wl["nacht"],
+                "--as-of",
+                f"{pd.Timestamp(wl['nacht']) - pd.Timedelta(days=30):%Y-%m-%d}",
                 "--uitvoer",
                 str(uitvoer),
                 "--metrics-json",
