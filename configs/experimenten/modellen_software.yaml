@@ -1,0 +1,13 @@
+# Taak 1.9, les 06 p. 22: "Is 1 % het waard?". Vastgelegd vóór de meting.
+hypothese: >
+  Boosting heeft de laagste MAE; het is per voorspelling trager dan logreg, maar blijft ruim binnen
+  de grens van de softwaremetriek. Dan is de betere MAE de extra complexiteit waard.
+baseline: "vuistregel"
+alternatieven: ["logreg", "boosting"]
+metrics:
+  ml: "MAE per hotel-nacht op de validatie (resultaten/evaluatie.csv)"
+  software: "p50/p95 kern (200x) en cli (30x), piek-RSS, modelgrootte, leertijd (mediaan van 10)"
+  business: "€ per volle nacht op de validatie (resultaten/evaluatie.csv)"
+beslisregel: >
+  Het model met de laagste MAE op de validatie waarvan de p95 van de kern op de normale workload
+  binnen de SLO van 1 000 ms blijft. Haalt boosting de grens niet, dan wordt logreg gekozen.

@@ -3,6 +3,7 @@
 python -m src.predict data/nieuwe_boekingen.csv
 python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-16
 python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor diagnose
+python -m src.predict data/nieuwe_boekingen.csv --uitvoer advies.csv --metrics-json metrics.json
 """
 
 import argparse
@@ -18,10 +19,11 @@ from sklearn.pipeline import Pipeline
 
 from . import schema
 from .config import PROJECT, invoerkolommen, laad_config
-from .data import aankomstdatum, laad_data
+from .data import OngeldigeDataError, aankomstdatum, laad_data, valideer
 from .kenmerken import als_tekst
 from .logboek import zet_logging_op
 from .manifest import controleer
+from .meting import Meting
 from .nachten import met_advies, per_nacht
 from .train import Model
 
@@ -61,6 +63,14 @@ def laad_advies(pad: str | Path) -> dict:
     return json.loads(Path(pad).read_text(encoding="utf-8"))
 
 
+def adviseer_uit_kansen(
+    kansen: np.ndarray, instellingen: dict, df: pd.DataFrame, cfg: dict, nacht=None
+) -> pd.DataFrame:
+    """Van kansen per boeking naar het advies k per hotel-nacht. Voorspelt niet opnieuw."""
+    nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
+    return met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
+
+
 def adviseer(
     model: Model, instellingen: dict, df: pd.DataFrame, cfg: dict, nacht=None
 ) -> pd.DataFrame:
@@ -69,12 +79,51 @@ def adviseer(
     Eén rij per hotel-nacht, met het aantal boekingen, het verwachte aantal annulaties, het
     maximum per nacht en k. Met `nacht` alleen die nacht.
     """
-    kansen = voorspel(model, df, cfg)
-    nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
-    return met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
+    return adviseer_uit_kansen(voorspel(model, df, cfg), instellingen, df, cfg, nacht)
+
+
+def voer_job_uit(
+    df: pd.DataFrame,
+    model: Model,
+    instellingen: dict,
+    cfg: dict,
+    nacht,
+    meting: Meting | None = None,
+    valideer_invoer: bool = True,
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """De kern van een adviesjob, gedeeld door de opdrachtregel en de API.
+
+    Invoer valideren, één keer voorspellen, per hotel-nacht optellen, advies k, en het advies
+    valideren. Elke stap is een fase in `meting`: zo is te zien waar de tijd naartoe gaat
+    (docs/softwaremetric.md). Faalt met OngeldigeDataError als de invoer of het advies niet klopt.
+    """
+    meting = Meting() if meting is None else meting
+    if valideer_invoer:
+        with meting.fase("schema"):
+            df = valideer(df, schema.INVOER)
+    with meting.fase("voorspellen"):
+        kansen = voorspel(model, df, cfg)
+    with meting.fase("aggregeren"):
+        nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
+    with meting.fase("advies"):
+        tabel = met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
+    with meting.fase("advies_valideren"):
+        valideer(tabel, schema.ADVIES, "advies")
+    meting.extra.update(
+        {
+            "n_boekingen": int(len(df)),
+            "n_boeking_nachten": int(
+                (df["stays_in_weekend_nights"] + df["stays_in_week_nights"]).sum()
+            ),
+            "n_hotels": int(df["hotel"].nunique()),
+            "n_uitvoernachten": int(len(tabel)),
+        }
+    )
+    return tabel, kansen
 
 
 def main(argv: list[str]) -> None:
+    meting = Meting()
     parser = argparse.ArgumentParser(description="Voorspel annulaties en geef het advies k.")
     parser.add_argument("pad", help="csv met de boekingen die op het beslismoment actief zijn")
     parser.add_argument("--zonder-schema", action="store_true", help="alleen voor diagnose")
@@ -84,15 +133,24 @@ def main(argv: list[str]) -> None:
         help="JJJJ-MM-DD. Standaard de eerste aankomst in het bestand. Contract A: je beslist"
         " 30 dagen vóór de aankomst van de boekingen die deze nacht aankomen",
     )
+    parser.add_argument("--uitvoer", help="csv waarin het advies per hotel-nacht komt")
+    parser.add_argument("--metrics-json", help="json met de tijd per fase en de geheugenpiek")
     args = parser.parse_args(argv)
-    cfg = laad_config(args.config)
-    zet_logging_op(cfg, "predict")
+    with meting.fase("config"):
+        cfg = laad_config(args.config)
+        zet_logging_op(cfg, "predict")
 
-    df = laad_data(args.pad, valideer_met=None if args.zonder_schema else schema.INVOER)
-    manifest = controleer(cfg)
+    with meting.fase("lezen"):
+        df = laad_data(args.pad, valideer_met=None)
+    with meting.fase("manifest"):
+        manifest = controleer(cfg)
     logger.info("Run %s, commit %s", manifest["run_id"], manifest["commit"])
-    model = laad_model(cfg["model"]["pad"])
-    for kolom, waarden in onbekende_categorieen(model, df, cfg).items():
+    with meting.fase("model_laden"):
+        model = laad_model(cfg["model"]["pad"])
+        instellingen = laad_advies(cfg["model"]["advies_pad"])
+    with meting.fase("onbekende_categorieen"):
+        onbekend = onbekende_categorieen(model, df, cfg)
+    for kolom, waarden in onbekend.items():
         logger.warning(
             "Het model is niet getraind op %s = %s; de voorspellingen daarvoor zijn minder"
             " betrouwbaar.",
@@ -100,14 +158,17 @@ def main(argv: list[str]) -> None:
             ", ".join(waarden),
         )
 
-    kansen = voorspel(model, df, cfg)
+    nacht = pd.Timestamp(args.nacht) if args.nacht else aankomstdatum(df).min()
+    try:
+        tabel, kansen = voer_job_uit(
+            df, model, instellingen, cfg, nacht, meting, valideer_invoer=not args.zonder_schema
+        )
+    except OngeldigeDataError as fout:
+        raise SystemExit(str(fout)) from None
     logger.info(
         "%d boekingen. Gemiddelde kans op annuleren: %.1f%%", len(kansen), 100 * kansen.mean()
     )
     logger.info("Verwacht aantal annulaties: %.1f", kansen.sum())
-
-    nacht = pd.Timestamp(args.nacht) if args.nacht else aankomstdatum(df).min()
-    tabel = adviseer(model, laad_advies(cfg["model"]["advies_pad"]), df, cfg, nacht)
     logger.info(
         "Advies voor de nacht van %s (zekerheid %.0f%%):",
         f"{nacht:%d-%m-%Y}",
@@ -123,6 +184,18 @@ def main(argv: list[str]) -> None:
             rij["k"],
             f" (maximum {rij['maximum']})" if met_maximum else "",
         )
+    if args.uitvoer:
+        with meting.fase("schrijven"):
+            tabel.to_csv(args.uitvoer, index=False)
+    if args.metrics_json:
+        meting.extra.update(
+            {
+                "run_id": manifest["run_id"],
+                "commit": manifest["commit"],
+                "nacht": f"{nacht:%Y-%m-%d}",
+            }
+        )
+        meting.schrijf(args.metrics_json)
 
 
 if __name__ == "__main__":

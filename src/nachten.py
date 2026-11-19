@@ -42,6 +42,32 @@ def per_nacht(
     weg. Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
     """
     boeking, nacht = _uitgerold(deel)
+    rijen = _rijen(deel, kansen, cfg, boeking, nacht)
+    if begin is not None:
+        rijen = rijen[rijen["nacht"] >= pd.Timestamp(begin)]
+    if einde is not None:
+        rijen = rijen[rijen["nacht"] <= pd.Timestamp(einde)]
+    return _tel(rijen, cfg["doel"] in deel.columns)
+
+
+def per_nacht_enkel(deel: pd.DataFrame, kansen: np.ndarray, cfg: dict, nacht) -> pd.DataFrame:
+    """Zelfde uitvoer als `per_nacht(begin=nacht, einde=nacht)`, zonder elk verblijf uit te rollen.
+
+    Voor één adviesnacht volstaat het de boekingen te kiezen waarvan het verblijf die nacht bevat:
+    aankomst ≤ nacht < aankomst + aantal nachten. Getest op gelijkheid in tests/test_nachten.py;
+    gemeten in resultaten/software/e9_aggregatie.csv.
+    """
+    aankomst = aankomstdatum(deel).to_numpy()
+    verblijf = (deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]).to_numpy()
+    doelnacht = np.datetime64(pd.Timestamp(nacht)).astype(aankomst.dtype)
+    binnen = (aankomst <= doelnacht) & (doelnacht < aankomst + verblijf.astype("timedelta64[D]"))
+    boeking = np.flatnonzero(binnen)
+    rijen = _rijen(deel, kansen, cfg, boeking, np.full(len(boeking), doelnacht))
+    return _tel(rijen, cfg["doel"] in deel.columns)
+
+
+def _rijen(deel, kansen, cfg: dict, boeking: np.ndarray, nacht: np.ndarray) -> pd.DataFrame:
+    """Eén rij per boeking-nacht: hotel, nacht, kans, variantie, prijs en eventueel het label."""
     p = np.asarray(kansen, dtype=float)[boeking]
     rijen = pd.DataFrame(
         {
@@ -52,14 +78,15 @@ def per_nacht(
             "adr": deel["adr"].to_numpy()[boeking],
         }
     )
-    som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
     if cfg["doel"] in deel.columns:
         rijen["echt"] = deel[cfg["doel"]].to_numpy()[boeking]
+    return rijen
+
+
+def _tel(rijen: pd.DataFrame, met_label: bool) -> pd.DataFrame:
+    som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
+    if met_label:
         som["echt"] = ("echt", "sum")
-    if begin is not None:
-        rijen = rijen[rijen["nacht"] >= pd.Timestamp(begin)]
-    if einde is not None:
-        rijen = rijen[rijen["nacht"] <= pd.Timestamp(einde)]
     return (
         rijen.groupby(["hotel", "nacht"])
         .agg(**som, adr=("adr", "mean"), boekingen=("verwacht", "size"))

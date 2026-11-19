@@ -222,3 +222,11 @@ models/
 
 # Logbestanden van src.train, src.predict en src.evaluate. De logmap staat in de config
 logs/
+
+# Gegenereerde workloads voor de benchmarks (python -m benchmarks.workloads). Hashes in resultaten/software/workloads.json
+benchmarks/workloads/
+
+# MLflow (src/tracking.py): de trackingdatabase en de artefacten. Export in resultaten/runs.csv
+mlflow.db
+mlartifacts/
+mlruns/

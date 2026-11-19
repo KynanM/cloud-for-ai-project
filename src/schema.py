@@ -115,3 +115,22 @@ TRAINING = INVOER.update_columns(
         "reservation_status_date": pa.Column(str, pa.Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
     }
 )
+
+# Wat src.predict teruggeeft: één rij per hotel-nacht. Gecontroleerd vóór het wegschrijven of
+# terugsturen, zodat een ongeldig advies nooit het systeem verlaat.
+ADVIES = pa.DataFrameSchema(
+    {
+        "hotel": pa.Column(str, pa.Check.isin(["City Hotel", "Resort Hotel"])),
+        "nacht": pa.Column(pa.DateTime),
+        "boekingen": pa.Column(int, pa.Check.gt(0)),
+        "verwacht": pa.Column(float, pa.Check.ge(0)),
+        "variantie": pa.Column(float, pa.Check.ge(0)),
+        "maximum": pa.Column(int, pa.Check.ge(0)),
+        "k": pa.Column(int, pa.Check.ge(0)),
+    },
+    checks=pa.Check(lambda df: (df["k"] <= df["maximum"]).all(), error="k groter dan het maximum"),
+    unique=["hotel", "nacht"],
+    strict=False,
+    coerce=False,
+    name="Advies",
+)
