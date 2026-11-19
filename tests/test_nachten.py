@@ -205,3 +205,24 @@ def test_beoordeel_meldt_bias_nul_en_maximum_adviezen(cfg):
     assert beide["bias"] == pytest.approx(1.1)
     assert beide["nul_advies"] == pytest.approx(0.5)
     assert beide["max_advies"] == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_een_nacht_zonder_uitrollen_is_hetzelfde(seed, df, cfg):
+    # Taak 1.6 (E9): per_nacht_enkel() moet exact per_nacht(begin=nacht, einde=nacht) geven
+    from src.data import aankomstdatum
+    from src.nachten import per_nacht_enkel
+
+    rng = np.random.default_rng(seed)
+    deel = df.iloc[rng.choice(len(df), size=500, replace=False)]
+    kansen = rng.random(len(deel))
+    nacht = aankomstdatum(deel).iloc[rng.integers(len(deel))] + pd.Timedelta(
+        days=int(rng.integers(0, 3))
+    )
+    if seed % 2:
+        deel = deel.drop(columns=cfg["doel"])  # zoals bij voorspellen: zonder label
+
+    verwacht = per_nacht(deel, kansen, cfg, begin=nacht, einde=nacht)
+    gekregen = per_nacht_enkel(deel, kansen, cfg, nacht)
+
+    pd.testing.assert_frame_equal(gekregen, verwacht)

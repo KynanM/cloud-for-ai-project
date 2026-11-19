@@ -1,0 +1,17 @@
+# Taak 1.7, naar les 07 p. 7-8. Vastgelegd vóór de meting.
+hypothese: >
+  Batch (alle boekingen van een nacht in één aanroep) is veel sneller dan online (één aanroep per
+  boeking), en nog veel sneller dan online met het model geladen per aanroep. Niet omdat het model
+  sneller rekent, maar omdat elke aanroep een vaste kost heeft.
+baseline: "batch: één voer_job_uit() met de hele portefeuille"
+alternatieven:
+  - "online: per boeking voorspel() op één rij, daarna per nacht optellen"
+  - "online, model laden per verzoek: idem, met joblib.load() voor elke boeking"
+metrics:
+  ml: "k identiek in de drie varianten (assert)"
+  software: "tijd per adviesnacht (normale workload), mediaan en p95; CPU-seconden"
+  business: "identiek"
+beslisregel: >
+  Batch blijft de inferentiemodus, tenzij online binnen de SLO blijft EN een functioneel voordeel
+  heeft. Dat voordeel is er niet: k hangt af van alle boekingen van een nacht samen.
+herhalingen: { batch: 30, online: 10, online_laden: 3 }

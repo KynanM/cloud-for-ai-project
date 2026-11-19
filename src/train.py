@@ -209,7 +209,7 @@ def valideer(df: pd.DataFrame, cfg: dict) -> dict:
     }
 
 
-def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
+def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
 
     Twee poorten, op de validatie: de MAE per hotel-nacht lager dan die van de vuistregel, en
@@ -218,6 +218,10 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
 
     Weggeschreven: het model, opnieuw getraind op de hertraining, en in `advies_pad` wat het
     advies k nodig heeft: de spreidingsfactor (validatie) en de capaciteit (training).
+
+    `poorten=False` slaat de poorten over, alleen om een model te kunnen meten dat ze niet haalt
+    (de vuistregel in de benchmarks). Het manifest zegt dan `poorten_overgeslagen: true`, en zo'n
+    model wordt nooit gepubliceerd.
     """
     df = bereid_voor(ruw, cfg)
     logger.info(
@@ -249,11 +253,13 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
     # Een poort die niet gehaald wordt, is een fout: eerst loggen, zodat ze ook in het
     # logbestand staat, dan stoppen.
     minimum = cfg["model"]["minimum_auc"]
-    if v["auc"] < minimum:
+    if not poorten:
+        logger.warning("Poorten overgeslagen: alleen voor metingen, nooit publiceren.")
+    elif v["auc"] < minimum:
         melding = f"AUC {v['auc']:.3f} ligt onder het minimum {minimum}. Niet weggeschreven."
         logger.error(melding)
         raise SystemExit(melding)
-    if v["mae"] >= v["mae_vuistregel"]:
+    if poorten and v["mae"] >= v["mae_vuistregel"]:
         melding = (
             f"MAE {v['mae']:.2f} is niet lager dan die van de vuistregel"
             f" ({v['mae_vuistregel']:.2f}). Niet weggeschreven."
@@ -267,6 +273,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
     g = grenzen(cfg)
     cap = capaciteit(bezetting(ruw), g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
     manifest = maak_manifest(cfg, ruw, g)
+    manifest["poorten_overgeslagen"] = not poorten
     advies = {
         "run_id": manifest["run_id"],
         "model": soort,
@@ -293,9 +300,13 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict) -> dict:
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description="Train model.soort en schrijf het weg.")
     parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
-    cfg = laad_config(parser.parse_args(argv).config)
+    parser.add_argument(
+        "--zonder-poorten", action="store_true", help="alleen voor benchmarks: nooit publiceren"
+    )
+    args = parser.parse_args(argv)
+    cfg = laad_config(args.config)
     zet_logging_op(cfg, "train")
-    bouw_en_bewaar(laad_data(cfg["data"]["pad"]), cfg)
+    bouw_en_bewaar(laad_data(cfg["data"]["pad"]), cfg, poorten=not args.zonder_poorten)
 
 
 if __name__ == "__main__":
