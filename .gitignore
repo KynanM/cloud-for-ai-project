@@ -230,3 +230,7 @@ benchmarks/workloads/
 mlflow.db
 mlartifacts/
 mlruns/
+
+# Lokale batchjob (compose, profiel job) en de alerts van src.monitoring
+invoer/
+uitvoer/
