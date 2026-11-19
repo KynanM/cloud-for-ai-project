@@ -32,6 +32,10 @@ manager beslist.
   blijft het binnen de risicogrens van 20 % (11 % validatie, 16 % test), de vuistregel niet.
   **Per hotel niet overal:** City Hotel zit op de test op 22 % nachten met te veel kamers
   (validatie 6 %), Resort op 10 % (validatie 16 %). Zie bevinding 3
+- **Onder andere aannames** (108 scenario's met de echte kamers): boosting verslaat de vuistregel
+  alleen als de nacht op het beslismoment echt vol is. Bij lege kamers niet. Netto, geraamd:
+  2 918 € per maand in het basisscenario, maar negatief in het pessimistische
+  ([docs/business_roi.md](docs/business_roi.md))
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien

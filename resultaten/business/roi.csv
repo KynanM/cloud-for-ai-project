@@ -1,0 +1,4 @@
+scenario,delta_euro_per_volle_nacht,volle_nachten_per_maand,bruto_eur_per_maand,infrastructuur_eur_per_maand,beheer_eur_per_maand,netto_eur_per_maand,eenmalig_eur,terugverdientijd_maanden,bron_delta,bron_volle_nachten,bron_infrastructuur,bron_beheer_en_tarief
+pessimistisch,-140.50,21.53,-3024.97,5,960,-3989.97,7200,inf,"gemeten op de validatie, scenario uit business_scenario.csv",gemeten: bezetting in de training,aangenomen,aangenomen (configs/roi.yaml)
+basis,158.07,21.53,3403.22,5,480,2918.22,7200,2.47,"gemeten op de validatie, scenario uit business_scenario.csv",gemeten: bezetting in de training,aangenomen,aangenomen (configs/roi.yaml)
+optimistisch,453.47,21.53,9762.92,5,240,9517.92,7200,0.76,"gemeten op de validatie, scenario uit business_scenario.csv",gemeten: bezetting in de training,aangenomen,aangenomen (configs/roi.yaml)
