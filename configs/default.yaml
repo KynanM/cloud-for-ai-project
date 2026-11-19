@@ -100,9 +100,11 @@ advies:
   # Maximum per nacht, als aandeel van de capaciteit. null: geen maximum, k is alleen begrensd
   # door de capaciteit zelf. In deel 1 stond 0.05; dat maximum bond in City op 98 % van de
   # testnachten en verborg de waarde van het model (resultaten/audit/zonder_rem.csv). Zonder
-  # maximum blijft het advies binnen de risicogrens hieronder. Weggehaald op 10-11-2026.
+  # maximum blijft het advies gepoold binnen de risicogrens hieronder (test 16 %), maar City
+  # alleen niet (test 22 %, resultaten/evaluatie.csv). Weggehaald op 10-11-2026.
   max_aandeel: null
-  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv):
+  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv).
+  # Een keuzecriterium, geen controle bij het voorspellen:
   # op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k. Gekozen wordt de
   # zekerheid met de hoogste europroxy binnen die grens.
   risicogrens: 0.20

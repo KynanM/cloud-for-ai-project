@@ -102,3 +102,26 @@ def test_register_heeft_de_mae_uit_evaluatie(evaluatie):
             for m in ("vuistregel", "logreg zonder land", "boosting zonder land")
         )
         assert rijen[f"MAE {periode} vuistregel / logreg / boosting"] == verwacht
+
+
+@pytest.mark.parametrize("periode", ["validatie", "test"])
+def test_te_veel_per_hotel_in_de_tekst(periode):
+    """Een gepoold gemiddelde mag de overschrijding in één hotel niet verbergen."""
+    tabel = pd.read_csv(PROJECT / "resultaten" / "evaluatie.csv")
+    rijen = tabel[(tabel["periode"] == periode) & (tabel["model"] == "boosting zonder land")]
+    per_hotel = rijen.set_index("hotel")["te_veel"]
+    for document in ("README.md", "docs/verantwoording.md"):
+        tekst = (PROJECT / document).read_text(encoding="utf-8")
+        for hotel in ("City Hotel", "Resort Hotel"):
+            procent = f"{100 * per_hotel[hotel]:.0f} %"
+            assert procent in tekst, f"{document} noemt te veel {procent} ({hotel}, {periode}) niet"
+
+
+def test_microbenchmark_in_de_verantwoording():
+    """De tijden in verantwoording §8 zijn die uit modelvergelijking.csv."""
+    tabel = pd.read_csv(PROJECT / "resultaten" / "audit" / "modelvergelijking.csv")
+    validatie = tabel[tabel["periode"] == "validatie"].set_index("model")
+    tekst = (PROJECT / "docs" / "verantwoording.md").read_text(encoding="utf-8")
+    for model in ("vuistregel", "logreg zonder land", "boosting zonder land"):
+        ms = komma(validatie.loc[model, "voorspeltijd_ms_per_1000"], 1) + " ms"
+        assert ms in tekst, f"verantwoording noemt {ms} voor {model} niet"

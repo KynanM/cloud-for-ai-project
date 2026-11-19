@@ -81,8 +81,8 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
     parser.add_argument(
         "--nacht",
-        help="JJJJ-MM-DD. Standaard de eerste aankomst in het bestand: de nacht waarvoor"
-        " je 30 dagen vooraf beslist",
+        help="JJJJ-MM-DD. Standaard de eerste aankomst in het bestand. Contract A: je beslist"
+        " 30 dagen vóór de aankomst van de boekingen die deze nacht aankomen",
     )
     args = parser.parse_args(argv)
     cfg = laad_config(args.config)

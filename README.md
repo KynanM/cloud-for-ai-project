@@ -2,7 +2,10 @@
 
 Cloud for AI, 2026-2027. Kynan Melsens
 
-Een hotel beslist 30 dagen vóór elke nacht hoeveel kamers het extra mag verkopen. Dit model
+Een hotel beslist hoeveel kamers het extra mag verkopen. Voor de boekingen die op een nacht
+aankomen, valt die beslissing 30 dagen vóór die aankomst (contract A, zie
+[docs/besliscontract.md](docs/besliscontract.md)); voor latere nachten van een lang verblijf
+beslist het dus iets vroeger dan nodig. Dit model
 voorspelt per boeking die op dat moment nog actief is, hoe groot de kans is dat ze alsnog
 geannuleerd wordt of een no-show wordt. Opgeteld per nacht geeft dat het verwachte aantal
 kamers dat vrijkomt, en daaruit een advies: overboek k kamers. Het model adviseert, de revenue
@@ -22,13 +25,15 @@ manager beslist.
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
   dus een lek. Het staat uit. Zie [Bevindingen](#bevindingen)
 - **In euro's** is het model nu duidelijk beter: 480 € per volgeboekte nacht op de validatie
-  tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). Het blijft binnen de
-  risicogrens, de vuistregel niet. Zie bevinding 3
+  tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). Gepoold over beide hotels
+  blijft het binnen de risicogrens van 20 % (11 % validatie, 16 % test), de vuistregel niet.
+  **Per hotel niet overal:** City Hotel zit op de test op 22 % nachten met te veel kamers
+  (validatie 6 %), Resort op 10 % (validatie 16 %). Zie bevinding 3
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien
 
-Getest met **Python 3.13.18**, in een nieuwe venv met precies de versies uit
+Getest met **Python 3.13.14**, in een nieuwe venv met precies de versies uit
 `requirements.txt` (vastgelegd met `==`). Python 3.12 is het minimum: numpy 2.5 en scipy 1.18
 vragen niet minder. Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het
 pakket niet.
@@ -38,7 +43,7 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # 110 tests, allemaal groen, ±30 s
+pytest                          # alle tests groen, ±30 s (het aantal: pytest --collect-only -q)
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
@@ -197,7 +202,10 @@ kans op annuleren, en het hotel zou nooit overboeken.
 Een willekeurige split laat de toekomst in de training lekken: een boeking van augustus 2017
 helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
 Met een willekeurige split haalt de logistische regressie een AUC van 0,756, met de split in de
-tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil is lek.
+tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil wijst
+op optimisme door de tijd te mengen, en mogelijk door exacte kopieën (27 % van de rijen) die
+over de split vallen. De twee splits meten ook niet op dezelfde boekingen, dus het hele verschil
+is niet zomaar lek.
 
 Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
 afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
@@ -265,7 +273,9 @@ draait ze allemaal, met en zonder land.
    met een minimum van 1. Voor boosting is dat 2,5 voor City en 1,5 voor Resort.
 3. **Advies k.** Het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80, met een
    normale benadering. Er is geen maximum per nacht (`advies.max_aandeel: null`); de
-   bescherming voor de gast is de zekerheid zelf, en de risicogrens waartegen ze getoetst is.
+   bescherming voor de gast is de zekerheid zelf. De risicogrens van 20 % begrenst het advies
+   niet tijdens het voorspellen: ze is het criterium waarmee de zekerheid op de validatie
+   gekozen is (`drempel()` in `src/experimenten.py`), en wordt na de evaluatie gemeten.
 4. **Capaciteit.** De dataset zegt niet hoeveel kamers er zijn. Daarom het 99ste percentiel
    van de bezette kamers per nacht in de training, uit alle uitgecheckte boekingen. City komt
    op 226 kamers, Resort op 184. Een nacht telt als volgeboekt vanaf 95 % van de capaciteit.
@@ -307,6 +317,11 @@ gerapporteerd:
 | **boosting zonder land** | **5,11** | 1,07 | **715** | 0,54 | 16 % |
 | logreg met land | 5,12 | 0,87 | 582 | 0,04 | 2 % |
 | boosting met land | 5,39 | 1,01 | 700 | 0,23 | 9 % |
+
+"Te veel" is hier over beide hotels samen. Per hotel, voor boosting zonder land
+(`resultaten/evaluatie.csv`): City 6 % op de validatie en **22 % op de test**, Resort 16 % en
+10 %. Op de test gaat City dus over de risicogrens. Dat is gemeten, niet achteraf weggewerkt: de
+test kiest niets.
 
 **Gekozen: boosting zonder land**, op de laagste MAE op de validatie van de modellen zonder land.
 Het is ook op de test het beste model zonder land. De modellen met land staan er ter
@@ -439,10 +454,12 @@ Dezelfde beslisregel, met en zonder maximum, en met en zonder spreidingsfactor
   (19 %).
 
 **Daarom is het maximum weggehaald** (`advies.max_aandeel: null`) en is het model opnieuw
-getraind. Het advies wordt nu begrensd door de zekerheid van 0,80 en de risicogrens, niet door
-een vast aantal kamers. De prijs: op de test worden 0,54 gasten per volle nacht doorverwezen in
-plaats van 0,09, in City 0,86. Dat zit in de europroxy (W = 2 × adr per gast) en blijft binnen de
-risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de config;
+getraind. Het advies wordt nu begrensd door de zekerheid van 0,80, niet door een vast aantal
+kamers. De risicogrens is het criterium waartegen die zekerheid op de validatie gekozen is; ze
+grijpt niet in bij het voorspellen. De prijs: op de test worden 0,54 gasten per volle nacht
+doorverwezen in plaats van 0,09, in City 0,86. Dat zit in de europroxy (W = 2 × adr per gast).
+Gepoold blijft het binnen de risicogrens (16 %), maar City alleen gaat er op de test over
+(22 %). Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de config;
 `resultaten/audit/maximum.csv` toont wat 5, 7,5 en 10 % kosten.
 
 ### 4. De winstcurve: 0,80 blijft, ook zonder maximum

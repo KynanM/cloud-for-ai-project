@@ -42,3 +42,7 @@ hertraining,MAE validatie vast model / elke maand hertrainen,4.72 / 5.04; versch
 hertraining,bias City februari / maart vast tegenover elke maand,−3.5 → −0.6 / +1.6 → +3.7,resultaten/audit/hertraining_maand.csv,uitgevoerd en reproduceerbaar
 hertraining,MAE test vast / elke maand (alleen gerapporteerd),5.11 / 5.08 (interval −0.08 tot +0.03),resultaten/audit/hertraining.csv,uitgevoerd en reproduceerbaar
 reproduceerbaarheid,logreg met land MAE test bij tol 1e-4 op twee machines,5.135 / 5.113; met tol 1e-6: 5.116,configs/default.yaml (model.logreg.tol); resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+veiligheid,te veel per hotel boosting validatie City / Resort,5.9 % / 16.5 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+veiligheid,te veel per hotel boosting test City / Resort,22.2 % / 9.6 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+software,leertijd validatie vuistregel / logreg / boosting (microbenchmark),0.06 / 3.55 / 1.36 s,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
+software,predict_proba per 1 000 boekingen vuistregel / logreg / boosting (microbenchmark),2.7 / 10.0 / 14.9 ms,resultaten/audit/modelvergelijking.csv,uitgevoerd en reproduceerbaar
