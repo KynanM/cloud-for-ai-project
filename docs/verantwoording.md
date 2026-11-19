@@ -216,20 +216,49 @@ Drie begrippen die niet hetzelfde zijn:
 |---|---|---|---|
 | nominale zekerheid 0,80 | `advies()` in `src/nachten.py` | bij elke voorspelling | ja: k is het grootste aantal met P(minstens k annulaties) ≥ 0,80 |
 | gemeten overschrijding (`te_veel`) | `beoordeel()` in `src/nachten.py` | bij de evaluatie | nee, gemeten |
-| risicogrens 20 % | `drempel()` in `src/experimenten.py` | bij het kiezen van de zekerheid op de validatie | nee: een keuzecriterium, geen controle bij het voorspellen |
+| risicogrens 20 % | `drempel()` in `src/experimenten.py`; `beleidspoorten()` in `src/poorten.py` | bij het kiezen van de zekerheid; bij elke training, **per hotel** op de validatie | ja, als releasepoort per hotel (sectie 14). Bij het voorspellen grijpt ze niet in: dat kan pas als de echte annulaties bekend zijn (monitoring, deel 3) |
 
 ## 14. Poorten vóór het wegschrijven
 
-| Poort | Waarde | Boosting |
-|---|---|---|
-| MAE lager dan de vuistregel | 6,36 | 4,72 |
-| AUC minstens | 0,60 | 0,695 |
+Eerst waren er twee poorten (AUC en MAE). Een model met een goede MAE maar te veel
+overboekingsrisico in één hotel, of een model dat de grens van de softwaremetriek breekt, werd
+dan toch weggeschreven. Nu zijn er drie soorten (`src/poorten.py`), allemaal op de validatie:
+
+| Soort | Poort | Grens | Boosting (validatie) |
+|---|---|---|---|
+| ML | AUC | ≥ 0,60 | 0,695 |
+| ML | MAE per hotel-nacht | < vuistregel (6,36) | 4,72 |
+| ML | voorspeld / echt, per hotel | tussen 0,8 en 1,25 | City 0,85 · Resort 1,01 |
+| beleid | nachten met te veel kamers, **per hotel** | ≤ 20 % (`advies.risicogrens`) | City 6 % · Resort 16 % |
+| software | p95-latency van een adviesjob (één nacht van de validatie) | ≤ 1 000 ms (`configs/benchmark.yaml`) | zie `models/manifest.json` |
+| software | modelbestand | ≤ 50 MB | zie `models/manifest.json` |
+
+Elke poort wordt gemeten en gelogd, ook als een eerdere faalt; de uitkomst staat in het manifest
+(`poorten`). Faalt er één, dan wordt niets weggeschreven (`tests/test_systeem.py`,
+`tests/test_poorten.py`). De softwarepoort maakt les 06 p. 23 letterlijk: de softwaremetriek is
+een grens, ook in de code.
+
+Waarom per hotel en niet gepoold: op de test zit boosting gepoold op 16 %, City alleen op 22 %.
+Een gepoolde poort had dat nooit gezien. De poort draait op de validatie (City 6 %); de test kiest
+niets, dus de 22 % kan een model niet tegenhouden, wel de monitoring na de uitrol.
 
 Model, advies en config worden samen weggeschreven met een manifest (`src/manifest.py`). Horen ze
 niet bij elkaar, of is een beleidsinstelling in de config veranderd na het trainen, dan weigert
-`src.predict` (`tests/test_systeem.py`).
+`src.predict` (`tests/test_systeem.py`). Een model dat met `--zonder-poorten` getraind is (alleen
+voor metingen), weigert de API te laden.
 
-## 15. Softwaremetriek: van deel 1 naar deel 3
+## 15. Inputcontract: training en voorspellen, zelfde toepassingsdomein
+
+| | |
+|---|---|
+| Vraag | het invoerschema laat Non Refund, 0 nachten, `adr ≤ 0`, `adr ≥ 1 000` en `lead_time < 30` door, want ze komen in echte exports voor. Het model is erop nooit getraind. Wat doet `src.predict` ermee? |
+| Opties | niets (de oude toestand: advies ook voor die boekingen) · uitsluiten met een reden (`sluit_uit`) · het hele verzoek weigeren (`weiger`) |
+| Keuze | **uitsluiten met een reden**, instelbaar (`inferentie.buiten_scope`). Plus het besliscontract voor het verzoek als geheel: `as_of` = nacht − 30 dagen, en minstens één boeking in de nacht |
+| Waarom | één verkeerde boeking in een export van honderden mag het advies voor de rest niet blokkeren, maar ze mag er ook niet stil in meetellen. De reden staat in het antwoord, zodat de revenue manager ziet wat er niet meetelt |
+| Eén bron | `schoon_op()` en de scopecontrole gebruiken dezelfde predikaten (`src/scope.py`), getest op de volledige export |
+| Bewijs | [inputcontract.md](inputcontract.md), `tests/test_scope.py`, `tests/test_api.py`, `resultaten/software/foutgedrag.csv` |
+
+## 16. Softwaremetriek: van deel 1 naar deel 3
 
 | | |
 |---|---|

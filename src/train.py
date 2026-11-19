@@ -8,6 +8,8 @@ import argparse
 import json
 import logging
 import sys
+import tempfile
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -35,12 +37,14 @@ from .manifest import bestand_hash as manifest_hash
 from .manifest import maak_manifest
 from .nachten import (
     alleen_volledig,
+    beoordeel,
     bezetting,
     capaciteit,
     dekking,
     per_nacht,
     spreidingsfactor,
 )
+from .poorten import als_dicts, beleidspoorten, ml_poorten, softwarepoorten
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -206,15 +210,55 @@ def valideer(df: pd.DataFrame, cfg: dict) -> dict:
         "mae": mae(nachten),
         "mae_vuistregel": mae(nachten_van(vuistregel, *meet)),
         "factor": spreidingsfactor(nachten),
+        "nachten": nachten,
     }
+
+
+def portefeuille_van_een_nacht(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Timestamp]:
+    """De boekingen die verblijven in de nacht met de mediane portefeuille van `deel`, zonder label.
+
+    Voor de softwarepoort: een realistische adviesjob, uit de validatie (nooit uit de test).
+    """
+    nachten = per_nacht(deel, np.zeros(len(deel)), cfg)
+    per_datum = nachten.groupby("nacht")["boekingen"].sum().sort_values()
+    nacht = pd.Timestamp(per_datum.index[len(per_datum) // 2])
+    aankomst = aankomstdatum(deel)
+    vertrek = aankomst + pd.to_timedelta(
+        deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"], unit="D"
+    )
+    binnen = deel[(aankomst <= nacht) & (nacht < vertrek)]
+    return binnen.drop(columns=[cfg["doel"]]), nacht
+
+
+# Een gefaalde poort in gewone woorden. De andere krijgen Poort.tekst().
+MELDINGEN = {
+    "AUC": "AUC {p.waarde:.3f} ligt onder het minimum {p.grens}",
+    "MAE per hotel-nacht": (
+        "MAE {p.waarde:.2f} is niet lager dan die van de vuistregel ({p.grens:.2f})"
+    ),
+}
+
+
+def controleer_poorten(lijst: list, poorten: bool) -> None:
+    """Log elke poort; stop als er één faalt (tenzij de poorten overgeslagen worden)."""
+    for poort in lijst:
+        (logger.info if poort.geslaagd else logger.error)("Poort %s", poort.tekst())
+    gefaald = [p for p in lijst if not p.geslaagd]
+    if gefaald and poorten:
+        regels = [MELDINGEN.get(p.naam, "{t}").format(p=p, t=p.tekst()) for p in gefaald]
+        melding = "Niet weggeschreven. Gefaalde poort(en):\n  " + "\n  ".join(regels)
+        logger.error(melding)
+        raise SystemExit(melding)
 
 
 def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
 
-    Twee poorten, op de validatie: de MAE per hotel-nacht lager dan die van de vuistregel, en
-    de AUC minstens `minimum_auc`. Haalt het model ze niet, dan stopt het met SystemExit en
-    wordt er niets weggeschreven.
+    Poorten (src/poorten.py), allemaal op de validatie: ML (AUC minstens `minimum_auc`, MAE per
+    hotel-nacht lager dan die van de vuistregel, voorspeld/echt per hotel), beleid (per hotel
+    hoogstens `advies.risicogrens` nachten met te veel kamers) en software (p95-latency van een
+    adviesjob binnen de grens, modelgrootte). Haalt het model er één niet, dan stopt het met
+    SystemExit en wordt er niets weggeschreven.
 
     Weggeschreven: het model, opnieuw getraind op de hertraining, en in `advies_pad` wat het
     advies k nodig heeft: de spreidingsfactor (validatie) en de capaciteit (training).
@@ -250,30 +294,41 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         v["mae"],
         v["mae_vuistregel"],
     )
-    # Een poort die niet gehaald wordt, is een fout: eerst loggen, zodat ze ook in het
-    # logbestand staat, dan stoppen.
-    minimum = cfg["model"]["minimum_auc"]
+    # Poorten op de validatie: ML (AUC, MAE, ijking per hotel) en beleid (risico per hotel).
+    # Eerst die, want hertrainen heeft geen zin als ze falen. Elke poort wordt gelogd.
+    g = grenzen(cfg)
+    bezet = bezetting(ruw)
+    cap = capaciteit(bezet, g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    per_hotel = beoordeel(v["nachten"], v["factor"], cap, bezet, cfg)
+    lijst = ml_poorten(v, per_hotel, cfg) + beleidspoorten(per_hotel, cfg)
     if not poorten:
         logger.warning("Poorten overgeslagen: alleen voor metingen, nooit publiceren.")
-    elif v["auc"] < minimum:
-        melding = f"AUC {v['auc']:.3f} ligt onder het minimum {minimum}. Niet weggeschreven."
-        logger.error(melding)
-        raise SystemExit(melding)
-    if poorten and v["mae"] >= v["mae_vuistregel"]:
-        melding = (
-            f"MAE {v['mae']:.2f} is niet lager dan die van de vuistregel"
-            f" ({v['mae_vuistregel']:.2f}). Niet weggeschreven."
-        )
-        logger.error(melding)
-        raise SystemExit(melding)
+    controleer_poorten(lijst, poorten)
 
     model, test_auc = hertrain(df, cfg)
     logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
 
-    g = grenzen(cfg)
-    cap = capaciteit(bezetting(ruw), g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    # Softwarepoort: het model dat weggeschreven wordt, op één nacht van de validatie, tegen de
+    # grens van de softwaremetriek (les 06 p. 23: de softwaremetriek is de grens)
+    deel, nacht = portefeuille_van_een_nacht(splits(df, cfg)["validatie"], cfg)
+    instellingen = {"factor": v["factor"], "capaciteit": cap}
+
+    def een_job():
+        from .predict import voer_job_uit
+
+        as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
+        voer_job_uit(deel, model, instellingen, cfg, nacht, as_of=as_of)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tijdelijk = Path(tmp) / "model.joblib"
+        joblib.dump(model, tijdelijk)
+        software = softwarepoorten(een_job, tijdelijk, cfg)
+    controleer_poorten(software, poorten)
+    lijst += software
+
     manifest = maak_manifest(cfg, ruw, g)
     manifest["poorten_overgeslagen"] = not poorten
+    manifest["poorten"] = als_dicts(lijst)
     advies = {
         "run_id": manifest["run_id"],
         "model": soort,
@@ -282,7 +337,8 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         "capaciteit": cap,
     }
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, cfg["model"]["pad"])
+    # compress=3: 254 -> 79 KB, laden +6 % (resultaten/software/artefact.csv, taak 1.8)
+    joblib.dump(model, cfg["model"]["pad"], compress=3)
     cfg["model"]["advies_pad"].write_text(json.dumps(advies, indent=2), encoding="utf-8")
     manifest["bestanden"] = {
         "model": manifest_hash(cfg["model"]["pad"]),
@@ -294,7 +350,13 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     logger.info(
         "Manifest (run %s) weggeschreven naar %s", manifest["run_id"], cfg["model"]["manifest_pad"]
     )
-    return {**v, "test_auc": test_auc, "run_id": manifest["run_id"]}
+    return {
+        **{k: w for k, w in v.items() if k != "nachten"},
+        "test_auc": test_auc,
+        "run_id": manifest["run_id"],
+        "poorten": als_dicts(lijst),
+        "per_hotel": per_hotel,
+    }
 
 
 def main(argv: list[str]) -> None:
