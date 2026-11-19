@@ -89,6 +89,21 @@ boekingen van een nacht, beide hotels.
 uvicorn src.api:app --port 7860          # daarna http://127.0.0.1:7860/docs
 ```
 
+Of als container, met het gepubliceerde model (`python -m src.publiceer` zet het in
+`models/actief/`):
+
+```bash
+python -m src.train && python -m src.publiceer        # registreren in MLflow, exporteren
+docker compose up -d                                  # API (0,5 vCPU, 512 MB) en MLflow (:5000)
+docker compose --profile job run --rm advies-job invoer/vandaag.csv --uitvoer uitvoer/advies.csv
+docker compose --profile schaal up -d --scale api=4   # vier API's achter nginx (:8080)
+python -m src.monitoring controleer                   # alarmen uit logs/api.log
+```
+
+Architectuur en keuzes: [docs/architectuur.md](docs/architectuur.md),
+[docs/adr/0001-waar-het-draait.md](docs/adr/0001-waar-het-draait.md). Gemeten in de container
+(1 vCPU, 1 GiB): p95 183 ms, koude start 3,6 s, 152 MB ([docs/softwaremetric.md](docs/softwaremetric.md)).
+
 | Endpoint | Wat |
 |---|---|
 | `POST /advies` | `{"nacht", "as_of", "boekingen": [...]}` → advies k per hotel, uitgesloten boekingen met reden, latency |
@@ -584,7 +599,9 @@ Wat dit project niet doet, of vereenvoudigt:
   een land dat bij het boeken ingevuld is.
 - **`adr` van wie uitcheckte is mogelijk herrekend** na het verblijf. Het model leert dus van een
   prijs die licht kan afwijken van wat er op het beslismoment in het boekingssysteem stond.
-- **Driftbewaking, een API, Docker en shadow mode** horen bij deel 3.
+- **Shadow mode is een protocol, geen meting.** De keten draait (API, batchjob, monitoring, replay
+  over de testperiode), maar de boekingsstand op het beslismoment en de beslissing van de revenue
+  manager moeten van een hotel komen ([docs/shadow_protocol.md](docs/shadow_protocol.md)).
 
 ## Wat waar staat
 
@@ -607,6 +624,22 @@ src/
   manifest.py          model, advies, config en data aan één run binden
   audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
   experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
+  scope.py             het toepassingsdomein: één grens voor training en voorspellen
+  meting.py            tijd per fase en geheugenpiek van een adviesjob
+  api.py               POST /advies, POST /kansen, GET /health (FastAPI)
+  poorten.py           de releasepoorten: ML, beleid per hotel, software
+  folds.py             rolling origin met hetzelfde embargo als de split
+  robuustheid.py       risico per hotel en maand, blokbootstrap, rolling origin, complexiteit
+  business.py          businessstress, ROI-raming, verband tussen MAE en euro's
+  tracking.py          experimenten in MLflow, met verplichte beslisregel
+  publiceer.py         MLflow-registry, alias kampioen, export naar models/actief/
+  monitoring.py        drift per verzoek, risico na de nacht, alarmen
+benchmarks/            workloads, de softwaremetriek, software-experimenten, foutgedrag,
+                       containermetingen, loadtest, batchjob, kosten, replay, CI-poort
+configs/benchmark.yaml de softwaremetriek en haar grenzen, vastgelegd vóór de eerste meting
+configs/experimenten/  hypothese en beslisregel per experiment, vastgelegd vóór het draaien
+Dockerfile, compose.yaml, infra/nginx.conf, .github/workflows/   deel 3
+requirements.in/-dev.in, requirements.lock/-dev.lock              vastgelegd, met hashes
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_split.py        is de split in de tijd eerlijk? embargo (ook per maand), geen overlap met de test
@@ -634,6 +667,15 @@ docs/
   label_beschikbaarheid.md     wanneer een label gekend is, en het embargo
   bewijsregister.csv   elk cijfer in README en rapport, met zijn bron
   audit_scope.md       wat de audit onderzocht, op welke versie
+  softwaremetric.md    de softwaremetriek: definitie, grenzen, metingen
+  optimalisaties.md    elke optimalisatie: gemeten of onderbouwd afgewezen
+  inputcontract.md     wat het systeem aanneemt en weigert
+  metrics.md           de drie metrieken en hoe ze samenhangen
+  business_roi.md      businessscenario's en de netto-raming
+  shadow_protocol.md   hoe de echte waarde gemeten zou worden
+  kosten.md            kost per advies, lokaal en bij 100× verkeer
+  testlogboek.md       wanneer de test gezien werd, en wat daarna veranderde
+  architectuur.md, adr/0001-waar-het-draait.md
 models/                model.joblib, advies.json en manifest.json, gemaakt door src.train.
                        Niet committen
 resultaten/            gemaakt door src.evaluate. Gecommit, voor het rapport
