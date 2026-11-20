@@ -111,6 +111,10 @@ het gepubliceerde model. p95 met een 95 %-bootstrapinterval.
 | 10 000 | 2 956 | 3 090 | 208 |
 | 100 000 | 4 908 | 5 058 | 350 |
 
+![Waar de tijd naartoe gaat: mediane tijd per fase van de kern, per workload](../resultaten/figuren/software_fases.png)
+
+![Latency tegenover het aantal boeking-nachten, kern en vers proces (log-log)](../resultaten/figuren/software_schaal.png)
+
 ### Wat dit zegt
 
 - **De kern haalt de grens ruim:** p95 73 ms op de normale portefeuille, een veertiende van
@@ -200,6 +204,8 @@ de throughput zakken? Kleinere instance." Twee threads in plaats van één geven
 winst (p95 124 tegenover 90 ms bij 2 vCPU) en kosten 30 % meer CPU: het blijft bij één thread
 (de open vraag uit taak 1.8).
 
+![CPU per advies tegenover p95, per infrastructuur](../resultaten/figuren/sizing_pareto.png)
+
 ### Wat er gebeurt als het druk wordt (taak 5.5)
 
 Zie [optimalisaties.md](optimalisaties.md) en `resultaten/serving/vergelijking.csv`. Eén
@@ -207,6 +213,8 @@ container van 0,5 vCPU houdt 2 verzoeken per seconde binnen de grens, twee of vi
 achter nginx 8 per seconde. Wat eerst breekt, is de latency (de wachtrij groeit), daarna de
 foutrate (time-outs); het geheugen nooit. 100× meer verkeer dan vandaag is 100 verzoeken per dag:
 duizenden keren onder het breekpunt.
+
+![p95 tegenover de aangeboden belasting, 1, 2 en 4 containers achter nginx](../resultaten/figuren/serving_belasting.png)
 
 ### Nog te meten
 

@@ -76,7 +76,7 @@ zolang je pc aan en verbonden is, tot na het mondeling.
 
 ---
 
-## Status van de uitvoering (19-11-2026)
+## Status van de uitvoering (20-11-2026)
 
 | Fase | Status | Commit |
 |---|---|---|
@@ -104,6 +104,24 @@ open-model-generator in Python in plaats van k6 (geen extra programma); de API (
 gepubliceerde model via `OVERBOEKING_MODELMAP` in plaats van een gegenereerde `configs/productie.yaml`;
 de driftdrempels zijn per kolom geijkt (een vaste 0,2 alarmeerde elke dag). Afwijkingen per taak
 staan als *open* bij de DoD.
+
+**Andere bestandsnamen dan in het plan** (gecontroleerd op 20-11-2026; de inhoud bestaat):
+
+| In het plan | Gebouwd als |
+|---|---|
+| `benchmarks/bench_modus.py`, `bench_artefact.py` | `benchmarks/experimenten_software.py` (taken `modus`, `artefact`) |
+| `benchmarks/bench_serving.py`, `scripts/k6/advies.js` | `benchmarks/container.py`, `benchmarks/belasting.py` |
+| `configs/bench_logreg.yaml`, `bench_vuistregel.yaml` | `configs/experimenten/modellen_software.yaml` |
+| `src/complexiteit.py` | `src/robuustheid.py` (taak `complexiteit`) |
+| `src/roi.py` | `src/business.py` (taak `roi`) |
+| `tests/test_bootstrap.py` | `tests/test_robuustheid.py` |
+| `resultaten/software/container.csv`, `sizing.csv` | `resultaten/serving/container.csv`, `sizing.csv` |
+| `resultaten/monitoring/replay_monitor.csv` | `resultaten/monitoring/risico_na_de_nacht.csv` en `alerts_demo.jsonl` |
+| `requirements-dev.txt` | `requirements-dev.in` + `requirements-dev.lock` |
+| `ijking.png` (taak 6.5) | `resultaten/figuren/ijking_intervallen.png` |
+
+Niet gebouwd: `src/tabellen.py` (zie taak 6.1), `resultaten/software/functies.json` (zie taak 1.4),
+en alles van taak 5.10 (`publiek.csv`, de geplande workflow `advies.yml`).
 
 ---
 
@@ -509,7 +527,7 @@ grenzen (les 06 p. 13, 23).
   `software_fases.png` (gestapelde staaf per fase: "waar gaat de tijd naartoe", opdracht deel 3) en
   `software_schaal.png` (latency tegen `n_boeking_nachten`, log-log).
 - **DoD:**
-  - [x] ≥ 200 warme `http`-runs en ≥ 30 `cli`-runs per workload × model; 20 koude starts
+  - [ ] ≥ 200 warme `http`-runs en ≥ 30 `cli`-runs per workload × model; 20 koude starts — *open (gecontroleerd op 20-11-2026): `cli` en `kern` op alle zes workloads, `http` op vijf (100 000 boekingen niet over HTTP), en alleen voor boosting; de drie modellen alleen op de normale workload (taak 1.9). 20 koude starts: gehaald. De functiebenchmark met pytest-benchmark (`functies.json`) is niet gebouwd: de fasetijden in `raw_runs.csv` beantwoorden dezelfde vraag ("waar gaat de tijd naartoe")*
   - [x] `summary.csv` bevat p50/p95/max/mislukt/ongeldig en `slo_gehaald`
   - [x] Infrastructuur en threads staan in elke ruwe rij
   - [x] Normale workload: SLO gehaald of expliciet niet gehaald (beide zijn een geldig resultaat)
@@ -1442,8 +1460,8 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
   `mae_vs_euro.png`, `ijking.png`; plus de P2-figuren als die taken uitgevoerd zijn. Elke figuur ook als MLflow-artefact.
 - **Bewijs / output:** de figuren, elk met as-labels, eenheden en het bronbestand in de ondertitel.
 - **DoD:**
-  - [x] `python -m src.figuren` maakt alles opnieuw zonder handwerk
-  - [x] Elke figuur wordt in `docs/` of een rapport gebruikt
+  - [x] Alle figuren worden zonder handwerk opnieuw gemaakt — *anders dan gepland: niet door één script. `src.figuren` maakt de software- en servingfiguren; de ML- en businessfiguren maken `src.robuustheid` en `src.business` bij hun eigen run (en loggen ze in MLflow); `ijking.png` heet `ijking_intervallen.png`*
+  - [x] Elke figuur wordt in `docs/` of een rapport gebruikt — *bij de controle van 20-11-2026 waren zes figuren nergens gebruikt; nu opgenomen in `softwaremetric.md`, `optimalisaties.md` en `verantwoording.md`*
 
 #### [x] Taak 6.6: Eindreproductie en audit-scope bijwerken
 
@@ -1462,9 +1480,9 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
 
 ## 4. Resultaten-template voor de documentatie
 
-Vul in tijdens het uitvoeren. *Cursieve* waarden zijn de **huidige** cijfers uit de repo, als
-ijkpunt. Alles na de pijl is nieuw te meten. Softwaremetingen gebeuren altijd op de
-referentie-infrastructuur (1 vCPU, 1 GiB, 1 thread), tenzij de tabel iets anders zegt.
+Ingevuld op 20-11-2026 met de gemeten waarden; de bron staat onder elke kop. Softwaretijden
+staan bij hun infrastructuur: **kern** = de adviesjob zonder HTTP, **host** = zonder limiet op de
+desktop, **container** = de referentie-infrastructuur (1 vCPU, 1 GiB, 1 thread).
 
 ### 4.1 Modelvergelijking over de drie metrics
 
@@ -1479,9 +1497,9 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 | Model | MAE test | te_veel City | te_veel Resort | te_veel gepoold | € / volle nacht |
 |---|---|---|---|---|---|
-| vuistregel | *6,87* | *0,517* | *0,096* | *0,309* | *540* |
-| logreg zonder land | *5,35* | *0,141* | *0,048* | *0,095* | *671* |
-| boosting zonder land | *5,11* | *0,222* | *0,096* | *0,159* | *715* |
+| vuistregel | 6,87 | 0,517 | 0,096 | 0,309 | 540 |
+| logreg zonder land | 5,35 | 0,141 | 0,048 | 0,095 | 671 |
+| boosting zonder land | 5,11 | 0,222 | 0,096 | 0,159 | 715 |
 
 ### 4.2 Softwaremetric deel 1 → nu
 
@@ -1497,45 +1515,54 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 *Ingevuld in `resultaten/runs.csv` (alle MLflow-runs, ook afgewezen), `docs/optimalisaties.md` en `docs/verantwoording.md` (secties 8–10, 13, 20).*
 
-| Exp | Variant | Baseline | Δ MAE (90 %-CI) | Δ te_veel max hotel | Δ p95 http (ms) | Δ piek RSS | Δ € / volle nacht | Beslisregel (commit / MLflow-run) | Besluit |
+| Exp | Variant | Baseline | Δ MAE [90 %-interval, blok 7] | Δ te_veel | Δ p95 (ms) | Δ geheugen / grootte | Δ € / volle nacht | Beslisregel | Besluit |
 |---|---|---|---|---|---|---|---|---|---|
-| E1 (1.5) | hergebruikte kansen | huidige code | 0 (identiek) | 0 | | | 0 | | |
-| E9 (1.6) | één-nachtaggregatie | `per_nacht()` | 0 (identiek) | 0 | | | 0 | | |
-| 1.7 | online per boeking | batch | 0 (identiek) | 0 | | | 0 | | |
-| 1.7 | model laden per verzoek | batch | 0 (identiek) | 0 | | | 0 | | |
-| 1.8 | joblib compress 3 | compress 0 | 0 | 0 | | | 0 | | |
-| E6 (3.7) | trede 5 (200 iteraties) | trede 4 | *+0,15 [+0,002; +0,31]* → | | | | | | |
-| E6 (3.7) | trede 7 | trede 4 | | | | | | | |
-| E6 (3.7) | trede 8 (random forest) | trede 4 | | | | | | | |
-| 5.2 | multi-stage slim | één stage | 0 | 0 | | | 0 | | |
-| P2: E4 (3.5) | blok 7 vs onafhankelijk | — | | | — | — | | | |
-| P2: 3.8 | balanced + isotoon | ref | | | | | | | |
-| P2: E7 (3.9) | S1 conservatief | S0 | | | | | | | |
+| E1 (1.5) | één keer voorspellen | twee keer voorspellen | 0 (uitvoer identiek) | 0 | kern host: −56 (normaal), −580 (10 000) | — | 0 | `e1_dubbele_inference.yaml` | **overgenomen** |
+| E9 (1.6) | één-nachtaggregatie | `per_nacht()` uitrollen | 0 (identiek) | 0 | kern: binnen de ruis (−9 % tot +31 %) | aggregatie: −52 % tot −74 % piekgeheugen | 0 | `e9_aggregatie.yaml` | **overgenomen** (geheugen) |
+| 1.7 | online, één aanroep per boeking | batch | 0 (identiek) | 0 | +37 012 (37 228 tegenover 216) | — | 0 | `modus.yaml` | afgewezen |
+| 1.7 | online, model laden per verzoek | batch | 0 (identiek) | 0 | +56 193 | — | 0 | `modus.yaml` | afgewezen |
+| 1.8 | joblib compress 3 | compress 0 | 0 | 0 | laden p95 +488 (eenmalig bij de start) | model 254 → 79 kB | 0 | `artefact.yaml` | **overgenomen** |
+| 1.8 | 2 threads | 1 thread | 0 | 0 | kern host −50; in de container geen winst (E11) | — | 0 | `artefact.yaml` | afgewezen (1 thread) |
+| 1.8 | ONNX | joblib | — | — | voorspellen is maar 23–29 % van de kern | — | — | `artefact.yaml` | afgewezen, niet gebouwd |
+| E6 (3.7) | trede 5 (200 iteraties) | trede 4 (huidig) | +0,15 [−0,12; +0,41] | Resort +0,025 | kern +6 | model +71 kB | −2 | `e6_complexiteit.yaml` | afgewezen |
+| E6 (3.7) | trede 7 (1 000 it., 63 bladeren) | trede 4 | +0,43 [+0,01; +0,85] | Resort +0,101 | kern +27 | model +2 927 kB | −18 | `e6_complexiteit.yaml` | afgewezen (slechter) |
+| E6 (3.7) | trede 8 (random forest, 300 bomen) | trede 4 | −0,06 [−0,38; +0,28] | City +0,035, Resort +0,038 | kern −15 | model +3 997 kB | −17 | `e6_complexiteit.yaml` | afgewezen (niet aantoonbaar beter) |
+| 5.2 | multi-stage slim image | één stage | 0 | 0 | container p50 −14, p95 +86 (beide ver onder 1 000) | image 2 776 → 670 MB | 0 | — | **overgenomen** |
+| P2: E4 (3.5) | blok 7 | losse nachten | 200 tegenover 100 it.: losse nachten [+0,002; +0,30] aantoonbaar, blok 7 [−0,12; +0,41] niet | — | — | — | — | `e4_bootstrap.yaml` | **blok 7 wordt de standaard**; 1 van 4 conclusies kantelt |
+| P2: 3.8 | balanced + isotoon | referentie | +2,92 [+0,83; +5,14] | gepoold +0,177 | kern +3 | — | −473 | `e6b_weging.yaml` | afgewezen |
+| P2: E7 (3.9) | S1 conservatief | S0 huidig | +0,12 [−0,25; +0,49] | gepoold +0,055 | kern −3 | — | −23 | `e7_features.yaml` | niet overgenomen; S0 blijft, de claim is robuust |
+
+Alle runs, ook de afgewezen, staan met hun MLflow-run-id in `resultaten/runs.csv`.
 
 ### 4.4 Softwaremetric per workload (boosting, referentie-infrastructuur)
 
 *Ingevuld in `docs/softwaremetric.md` (sectie Metingen) en `resultaten/software/summary.csv`.*
 
-| Workload | n boekingen | n boeking-nachten | doel | n runs | p50 (ms) | p95 (ms) [95 %-CI] | max (ms) | aandeel voorspellen | piek RSS (MB) | mislukt | ongeldig | SLO |
+| Workload | n boekingen | n boeking-nachten | doel | n runs | p50 (ms) | p95 (ms) [95 %-CI] | max (ms) | aandeel voorspellen | piek RSS (MB) | mislukt | ongeldig | SLO ≤ 1 000 ms |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| smoke | | | http | 200 | | | | | | | | |
-| normaal | | | http | 200 | | | | | | | | |
-| normaal | | | kern | 200 | | | | | | | | — |
-| normaal | | | cli (vers proces) | 30 | | | | | | | | — |
-| kort verblijf | | | http | 200 | | | | | | | | |
-| lang verblijf | | | http | 200 | | | | | | | | |
-| 10 000 | | | http | 30 | | | | | | | | geen OOM |
-| 100 000 | | | http | 30 | | | | | | | | — |
+| smoke | 76 | 321 | http (host) | 200 | 68 | 80 [77–82] | 161 | — | — | 0 | 0 | ja |
+| normaal | 358 | 1 478 | http (host) | 200 | 77 | 91 [87–96] | 98 | — | — | 0 | 0 | **ja** |
+| normaal | 358 | 1 478 | **http (container, referentie)** | 200 | 70 | **183** [82–190] | 206 | — | 152 | 0 | 0 | **ja** |
+| normaal | 358 | 1 478 | kern (host) | 200 | 64 | 73 [71–78] | 107 | 23 % | 191 | 0 | 0 | — |
+| normaal | 358 | 1 478 | cli (vers proces, host) | 30 | 2 763 | 2 845 [2 812–2 906] | 2 906 | 2 % | 185 | 0 | 0 | — |
+| kort verblijf | 358 | 602 | http (host) | 200 | 78 | 91 [89–96] | 181 | — | — | 0 | 0 | ja |
+| lang verblijf | 358 | 2 952 | http (host) | 200 | 78 | 88 [86–90] | 94 | — | — | 0 | 0 | ja |
+| 10 000 | 10 000 | 40 990 | http (host) | 200 | 375 | 436 [416–465] | 508 | — | — | 0 | 0 | ja, geen OOM |
+| 100 000 | 100 000 | 413 977 | kern (host) | 200 | 1 292 | 1 368 [1 355–1 381] | 1 414 | 76 % | 393 | 0 | 0 | — |
+| 100 000 | 100 000 | 413 977 | cli (vers proces, host) | 30 | 4 908 | 5 058 [4 985–5 255] | 5 255 | 21 % | 350 | 0 | 0 | — |
+
+*Niet gemeten:* 100 000 boekingen via HTTP; die schaal is gemeten als kern en als CLI (vers
+proces), en in de container in de sizing van 4.6.
 
 ### 4.5 Inferentiemodus (1.7, naar les 07 p. 8)
 
 *Ingevuld: batch 187 ms, online 31,6 s, online met model laden 55,5 s per adviesnacht (`resultaten/software/modus.csv`).*
 
-| Normale workload (één nacht) | tijd per adviesnacht p50 (ms) | p95 (ms) | CPU-s |
-|---|---|---|---|
-| batch, één verzoek | | | |
-| online, één verzoek per boeking | | | |
-| online, model laden per verzoek | | | |
+| Normale workload (één nacht) | tijd per adviesnacht p50 (ms) | p95 (ms) | CPU-s | keer trager |
+|---|---|---|---|---|
+| batch, één verzoek | 187 | 216 | 0,19 | 1 |
+| online, één verzoek per boeking | 31 561 | 37 228 | 28,2 | 169 |
+| online, model laden per verzoek | 55 452 | 56 409 | 52,5 | 297 |
 
 ### 4.6 Servingvormen en schaling (E10) en infrastructuur (E11)
 
@@ -1543,53 +1570,79 @@ Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
 
 | Variant | p50 (ms) | p95 (ms) | max throughput (adviezen/s) bij p95 ≤ 1 000 ms | foutrate | wat breekt eerst | CPU-s / advies | idle-verbruik |
 |---|---|---|---|---|---|---|---|
-| A batchjob | | | n.v.t. | | | | 0 |
-| B API ×1 | | | | | | | |
-| B API ×2 (nginx) | | | | | | | |
-| B API ×4 (nginx) | | | | | | | |
-| C model per verzoek | | | | | | | |
-| publieke URL (5.10) | | | — | | | — | — |
+| A batchjob (verse container per advies) | 3 898 | 4 050 | n.v.t. (één job per dag) | 0 van 10 | n.v.t. | — | 0 (geen container tussen de jobs) |
+| B API ×1 (0,5 vCPU / 512 MB) | 151 | 277 | 2 | 0 % tot 2/s; 55 % bij 8/s | latency (wachtrij) | 0,097 | draait altijd |
+| B API ×2 (nginx) | 140 | 274 | 8 | 0 % tot 8/s; 0,3 % bij 16/s | latency (wachtrij) | 0,097 | draait altijd |
+| B API ×4 (nginx) | 139 | 215 | 8 (bij 16/s: p95 2 046 ms) | 0 % tot 16/s | latency (wachtrij) | 0,097 | draait altijd |
+| C model per verzoek | 55 452 | 56 409 | 0 | — | latency: 55 s per adviesnacht | 52,5 per nacht | — |
+| publieke URL (5.10) | *open* | *open* | — | *open* | — | — | — |
 
-| vCPU | GiB | threads | p95 normaal (ms) | p95 100k (ms) | piek RSS (MB) | OOM | CPU-s / advies | SLO |
+| vCPU | geheugen | threads | p95 normaal (ms) | CLI 100 000 boekingen (s) | piek RSS (MB) | OOM (10k / 100k) | CPU-s / advies | SLO |
 |---|---|---|---|---|---|---|---|---|
-| 0,5 | 0,5 | 1 | | | | | | |
-| 1 | 1 | 1 (referentie) | | | | | | |
-| 2 | 1 | 2 | | | | | | |
-| 2 | 2 | 2 | | | | | | |
+| 0,5 | 512 MB | 1 | 259 | 14,7 | 150 | nee / nee | 0,097 | **ja (kleinste die volstaat)** |
+| 1 | 512 MB | 1 | 190 | 5,0 | 152 | nee / nee | 0,073 | ja |
+| 1 | 1 GiB | 1 (referentie) | 150 | 4,8 | 152 | nee / nee | 0,073 | ja |
+| 2 | 1 GiB | 1 | 90 | 4,7 | 152 | nee / nee | 0,071 | ja |
+| 2 | 1 GiB | 2 | 124 | 4,5 | 152 | nee / nee | 0,092 | ja |
+| 2 | 2 GiB | 2 | 85 | 4,6 | 152 | nee / nee | 0,092 | ja |
+
+100 runs per rij (`resultaten/serving/sizing.csv`). Een tweede thread levert niets op.
 
 ### 4.7 Kost (5.9)
 
 *Ingevuld in `docs/kosten.md` en `resultaten/serving/kosten.csv`.*
 
-| Scenario | adviezen / dag | lokaal € / 1 000 adviezen | lokaal € / maand | cloud-equivalent € / 1 000 | cloud-equivalent € / maand | bron |
+| Scenario | verzoeken / dag | lokaal € / 1 000 adviezen | lokaal € / maand | Cloud Run € / 1 000 | Cloud Run € / maand (zonder / met gratis tier) | bron |
 |---|---|---|---|---|---|---|
-| huidig (2 hotels) | 2 | | | | | |
-| 100× | 200 | | | | | |
-| breekpunt één container (5.5) | | | | | | |
+| vandaag (1 verzoek per dag, beide hotels) | 1 | 0,00009 | 0,04 | 0,0021 | 0,00006 / 0 | gemeten CPU-s; aangenomen 15 W en € 0,30/kWh; prijslijst Cloud Run |
+| 100× meer verkeer | 100 | 0,00009 | 0,04 | 0,0021 | 0,006 / 0 | idem |
+| breekpunt één container (2 verzoeken/s, 5.5) | 175 738 | 0,00009 | 0,51 | 0,0021 | 10,88 / 5,35 | idem |
 
 ### 4.8 Risico per hotel (E3)
 
 *Ingevuld in `resultaten/audit/risico_per_groep.csv` en `docs/verantwoording.md` (sectie 13).*
 
+Boosting (het gekozen model). Interval: Wilson, 90 %.
+
 | Periode | Hotel | Maand | nachten | te_veel [90 %-CI] | te_veel_vol | te_veel_k_pos | tekort gem | tekort p95 | > 20 %? |
 |---|---|---|---|---|---|---|---|---|---|
-| validatie | City Hotel | 2017-01 | | | | | | | |
-| … | | | | | | | | | |
+| validatie | City Hotel | 2017-01 | 26 | 0,00 [0,00–0,09] | — (0 volle) | 0,00 | 0,00 | 0,0 | nee |
+| validatie | City Hotel | 2017-02 | 28 | 0,07 [0,02–0,19] | 0,33 | 0,07 | 0,25 | 2,0 | nee |
+| validatie | City Hotel | 2017-03 | 31 | 0,10 [0,04–0,22] | 0,07 | 0,10 | 0,16 | 1,0 | nee |
+| validatie | Resort Hotel | 2017-01 | 20 | 0,00 [0,00–0,12] | — (0 volle) | 0,00 | 0,00 | 0,0 | nee |
+| validatie | Resort Hotel | 2017-02 | 28 | 0,04 [0,01–0,15] | 0,00 | 0,04 | 0,04 | 0,0 | nee |
+| validatie | Resort Hotel | 2017-03 | 31 | **0,39** [0,26–0,53] | 0,40 | 0,39 | 1,23 | 5,5 | **ja** |
+| test | City Hotel | 2017-04 | 26 | 0,04 [0,01–0,16] | 0,05 | 0,04 | 0,04 | 0,0 | nee |
+| test | City Hotel | 2017-05 | 31 | 0,10 [0,04–0,22] | 0,06 | 0,10 | 0,29 | 2,0 | nee |
+| test | City Hotel | 2017-06 | 30 | **0,30** [0,18–0,45] | 0,50 | 0,30 | 1,00 | 5,1 | **ja** |
+| test | City Hotel | 2017-07 | 31 | **0,45** [0,31–0,60] | 0,50 | 0,45 | 1,71 | 7,0 | **ja** |
+| test | City Hotel | 2017-08 | 31 | 0,19 [0,10–0,33] | 0,25 | 0,19 | 0,42 | 2,5 | nee |
+| test | Resort Hotel | 2017-04 | 23 | 0,00 [0,00–0,11] | 0,00 | 0,00 | 0,00 | 0,0 | nee |
+| test | Resort Hotel | 2017-05 | 31 | 0,13 [0,06–0,26] | 0,22 | 0,13 | 0,13 | 1,0 | nee |
+| test | Resort Hotel | 2017-06 | 30 | 0,17 [0,08–0,30] | 0,28 | 0,17 | 0,33 | 2,1 | nee |
+| test | Resort Hotel | 2017-07 | 31 | 0,16 [0,08–0,30] | 0,19 | 0,16 | 0,23 | 1,0 | nee |
+| test | Resort Hotel | 2017-08 | 31 | 0,00 [0,00–0,08] | 0,00 | 0,00 | 0,00 | 0,0 | nee |
+
+De vuistregel en logreg staan in dezelfde CSV.
 
 ### 4.9 Business: scenario's en ROI
 
 *Ingevuld in `docs/business_roi.md` en `resultaten/business/roi.csv`.*
 
-| Scenario | geboekt/cap | verkoopkans | cap-factor | w | Δ € boosting − vuistregel / volle nacht | Δ € boosting − nulbeleid | doorverwezen |
+Validatie, 108 scenario's (`resultaten/audit/business_scenario.csv`). Pessimistisch en
+optimistisch zijn het 10e en 90e percentiel over de scenario's, geen afzonderlijke instelling.
+
+| Scenario | geboekt/cap | verkoopkans | cap-factor | w | Δ € boosting − vuistregel / volle nacht | Δ € boosting − nulbeleid | doorverwezen (boosting) |
 |---|---|---|---|---|---|---|---|
-| basis | 1,00 | 1,0 | 1,0 | 2 | *175 (test)* → | | |
-| pessimistisch | | | | | | | |
-| optimistisch | | | | | | | |
+| basis | 1,00 | 1,0 | 1,0 | 2 | +158 | +478 | 0,45 |
+| pessimistisch (p10) | o.a. 0,95 | 0,8 | 0,9 | 1,5–2 | −141 | +435 | 0,00 |
+| optimistisch (p90) | — | — | — | — | +453 | — | — |
+| aandeel scenario's waarin boosting ≥ vuistregel | | | | | 49 % | 93 % (≥ nulbeleid) | |
 
 | | Pessimistisch | Basis | Optimistisch | Bron (gemeten / geraamd / aangenomen) |
 |---|---|---|---|---|
-| bruto € / maand | | | | |
-| infrastructuur € / maand | | | | |
-| beheer € / maand | | | | |
-| **netto € / maand** | | | | |
-| terugverdientijd (maanden) | | | | |
+| bruto € / maand | −3 025 | 3 403 | 9 763 | gemeten Δ € × 21,5 volle nachten per maand (training) |
+| infrastructuur € / maand | 0,04 | 0,04 | 0,04 | gemeten (`resultaten/serving/kosten.json`) |
+| beheer € / maand | 960 | 480 | 240 | aangenomen: 16 / 8 / 4 u × € 60 (`configs/roi.yaml`) |
+| **netto € / maand** | **−3 985** | **2 923** | **9 523** | |
+| terugverdientijd (maanden) | nooit | 2,5 | 0,8 | eenmalig € 7 200 (120 u, aangenomen) |

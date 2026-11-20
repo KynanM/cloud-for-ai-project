@@ -25,3 +25,5 @@ naam (`resultaten/runs.csv`).
 | **Kleinere instance** (les 06 p. 16) | de grens laat ruimte | 0,5 vCPU / 512 MB: p95 259 ms, 100 000 boekingen zonder OOM | **overgenomen** in `compose.yaml` | `sizing.csv` |
 | **Horizontaal schalen** (les 06 p. 19) | meer containers, meer throughput | één container (0,5 vCPU) houdt 2 verzoeken/s binnen de grens, twee of vier achter nginx 8/s. Vandaag is het 1 verzoek per dag | **mogelijk, niet nodig** | `belasting.csv` |
 | **Batchjob tegenover service** | een job per ochtend kost niets tussendoor | job (vers container): 3,9 s per advies; service: 0,07–0,2 s, maar ze draait altijd (0,04 € per maand) | **beide**: service voor de API, job voor de dagelijkse planning | `vergelijking.csv`, `batchjob.csv` |
+
+![Batch, online en model laden per verzoek, normale portefeuille](../resultaten/figuren/modus.png)
