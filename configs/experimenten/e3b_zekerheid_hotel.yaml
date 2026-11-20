@@ -1,0 +1,24 @@
+# Gevolg van E3 (taak 3.4): op de validatie zat boosting voor Resort in maart 2017 op 39 % te veel.
+# De vooraf vastgelegde regel van E3 vraagt dan een zekerheid per hotel als extra trede.
+# Vastgelegd vóór de meting, op 19-11-2026, na E3 en vóór deze berekening.
+hypothese: >
+  Eén zekerheid (0,80) voor beide hotels houdt het risico per hotel en per seizoen niet onder 20 %.
+  Een zekerheid per hotel, afgestemd op de eerdere kwartalen, kan dat wel, tegen een lagere
+  opbrengst.
+baseline: "zekerheid 0,80 voor beide hotels"
+alternatieven:
+  - "zekerheid per hotel, afgestemd op de rolling-origin-folds van 2016 (april tot december)"
+metrics:
+  ml: "n.v.t.: de zekerheid verandert de kansen niet, alleen k"
+  software: "n.v.t."
+  business: >
+    te veel per hotel en per maand op de validatie (Q1 2017), € per volle nacht, doorverwezen
+afstemming: >
+  Per hotel de zekerheid uit het rooster van de winstcurve (0,50 tot 0,95 per 0,025) met de hoogste
+  € per volle nacht waarbij te veel in elk van de drie folds van 2016 hoogstens 20 % is. Geen
+  enkele zekerheid haalt dat: dan de hoogste (0,95). Spreidingsfactor uit de vorige fold, zoals in
+  de rolling origin.
+beslisregel: >
+  De zekerheid per hotel vervangt 0,80 alleen als ze op de validatie in geen enkele maand van een
+  hotel boven 20 % te veel zit en de € per volle nacht hoogstens 10 % daalt. Anders blijft 0,80 en
+  wordt de risicobewaking per hotel en per maand een taak van de monitoring (deel 3).

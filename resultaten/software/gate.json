@@ -1,0 +1,12 @@
+{
+  "platform": "Windows-AMD64",
+  "runs": 30,
+  "p50_ms": 63.142200029687956,
+  "p95_ms": 69.87098001991399,
+  "slo_ms": 1000,
+  "referentie_p95_ms": 69.87098001991399,
+  "relatieve_grens_ms": 104.80647002987098,
+  "absoluut_ok": true,
+  "relatief_ok": true,
+  "geslaagd": true
+}

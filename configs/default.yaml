@@ -70,6 +70,16 @@ split:
   test_start: 2017-04-01
   test_einde: 2017-08-31
 
+# Rolling origin (src/folds.py, taak 3.6): vier meetblokken vóór de test, elk geleerd op alles
+# vóór het embargo van dat blok (dezelfde formule als de split). Alleen om de modelkeuze over
+# seizoenen heen te toetsen; de split hierboven blijft de evaluatie.
+rolling:
+  meetblokken:
+    - [2016-04-01, 2016-06-30]
+    - [2016-07-01, 2016-09-30]
+    - [2016-10-01, 2016-12-31]
+    - [2017-01-01, 2017-03-31]
+
 # Welke hotel-nachten meetellen in de evaluatie. De eerste nachten van een periode missen de
 # gasten die vóór de periode aankwamen en dan nog blijven: hun portefeuille is onvolledig.
 # Een nacht telt pas mee als minstens dit aandeel van haar boeking-nachten in de periode zit.
@@ -100,9 +110,11 @@ advies:
   # Maximum per nacht, als aandeel van de capaciteit. null: geen maximum, k is alleen begrensd
   # door de capaciteit zelf. In deel 1 stond 0.05; dat maximum bond in City op 98 % van de
   # testnachten en verborg de waarde van het model (resultaten/audit/zonder_rem.csv). Zonder
-  # maximum blijft het advies binnen de risicogrens hieronder. Weggehaald op 10-11-2026.
+  # maximum blijft het advies gepoold binnen de risicogrens hieronder (test 16 %), maar City
+  # alleen niet (test 22 %, resultaten/evaluatie.csv). Weggehaald op 10-11-2026.
   max_aandeel: null
-  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv):
+  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv).
+  # Een keuzecriterium, geen controle bij het voorspellen:
   # op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k. Gekozen wordt de
   # zekerheid met de hoogste europroxy binnen die grens.
   risicogrens: 0.20
@@ -122,6 +134,20 @@ bedragen:
   gevoeligheid:
     - {r: 0.3, w: 2.0}
     - {r: 0.5, w: 3.0}
+
+# Bij voorspellen: wat met boekingen buiten het toepassingsdomein van het model (src/scope.py,
+# docs/inputcontract.md). sluit_uit: advies over de rest, de uitgesloten boekingen met reden
+# erbij. weiger: het hele verzoek faalt.
+inferentie:
+  buiten_scope: sluit_uit
+
+# Releasepoorten bovenop model.minimum_auc en de vuistregel (src/poorten.py). Allemaal op de
+# validatie. Het risico per hotel gebruikt advies.risicogrens; de latency de grens uit
+# configs/benchmark.yaml.
+poorten:
+  # voorspeld / echt per hotel: een som van kansen moet geijkt zijn
+  ijking_per_hotel: [0.8, 1.25]
+  max_model_mb: 50
 
 model:
   # vuistregel | logreg | boosting. Gekozen op de MAE per hotel-nacht op de validatie, nooit op
@@ -149,6 +175,11 @@ model:
     max_leaf_nodes: 15
     min_samples_leaf: 100
     l2_regularization: 1.0
+  # Alleen voor de complexiteitsladder (src/robuustheid.py): een bos als extra modelklasse.
+  randomforest:
+    n_estimators: 300
+    min_samples_leaf: 50
+    max_features: sqrt
   # Twee poorten vóór het wegschrijven, allebei op de validatie:
   # - de MAE per hotel-nacht moet lager zijn dan die van de vuistregel (src/train.py)
   # - de AUC moet minstens dit zijn. Zonder land: logreg 0,63, boosting 0,69. Zie de README.

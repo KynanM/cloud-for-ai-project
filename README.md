@@ -1,8 +1,13 @@
 # Overboeken per hotel-nacht op basis van annulatiekansen
 
+[![ci](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml/badge.svg?branch=audit-opvolging)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml)
+
 Cloud for AI, 2026-2027. Kynan Melsens
 
-Een hotel beslist 30 dagen vóór elke nacht hoeveel kamers het extra mag verkopen. Dit model
+Een hotel beslist hoeveel kamers het extra mag verkopen. Voor de boekingen die op een nacht
+aankomen, valt die beslissing 30 dagen vóór die aankomst (contract A, zie
+[docs/besliscontract.md](docs/besliscontract.md)); voor latere nachten van een lang verblijf
+beslist het dus iets vroeger dan nodig. Dit model
 voorspelt per boeking die op dat moment nog actief is, hoe groot de kans is dat ze alsnog
 geannuleerd wordt of een no-show wordt. Opgeteld per nacht geeft dat het verwachte aantal
 kamers dat vrijkomt, en daaruit een advies: overboek k kamers. Het model adviseert, de revenue
@@ -13,22 +18,39 @@ manager beslist.
 - **Model:** `HistGradientBoostingClassifier`, zonder het land als feature
 - **Gekozen op** de MAE van het aantal annulaties per hotel-nacht, op de validatie (Q1 2017):
   4,72 tegenover 6,36 voor de vuistregel van de revenue manager. Op de test (april tot
-  augustus 2017, alleen gerapporteerd): 5,11 tegenover 6,87
+  augustus 2017, alleen gerapporteerd): 5,11 tegenover 6,87. **Over vier kwartalen**
+  (rolling origin, april 2016 tot maart 2017) zijn boosting (7,10) en logistische regressie
+  (7,25) niet te onderscheiden: boosting is aantoonbaar beter op het recentste kwartaal, niet
+  in elk seizoen ([docs/verantwoording.md](docs/verantwoording.md), sectie 8)
 - **Split** in de tijd, op aankomstdatum, met een embargo van 31 dagen
-- **Poort:** een model wordt alleen weggeschreven als het de vuistregel verslaat op de
-  validatie, en een AUC van minstens 0,60 haalt
+- **Drie metrieken** ([docs/metrics.md](docs/metrics.md)): de MAE per hotel-nacht wordt
+  geoptimaliseerd; de **softwaremetriek** is een grens: p95-latency van `POST /advies` ≤ 1 000 ms
+  op 1 vCPU en 1 GiB, gemeten in de container **183 ms** (koude start 3,6 s,
+  [docs/softwaremetric.md](docs/softwaremetric.md)); de businessmetriek is € per volgeboekte nacht
+- **Poorten:** een model wordt alleen gepubliceerd als het de vuistregel verslaat, een AUC van
+  minstens 0,60 haalt, per hotel geijkt is, per hotel hoogstens 20 % nachten met te veel kamers
+  heeft, en binnen de latencygrens blijft (`src/poorten.py`)
+- **Deel 3:** een API met nette fouten, Docker (670 MB, niet als root), een compose-stack met
+  MLflow en een batchjob, monitoring met geijkte driftdrempels, kosten 0,04 € per maand
+  ([rapport/rapport_deel3.md](rapport/rapport_deel3.md))
 - **Advies k:** het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80. Geen maximum per
   nacht meer: het maximum van 5 % uit deel 1 is weggehaald (zie bevinding 3)
 - **Belangrijkste bevinding:** het land is waarschijnlijk pas na het beslismoment ingevuld, en
   dus een lek. Het staat uit. Zie [Bevindingen](#bevindingen)
 - **In euro's** is het model nu duidelijk beter: 480 € per volgeboekte nacht op de validatie
-  tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). Het blijft binnen de
-  risicogrens, de vuistregel niet. Zie bevinding 3
+  tegenover 328 € voor de vuistregel (test: 715 € tegenover 540 €). Gepoold over beide hotels
+  blijft het binnen de risicogrens van 20 % (11 % validatie, 16 % test), de vuistregel niet.
+  **Per hotel niet overal:** City Hotel zit op de test op 22 % nachten met te veel kamers
+  (validatie 6 %), Resort op 10 % (validatie 16 %). Zie bevinding 3
+- **Onder andere aannames** (108 scenario's met de echte kamers): boosting verslaat de vuistregel
+  alleen als de nacht op het beslismoment echt vol is. Bij lege kamers niet. Netto, geraamd:
+  2 923 € per maand in het basisscenario, maar negatief in het pessimistische
+  ([docs/business_roi.md](docs/business_roi.md))
 - **Elke keuze** met opties, cijfers en het waarom: [docs/verantwoording.md](docs/verantwoording.md)
 
 ## Draaien
 
-Getest met **Python 3.13.18**, in een nieuwe venv met precies de versies uit
+Getest met **Python 3.13.14**, in een nieuwe venv met precies de versies uit
 `requirements.txt` (vastgelegd met `==`). Python 3.12 is het minimum: numpy 2.5 en scipy 1.18
 vragen niet minder. Draai alles **vanuit deze map**, niet vanuit `src/`. Anders vindt Python het
 pakket niet.
@@ -38,7 +60,7 @@ python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest                          # 110 tests, allemaal groen, ±30 s
+pytest                          # 281 tests groen in CI (19-11-2026), ±50 s
 ruff check . ; ruff format --check .   # stijl en opmaak, allebei schoon
 python -m src.train             # traint model.soort, test de poorten, schrijft models/
 python -m src.predict data/nieuwe_boekingen.csv                  # kansen en advies k
@@ -61,6 +83,52 @@ Wat `src.predict` geeft voor het voorbeeldbestand:
 De waarschuwing is terecht. Agent 229 boekt pas voor aankomsten vanaf april 2017, dus na het
 einde van de hertraining (28-02-2017). Het model heeft die agent nooit gezien en behandelt hem als
 een lege waarde. Het gaat om één van de 76 boekingen.
+
+Met `--uitvoer advies.csv` komt het advies ook in een bestand (gecontroleerd tegen
+`schema.ADVIES`), met `--metrics-json m.json` de tijd per fase en de geheugenpiek
+([docs/softwaremetric.md](docs/softwaremetric.md)), met `--as-of JJJJ-MM-DD` het beslismoment.
+Boekingen buiten het toepassingsdomein (Non Refund, `lead_time` onder 30, ...) tellen niet mee en
+staan met hun reden in `advies.csv.uitgesloten.csv` ([docs/inputcontract.md](docs/inputcontract.md)).
+
+### De API
+
+Hetzelfde advies achter een endpoint (`src/api.py`, FastAPI). Batch: één verzoek met alle
+boekingen van een nacht, beide hotels.
+
+```bash
+uvicorn src.api:app --port 7860          # daarna http://127.0.0.1:7860/docs
+```
+
+Of als container, met het gepubliceerde model (`python -m src.publiceer` zet het in
+`models/actief/`):
+
+```bash
+python -m src.train && python -m src.publiceer        # registreren in MLflow, exporteren
+docker compose up -d                                  # API (0,5 vCPU, 512 MB) en MLflow (:5000)
+docker compose --profile job run --rm advies-job invoer/vandaag.csv --uitvoer uitvoer/advies.csv
+docker compose --profile schaal up -d --scale api=4   # vier API's achter nginx (:8080)
+python -m src.monitoring controleer                   # alarmen uit logs/api.log
+```
+
+Architectuur en keuzes: [docs/architectuur.md](docs/architectuur.md),
+[docs/adr/0001-waar-het-draait.md](docs/adr/0001-waar-het-draait.md). Gemeten in de container
+(1 vCPU, 1 GiB): p95 183 ms, koude start 3,6 s, 152 MB ([docs/softwaremetric.md](docs/softwaremetric.md)).
+
+| Endpoint | Wat |
+|---|---|
+| `POST /advies` | `{"nacht", "as_of", "boekingen": [...]}` → advies k per hotel, uitgesloten boekingen met reden, latency |
+| `POST /kansen` | `{"boekingen": [...]}` → de kans per boeking, zonder advies |
+| `GET /health` | draait de service, en welk model (`run_id`, `commit`) |
+| `GET /docs` | de documentatie die FastAPI uit de type-annotaties maakt |
+
+Een ongeldig verzoek krijgt een **422** met per veld wat er mis is, nooit een stacktrace. Een
+verzoek buiten het besliscontract (beslismoment niet 30 dagen vóór de nacht, geen enkele boeking
+in de nacht) krijgt een 422 met een reden. Elk geval staat in `resultaten/software/foutgedrag.csv`.
+
+```bash
+curl -X POST http://127.0.0.1:7860/advies -H "content-type: application/json" \
+  -d '{"nacht": "2017-08-15", "as_of": "2017-07-16", "boekingen": [{"hotel": "City Hotel", "lead_time": 45, "arrival_date_year": 2017, "arrival_date_month": "August", "arrival_date_day_of_month": 15, "stays_in_weekend_nights": 1, "stays_in_week_nights": 2, "adults": 2, "children": 0, "babies": 0, "meal": "BB", "country": "PRT", "market_segment": "Online TA", "distribution_channel": "TA/TO", "is_repeated_guest": 0, "previous_cancellations": 0, "previous_bookings_not_canceled": 0, "reserved_room_type": "A", "deposit_type": "No Deposit", "customer_type": "Transient", "agent": 9, "adr": 120.0}]}'
+```
 
 ### Logging
 
@@ -197,7 +265,11 @@ kans op annuleren, en het hotel zou nooit overboeken.
 Een willekeurige split laat de toekomst in de training lekken: een boeking van augustus 2017
 helpt dan een boeking van januari 2017 voorspellen. Daarom wordt op aankomstdatum gesplitst.
 Met een willekeurige split haalt de logistische regressie een AUC van 0,756, met de split in de
-tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil is lek.
+tijd 0,627 (boosting: 0,797 tegenover 0,695, `resultaten/audit/split.csv`). Het verschil wijst
+op optimisme door de tijd te mengen, en deels op exacte kopieën die over de split vallen. Met
+de kopieën samen aan één kant zakt de willekeurige AUC naar 0,735 (logreg) en 0,759 (boosting):
+kopieën verklaren 16 % en 37 % van het verschil (`resultaten/audit/split_duplicaten.csv`). De
+twee splits meten ook niet op dezelfde boekingen, dus het hele verschil is niet zomaar lek.
 
 Tussen training en validatie zit een **embargo**. Op 2 december beslis je voor 1 januari. De
 afloop van boekingen met aankomst in december ken je dan nog niet, dus die mogen niet in de
@@ -265,7 +337,9 @@ draait ze allemaal, met en zonder land.
    met een minimum van 1. Voor boosting is dat 2,5 voor City en 1,5 voor Resort.
 3. **Advies k.** Het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80, met een
    normale benadering. Er is geen maximum per nacht (`advies.max_aandeel: null`); de
-   bescherming voor de gast is de zekerheid zelf, en de risicogrens waartegen ze getoetst is.
+   bescherming voor de gast is de zekerheid zelf. De risicogrens van 20 % begrenst het advies
+   niet tijdens het voorspellen: ze is het criterium waarmee de zekerheid op de validatie
+   gekozen is (`drempel()` in `src/experimenten.py`), en wordt na de evaluatie gemeten.
 4. **Capaciteit.** De dataset zegt niet hoeveel kamers er zijn. Daarom het 99ste percentiel
    van de bezette kamers per nacht in de training, uit alle uitgecheckte boekingen. City komt
    op 226 kamers, Resort op 184. Een nacht telt als volgeboekt vanaf 95 % van de capaciteit.
@@ -307,6 +381,11 @@ gerapporteerd:
 | **boosting zonder land** | **5,11** | 1,07 | **715** | 0,54 | 16 % |
 | logreg met land | 5,12 | 0,87 | 582 | 0,04 | 2 % |
 | boosting met land | 5,39 | 1,01 | 700 | 0,23 | 9 % |
+
+"Te veel" is hier over beide hotels samen. Per hotel, voor boosting zonder land
+(`resultaten/evaluatie.csv`): City 6 % op de validatie en **22 % op de test**, Resort 16 % en
+10 %. Op de test gaat City dus over de risicogrens. Dat is gemeten, niet achteraf weggewerkt: de
+test kiest niets.
 
 **Gekozen: boosting zonder land**, op de laagste MAE op de validatie van de modellen zonder land.
 Het is ook op de test het beste model zonder land. De modellen met land staan er ter
@@ -439,10 +518,12 @@ Dezelfde beslisregel, met en zonder maximum, en met en zonder spreidingsfactor
   (19 %).
 
 **Daarom is het maximum weggehaald** (`advies.max_aandeel: null`) en is het model opnieuw
-getraind. Het advies wordt nu begrensd door de zekerheid van 0,80 en de risicogrens, niet door
-een vast aantal kamers. De prijs: op de test worden 0,54 gasten per volle nacht doorverwezen in
-plaats van 0,09, in City 0,86. Dat zit in de europroxy (W = 2 × adr per gast) en blijft binnen de
-risicogrens. Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de config;
+getraind. Het advies wordt nu begrensd door de zekerheid van 0,80, niet door een vast aantal
+kamers. De risicogrens is het criterium waartegen die zekerheid op de validatie gekozen is; ze
+grijpt niet in bij het voorspellen. De prijs: op de test worden 0,54 gasten per volle nacht
+doorverwezen in plaats van 0,09, in City 0,86. Dat zit in de europroxy (W = 2 × adr per gast).
+Gepoold blijft het binnen de risicogrens (16 %), maar City alleen gaat er op de test over
+(22 %). Wil het hotel toch een maximum, dan volstaat `max_aandeel` in de config;
 `resultaten/audit/maximum.csv` toont wat 5, 7,5 en 10 % kosten.
 
 ### 4. De winstcurve: 0,80 blijft, ook zonder maximum
@@ -519,14 +600,18 @@ Wat dit project niet doet, of vereenvoudigt:
   vergelijken. Daarom wordt gekozen op de MAE (164 hotel-nachten) en volgt de drempel uit de
   bedragen.
 - **Seizoensbias.** De fout wisselt van teken tussen winter en zomer. Met twee jaar data is dat
-  binnen dit project niet op te lossen; een korter venster, herijken en elke maand hertrainen zijn
-  getest en afgewezen.
+  binnen dit project niet op te lossen; een korter venster, herijken, elke maand hertrainen, weging
+  met herijking en een zekerheid per hotel zijn getest en afgewezen. Het risico per hotel en per
+  maand gaat er soms over de grens (Resort maart 2017: 39 %); dat bewaakt de monitoring
+  ([docs/verantwoording.md](docs/verantwoording.md), sectie 13).
 - **Segment en agent wijzen naar het land.** Ze blijven features, want ze zijn bij het boeken
   gekend, maar zo ziet het model het land deels toch. Een eerlijke controle per land kan pas met
   een land dat bij het boeken ingevuld is.
 - **`adr` van wie uitcheckte is mogelijk herrekend** na het verblijf. Het model leert dus van een
   prijs die licht kan afwijken van wat er op het beslismoment in het boekingssysteem stond.
-- **Driftbewaking, een API, Docker en shadow mode** horen bij deel 3.
+- **Shadow mode is een protocol, geen meting.** De keten draait (API, batchjob, monitoring, replay
+  over de testperiode), maar de boekingsstand op het beslismoment en de beslissing van de revenue
+  manager moeten van een hotel komen ([docs/shadow_protocol.md](docs/shadow_protocol.md)).
 
 ## Wat waar staat
 
@@ -549,6 +634,22 @@ src/
   manifest.py          model, advies, config en data aan één run binden
   audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
   experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
+  scope.py             het toepassingsdomein: één grens voor training en voorspellen
+  meting.py            tijd per fase en geheugenpiek van een adviesjob
+  api.py               POST /advies, POST /kansen, GET /health (FastAPI)
+  poorten.py           de releasepoorten: ML, beleid per hotel, software
+  folds.py             rolling origin met hetzelfde embargo als de split
+  robuustheid.py       risico per hotel en maand, blokbootstrap, rolling origin, complexiteit
+  business.py          businessstress, ROI-raming, verband tussen MAE en euro's
+  tracking.py          experimenten in MLflow, met verplichte beslisregel
+  publiceer.py         MLflow-registry, alias kampioen, export naar models/actief/
+  monitoring.py        drift per verzoek, risico na de nacht, alarmen
+benchmarks/            workloads, de softwaremetriek, software-experimenten, foutgedrag,
+                       containermetingen, loadtest, batchjob, kosten, replay, CI-poort
+configs/benchmark.yaml de softwaremetriek en haar grenzen, vastgelegd vóór de eerste meting
+configs/experimenten/  hypothese en beslisregel per experiment, vastgelegd vóór het draaien
+Dockerfile, compose.yaml, infra/nginx.conf, .github/workflows/   deel 3
+requirements.in/-dev.in, requirements.lock/-dev.lock              vastgelegd, met hashes
 tests/
   test_data.py         klopt de data? breekt het schema op kapotte data?
   test_split.py        is de split in de tijd eerlijk? embargo (ook per maand), geen overlap met de test
@@ -576,6 +677,15 @@ docs/
   label_beschikbaarheid.md     wanneer een label gekend is, en het embargo
   bewijsregister.csv   elk cijfer in README en rapport, met zijn bron
   audit_scope.md       wat de audit onderzocht, op welke versie
+  softwaremetric.md    de softwaremetriek: definitie, grenzen, metingen
+  optimalisaties.md    elke optimalisatie: gemeten of onderbouwd afgewezen
+  inputcontract.md     wat het systeem aanneemt en weigert
+  metrics.md           de drie metrieken en hoe ze samenhangen
+  business_roi.md      businessscenario's en de netto-raming
+  shadow_protocol.md   hoe de echte waarde gemeten zou worden
+  kosten.md            kost per advies, lokaal en bij 100× verkeer
+  testlogboek.md       wanneer de test gezien werd, en wat daarna veranderde
+  architectuur.md, adr/0001-waar-het-draait.md
 models/                model.joblib, advies.json en manifest.json, gemaakt door src.train.
                        Niet committen
 resultaten/            gemaakt door src.evaluate. Gecommit, voor het rapport

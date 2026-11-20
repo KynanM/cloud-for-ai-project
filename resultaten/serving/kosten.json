@@ -1,0 +1,23 @@
+{
+  "gemeten": {
+    "cpu_s_per_advies": 0.071,
+    "latency_p50_s": 0.069588,
+    "idle_cpu_s_per_uur": 48.250619999999984,
+    "piek_mb": 152.41
+  },
+  "aangenomen": {
+    "watt_per_kern": 15.0,
+    "euro_per_kwh": 0.3,
+    "dollar_in_euro": 0.92
+  },
+  "prijslijst": {
+    "bron": "cloud.google.com/run/pricing, 19-11-2026",
+    "vcpu_s": 2.4e-05,
+    "gib_s": 2.5e-06,
+    "per_verzoek": 4.0000000000000003e-07,
+    "vcpu": 1,
+    "gib": 1
+  },
+  "lokaal_eur_per_maand": 0.04342822049999998,
+  "hugging_face_space_eur_per_maand": 0.0
+}

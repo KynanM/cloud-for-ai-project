@@ -42,6 +42,32 @@ def per_nacht(
     weg. Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
     """
     boeking, nacht = _uitgerold(deel)
+    rijen = _rijen(deel, kansen, cfg, boeking, nacht)
+    if begin is not None:
+        rijen = rijen[rijen["nacht"] >= pd.Timestamp(begin)]
+    if einde is not None:
+        rijen = rijen[rijen["nacht"] <= pd.Timestamp(einde)]
+    return _tel(rijen, cfg["doel"] in deel.columns)
+
+
+def per_nacht_enkel(deel: pd.DataFrame, kansen: np.ndarray, cfg: dict, nacht) -> pd.DataFrame:
+    """Zelfde uitvoer als `per_nacht(begin=nacht, einde=nacht)`, zonder elk verblijf uit te rollen.
+
+    Voor één adviesnacht volstaat het de boekingen te kiezen waarvan het verblijf die nacht bevat:
+    aankomst ≤ nacht < aankomst + aantal nachten. Getest op gelijkheid in tests/test_nachten.py;
+    gemeten in resultaten/software/e9_aggregatie.csv.
+    """
+    aankomst = aankomstdatum(deel).to_numpy()
+    verblijf = (deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]).to_numpy()
+    doelnacht = np.datetime64(pd.Timestamp(nacht)).astype(aankomst.dtype)
+    binnen = (aankomst <= doelnacht) & (doelnacht < aankomst + verblijf.astype("timedelta64[D]"))
+    boeking = np.flatnonzero(binnen)
+    rijen = _rijen(deel, kansen, cfg, boeking, np.full(len(boeking), doelnacht))
+    return _tel(rijen, cfg["doel"] in deel.columns)
+
+
+def _rijen(deel, kansen, cfg: dict, boeking: np.ndarray, nacht: np.ndarray) -> pd.DataFrame:
+    """Eén rij per boeking-nacht: hotel, nacht, kans, variantie, prijs en eventueel het label."""
     p = np.asarray(kansen, dtype=float)[boeking]
     rijen = pd.DataFrame(
         {
@@ -52,14 +78,15 @@ def per_nacht(
             "adr": deel["adr"].to_numpy()[boeking],
         }
     )
-    som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
     if cfg["doel"] in deel.columns:
         rijen["echt"] = deel[cfg["doel"]].to_numpy()[boeking]
+    return rijen
+
+
+def _tel(rijen: pd.DataFrame, met_label: bool) -> pd.DataFrame:
+    som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
+    if met_label:
         som["echt"] = ("echt", "sum")
-    if begin is not None:
-        rijen = rijen[rijen["nacht"] >= pd.Timestamp(begin)]
-    if einde is not None:
-        rijen = rijen[rijen["nacht"] <= pd.Timestamp(einde)]
     return (
         rijen.groupby(["hotel", "nacht"])
         .agg(**som, adr=("adr", "mean"), boekingen=("verwacht", "size"))
@@ -181,7 +208,7 @@ def winst(k, echt, adr, r: float, w: float) -> np.ndarray:
     return adr * (r * np.minimum(k, echt) - w * np.maximum(k - echt, 0))
 
 
-def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float) -> np.ndarray:
+def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float, verkoopkans=1.0) -> np.ndarray:
     """De referentie voor `winst()`: rekent met de echte kamers in plaats van alleen met k en echt.
 
     Op het beslismoment zijn er `geboekt` kamers verkocht, het hotel heeft er `cap`. Het hotel
@@ -191,8 +218,12 @@ def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float) -> np.ndarray:
     Bij geboekt = cap is dit precies `winst()`. Staat het hotel al boven de capaciteit, of
     blijven er kamers leeg, dan wijkt `winst()` af. Alleen voor de tests en de aannames: de
     dataset zegt niet hoeveel kamers er op het beslismoment verkocht waren.
+
+    `verkoopkans`: welk deel van de k geadviseerde kamers het hotel ook echt extra verkoopt
+    (afgerond naar beneden). 1: elke geadviseerde kamer vindt een koper, zoals `winst()` aanneemt.
     """
     k, echt, geboekt, cap, adr = (np.asarray(x, dtype=float) for x in (k, echt, geboekt, cap, adr))
+    k = np.floor(np.asarray(verkoopkans, dtype=float) * k)
     nodig = geboekt - echt + k
     doorverwezen = np.maximum(nodig - cap, 0)
     # Extra verkochte kamers die een plaats vinden: k min wie doorverwezen wordt, maar niet meer
@@ -219,7 +250,9 @@ def beoordeel(
     bias                 gemiddelde (verwacht - echt) per hotel-nacht. Negatief: onderschat
     voorspeld_echt       som verwacht / som echt. 1 is goed geijkt
     te_veel              aandeel nachten met minder annulaties dan k: de gemeten overschrijding.
-                         Nominaal hoogstens 1 - zekerheid
+                         Nominaal hoogstens 1 - zekerheid. Ook alleen over de volgeboekte
+                         nachten (te_veel_vol) en de nachten met k > 0 (te_veel_k_pos)
+    tekort_gem/p95/max   max(k - echt, 0): hoeveel kamers te veel, gemiddeld en in de staart
     nul_advies           aandeel nachten met k = 0
     max_advies           aandeel nachten waarop k het maximum per nacht raakt
     euro_per_volle_nacht europroxy per volgeboekte nacht, met r en w uit de config
@@ -238,6 +271,8 @@ def beoordeel(
 
     def samenvatting(groep: pd.DataFrame) -> pd.Series:
         vol = groep[groep["vol"]]
+        te_veel = groep["echt"] < groep["k"]
+        tekort = np.maximum(groep["k"] - groep["echt"], 0)
         uit = {
             "nachten": len(groep),
             "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
@@ -246,6 +281,14 @@ def beoordeel(
             "te_veel": (groep["echt"] < groep["k"]).mean(),
             "gem_k": groep["k"].mean(),
             "nul_advies": (groep["k"] == 0).mean(),
+            # Drie noemers voor het risico: alle nachten (te_veel), alleen de volgeboekte, alleen
+            # de nachten waarop er overboekt wordt (k > 0). En hoeveel kamers te veel.
+            "te_veel_vol": te_veel[groep["vol"]].mean() if groep["vol"].any() else np.nan,
+            "nachten_k_pos": int((groep["k"] > 0).sum()),
+            "te_veel_k_pos": te_veel[groep["k"] > 0].mean() if (groep["k"] > 0).any() else np.nan,
+            "tekort_gem": tekort.mean(),
+            "tekort_p95": tekort.quantile(0.95),
+            "tekort_max": tekort.max(),
             "max_advies": ((groep["k"] == groep["maximum"]) & (groep["maximum"] > 0)).mean(),
             "volle_nachten": len(vol),
             "euro_per_volle_nacht": vol["euro"].mean(),

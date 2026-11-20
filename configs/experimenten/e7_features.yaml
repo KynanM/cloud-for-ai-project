@@ -1,0 +1,19 @@
+# Taak 3.9 (E7). Vastgelegd vóór de meting.
+hypothese: >
+  De export toont alleen de laatste waarde van features die na het beslismoment konden wijzigen.
+  Als de MAE nauwelijks verandert zonder die features, hangt de conclusie er niet van af.
+baseline: "S0: de huidige features"
+alternatieven:
+  - "S1 conservatief: zonder adults, children, babies, previous_*, meal, reserved_room_type, customer_type"
+  - "S2a zonder previous_*"
+  - "S2b zonder verblijfsduur als feature"
+  - "S2c zonder customer_type"
+  - "S2d zonder adr"
+metrics:
+  ml: "MAE, bias, AUC, Brier (validatie)"
+  software: "p95 van de kern"
+  business: "€ per volle nacht, te veel"
+beslisregel: >
+  Geen automatische vervanging. Ligt S1 binnen het 90 %-interval van S0 (blokbootstrap, 7 dagen),
+  dan is de conclusie robuust voor de beschikbaarheid van features; zo niet, dan wordt het als risico
+  vermeld. Dit bewijst niet dat er geen lek is.

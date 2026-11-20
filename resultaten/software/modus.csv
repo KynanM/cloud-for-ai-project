@@ -1,0 +1,4 @@
+variant,n_boekingen,herhalingen,p50_ms,p95_ms,cpu_s,binnen_slo,keer_trager_dan_batch
+batch: één aanroep,358,30,186.7691,216.0980,0.1860,True,1.0000
+online: één aanroep per boeking,358,10,31560.7349,37228.0934,28.1619,False,168.9826
+"online, model laden per verzoek",358,3,55451.8929,56409.4223,52.5469,False,296.9008

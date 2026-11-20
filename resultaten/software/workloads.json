@@ -1,0 +1,85 @@
+{
+  "nacht": "2017-05-15",
+  "seed": 42,
+  "portefeuille_per_nacht": {
+    "nachten": 149,
+    "mediaan": 358,
+    "p10": 310,
+    "p90": 385,
+    "max": 397
+  },
+  "workloads": {
+    "smoke": {
+      "bestand": "benchmarks/workloads/smoke.csv",
+      "nacht": "2017-08-15",
+      "n_boekingen": 76,
+      "n_boeking_nachten": 321,
+      "gem_verblijf": 4.22,
+      "hotels": {
+        "City Hotel": 62,
+        "Resort Hotel": 14
+      },
+      "sha256": "23f915b9cae964309633dafb21fa9d97f87d1ca2b631999949bfe1bf003b3286"
+    },
+    "normaal": {
+      "bestand": "benchmarks/workloads/normaal.csv",
+      "nacht": "2017-05-15",
+      "n_boekingen": 358,
+      "n_boeking_nachten": 1478,
+      "gem_verblijf": 4.13,
+      "hotels": {
+        "City Hotel": 250,
+        "Resort Hotel": 108
+      },
+      "sha256": "7ecda36ec7e601f4a3fdea0a1f10261c086ce68e450bc378fff2523e7a1ef523"
+    },
+    "kort_verblijf": {
+      "bestand": "benchmarks/workloads/kort_verblijf.csv",
+      "nacht": "2017-05-15",
+      "n_boekingen": 358,
+      "n_boeking_nachten": 602,
+      "gem_verblijf": 1.68,
+      "hotels": {
+        "City Hotel": 306,
+        "Resort Hotel": 52
+      },
+      "sha256": "c8a395aedd4e40502052715438a475821cb7030c00c10988965fc04337da5432"
+    },
+    "lang_verblijf": {
+      "bestand": "benchmarks/workloads/lang_verblijf.csv",
+      "nacht": "2017-05-15",
+      "n_boekingen": 358,
+      "n_boeking_nachten": 2952,
+      "gem_verblijf": 8.25,
+      "hotels": {
+        "Resort Hotel": 269,
+        "City Hotel": 89
+      },
+      "sha256": "d9f5cc882b0c5b8ad76a6946cb6fcc785fa2a462364141a8fbea72478086b29e"
+    },
+    "schaal_10k": {
+      "bestand": "benchmarks/workloads/schaal_10k.csv",
+      "nacht": "2017-05-15",
+      "n_boekingen": 10000,
+      "n_boeking_nachten": 40990,
+      "gem_verblijf": 4.1,
+      "hotels": {
+        "City Hotel": 6849,
+        "Resort Hotel": 3151
+      },
+      "sha256": "723e5e5c1670f7e018aa67648cea02e854f9c6f0c88c735e8026bb8ad429a8f9"
+    },
+    "schaal_100k": {
+      "bestand": "benchmarks/workloads/schaal_100k.csv",
+      "nacht": "2017-05-15",
+      "n_boekingen": 100000,
+      "n_boeking_nachten": 413977,
+      "gem_verblijf": 4.14,
+      "hotels": {
+        "City Hotel": 68280,
+        "Resort Hotel": 31720
+      },
+      "sha256": "3fdc8efa8c17e683eeb94f9f34c4ef78d1626e5cb8ecd354faf43cccb5144516"
+    }
+  }
+}

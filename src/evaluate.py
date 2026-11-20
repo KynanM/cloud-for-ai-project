@@ -99,9 +99,21 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
             y = delen[meet][c["doel"]].to_numpy()
             tabel = beoordeel(nachten, factor, cap, bezet, c)
             tabel["factor"] = tabel["hotel"].map(factor)
-            # Diagnostiek per boeking, voor beide hotels samen: niet de ML-metriek uit deel 1.
-            tabel["auc"] = roc_auc_score(y, p)
-            tabel["brier"] = brier_score_loss(y, p)
+            # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
+            # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
+            hotels = delen[meet]["hotel"].to_numpy()
+            tabel["auc"] = [
+                roc_auc_score(
+                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
+                )
+                for h in tabel["hotel"]
+            ]
+            tabel["brier"] = [
+                brier_score_loss(
+                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
+                )
+                for h in tabel["hotel"]
+            ]
             rijen.append(tabel.assign(periode=periode, model=naam(soort, land)))
 
             prt = (delen[meet]["country"] == "PRT").to_numpy()

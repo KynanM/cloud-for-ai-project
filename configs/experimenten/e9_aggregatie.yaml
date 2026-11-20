@@ -1,0 +1,19 @@
+# Taak 1.6 (E9). Vastgelegd vóór de meting.
+hypothese: >
+  per_nacht() rolt elk verblijf uit tot boeking-nachten en filtert pas daarna op de adviesnacht.
+  Voor één nacht volstaat het om de boekingen te selecteren waarvan het verblijf die nacht bevat:
+  zelfde uitvoer, minder tijd en minder geheugen, vooral bij lange verblijven.
+baseline: "per_nacht(deel, kansen, cfg, begin=nacht, einde=nacht)"
+alternatieven: ["per_nacht_enkel(deel, kansen, cfg, nacht)"]
+metrics:
+  ml: "uitvoer identiek (assert_frame_equal), dus k identiek"
+  software: >
+    tijd van de aggregatie (mediaan en p95 over 30 runs) en de piek van de toegewezen bytes
+    tijdens de aggregatie (tracemalloc: numpy-arrays tellen mee); daarna de latency van de kern
+  business: "€ identiek"
+beslisregel: >
+  Overnemen in voer_job_uit() als de uitvoer identiek is EN op de normale workload de p95 van de
+  kernlatency minstens 10 % lager is OF de geheugenpiek van de aggregatie minstens 20 % lager is.
+  Anders afwijzen en documenteren in docs/optimalisaties.md.
+workloads: [normaal, kort_verblijf, lang_verblijf, schaal_10k, schaal_100k]
+herhalingen: { opwarmen: 3, gemeten: 30 }

@@ -1,0 +1,11 @@
+# Taak 3.10. Vastgelegd vóór de meting.
+hypothese: >
+  De som van kansen per nacht is alleen zinvol als de kansen geijkt zijn. Per hotel kan de ijking
+  verschillen; met aantallen en intervallen per bak is te zien waar ze echt afwijkt.
+baseline: "vuistregel"
+alternatieven: ["logreg", "boosting"]
+metrics:
+  ml: "per hotel en per kwantielbak: gemiddelde kans, aandeel, 95 %-Wilson-interval; ECE"
+  software: "n.v.t."
+  business: "n.v.t.: verklaart voorspeld/echt"
+beslisregel: "Beschrijvend: geen keuze. Een bak buiten het interval wordt in de verantwoording vermeld."

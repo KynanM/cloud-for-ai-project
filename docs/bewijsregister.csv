@@ -42,3 +42,25 @@ hertraining,MAE validatie vast model / elke maand hertrainen,4.72 / 5.04; versch
 hertraining,bias City februari / maart vast tegenover elke maand,−3.5 → −0.6 / +1.6 → +3.7,resultaten/audit/hertraining_maand.csv,uitgevoerd en reproduceerbaar
 hertraining,MAE test vast / elke maand (alleen gerapporteerd),5.11 / 5.08 (interval −0.08 tot +0.03),resultaten/audit/hertraining.csv,uitgevoerd en reproduceerbaar
 reproduceerbaarheid,logreg met land MAE test bij tol 1e-4 op twee machines,5.135 / 5.113; met tol 1e-6: 5.116,configs/default.yaml (model.logreg.tol); resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+veiligheid,te veel per hotel boosting validatie City / Resort,5.9 % / 16.5 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+veiligheid,te veel per hotel boosting test City / Resort,22.2 % / 9.6 %,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
+software,leertijd (mediaan van 10) vuistregel / logreg / boosting,0.01 / 1.40 / 0.81 s,resultaten/software/modellen_software.csv,uitgevoerd en reproduceerbaar
+software,kern p95 per model (200 runs) vuistregel / logreg / boosting,66 / 68 / 75 ms,resultaten/software/modellen_software.csv,uitgevoerd en reproduceerbaar
+rolling origin,MAE gemiddeld over 4 kwartalen vuistregel / logreg / boosting,8.43 / 7.25 / 7.10,resultaten/audit/rolling_origin.csv,uitgevoerd en reproduceerbaar
+rolling origin,logreg − boosting per nacht (blokken 7 dagen),+0.14 [−0.31; +0.58],resultaten/audit/rolling_origin.csv,uitgevoerd en reproduceerbaar
+bootstrap,200 tegenover 100 iteraties met blokken van 7 dagen,+0.15 [−0.12; +0.41],resultaten/audit/bootstrap_gevoeligheid.csv,uitgevoerd en reproduceerbaar
+risico,boosting Resort maart 2017 te veel (validatie),39 % [13; 65],resultaten/audit/risico_per_groep.csv,uitgevoerd en reproduceerbaar
+risico,zekerheid per hotel: hoogste hotel x maand / doorverwezen,23 % / 0.07,resultaten/audit/zekerheid_per_hotel.csv,uitgevoerd en reproduceerbaar
+complexiteit,hoogste p95 van de kern over 9 treden,138 ms,resultaten/audit/complexiteit.csv,uitgevoerd en reproduceerbaar
+split,AUC willekeurig met kopieën samen logreg / boosting,0.735 / 0.759,resultaten/audit/split_duplicaten.csv,uitgevoerd en reproduceerbaar
+contract,MAE boosting tegen label A / B,4.72 / 5.18,resultaten/audit/contract_mae.csv,uitgevoerd en reproduceerbaar
+business,scenario's waarin boosting >= vuistregel (validatie),49 % van 108,resultaten/audit/business_scenario_samenvatting.json,uitgevoerd en reproduceerbaar
+business,netto per maand pessimistisch / basis / optimistisch (raming),-3985 / 2923 / 9523 €,resultaten/business/roi.csv,uitgevoerd en reproduceerbaar
+business,Spearman MAE en € per volle nacht,-0.72 (p < 0.001; n = 38),resultaten/audit/metriekverband.csv,uitgevoerd en reproduceerbaar
+replay,testnachten via de API / p95,153 nachten / 127 ms,resultaten/business/replay.csv,uitgevoerd en reproduceerbaar
+deployment,container 1 vCPU 1 GiB: p95 / koude start / piek,183 ms / 3.6 s / 152 MB,resultaten/serving/container.csv,uitgevoerd en reproduceerbaar
+deployment,image slank / een stage,670 / 2776 MB,resultaten/serving/container.csv,uitgevoerd en reproduceerbaar
+deployment,kleinste infrastructuur binnen de grens,0.5 vCPU / 512 MB (p95 259 ms),resultaten/serving/sizing.csv,uitgevoerd en reproduceerbaar
+deployment,throughput binnen de grens 1 / 2 / 4 containers,2 / 8 / 8 verzoeken per s,resultaten/serving/belasting.csv,uitgevoerd en reproduceerbaar
+kosten,lokaal per maand / Cloud Run bij 100x verkeer,0.04 € / 0.006 € (gratis tier 0),resultaten/serving/kosten.csv,uitgevoerd en reproduceerbaar
+monitoring,valse driftalarmen op testnachten / adr per verblijf gevangen,0 van 153 / 153 van 153,src/monitoring.py,uitgevoerd en reproduceerbaar

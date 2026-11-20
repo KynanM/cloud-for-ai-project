@@ -1,0 +1,9 @@
+workload,n_boekingen,variant,n,p50_ms,p95_ms,p95_laag,p95_hoog,max_ms,delta_p50_ms,delta_p50_laag,delta_p50_hoog,delta_p50_pct,uitvoer_identiek
+normaal,358,oud: twee keer voorspellen,30,283.8369,336.3141,317.9006,343.9432,343.9432,,,,,
+normaal,358,nieuw: één keer,30,210.8233,280.6589,242.4158,307.1850,307.1850,-73.0137,-91.5176,-61.7085,-25.7238,True
+kort_verblijf,358,oud: twee keer voorspellen,30,302.2815,330.3460,315.6401,348.0012,348.0012,,,,,
+kort_verblijf,358,nieuw: één keer,30,215.4649,252.8740,248.3725,276.8668,276.8668,-86.8166,-99.6266,-66.2932,-28.7205,True
+lang_verblijf,358,oud: twee keer voorspellen,30,293.2140,337.3445,327.2597,338.3199,338.3199,,,,,
+lang_verblijf,358,nieuw: één keer,30,221.2478,282.3471,242.8121,315.6497,315.6497,-71.9661,-100.8250,-55.8538,-24.5439,True
+schaal_10k,10000,oud: twee keer voorspellen,30,1164.6091,1257.7745,1213.8444,1284.5314,1284.5314,,,,,
+schaal_10k,10000,nieuw: één keer,30,569.9608,677.8793,647.7593,721.6169,721.6169,-594.6482,-639.8502,-531.3760,-51.0599,True

@@ -1,0 +1,15 @@
+# Taak 3.6 (E5). Vastgelegd vóór de meting.
+hypothese: >
+  Boosting wint niet alleen op het ene validatieblok (Q1 2017, winter), maar over meerdere
+  kwartalen, telkens geleerd op alles vóór het embargo.
+baseline: "vuistregel"
+alternatieven: ["logreg", "boosting"]
+metrics:
+  ml: "MAE, bias, AUC, Brier, logloss per fold × hotel"
+  software: "leertijd per fold"
+  business: "€ per volle nacht en te veel per fold × hotel (spreidingsfactor uit de vorige fold)"
+beslisregel: >
+  Boosting blijft de keuze als de gemiddelde MAE over de folds het laagst is, boosting in minstens
+  3 van de 4 folds wint van logreg, en geen fold × hotel van boosting boven de risicogrens zit.
+  Anders wordt de keuze heroverwogen en gerapporteerd.
+meetblokken: "zie rolling.meetblokken in configs/default.yaml"

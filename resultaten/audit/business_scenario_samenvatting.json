@@ -1,0 +1,7 @@
+{
+  "aandeel_boosting_ge_vuistregel": 0.49074074074074076,
+  "aandeel_boosting_ge_nulbeleid": 0.9259259259259259,
+  "slechtste_10pct_boosting_min_vuistregel": -140.50356765706948,
+  "aandeel_rangorde_gelijk_test": 0.5092592592592593,
+  "businessrobuust": false
+}

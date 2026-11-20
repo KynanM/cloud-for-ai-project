@@ -1,0 +1,23 @@
+# Taak 3.7 (E6), les 06 p. 23. Vastgelegd vóór de meting.
+hypothese: >
+  Complexere modellen verlagen de MAE tot een punt; de latencygrens van 1 000 ms bindt pas bij
+  veel complexere modellen dan het huidige. De MAE optimaliseer je, de latency is de grens.
+baseline: "trede 4: boosting zoals in de config"
+alternatieven:
+  - "0 vuistregel"
+  - "1 logreg"
+  - "2 boosting 50 iteraties, 7 bladeren"
+  - "3 boosting 100 iteraties, 7 bladeren, minstens 300 per blad"
+  - "5 boosting 200 iteraties"
+  - "6 boosting 400 iteraties, leersnelheid 0,025, 31 bladeren"
+  - "7 boosting 1000 iteraties, leersnelheid 0,01, 63 bladeren, minstens 20 per blad"
+  - "8 random forest, 300 bomen"
+metrics:
+  ml: "MAE, bias, AUC, Brier, te veel per hotel (validatie)"
+  software: "p50/p95 van de kern op de normale workload (5 opwarm, 50 gemeten), modelgrootte, leertijd"
+  business: "€ per volle nacht (validatie)"
+beslisregel: >
+  Kies de trede met de laagste MAE waarvan de p95 van de kern ≤ 1 000 ms en te veel per hotel ≤ 20 %.
+  Een andere trede vervangt de huidige alleen als het 90 %-interval van het verschil in absolute fout
+  per nacht (blokbootstrap, 7 dagen) volledig onder 0 ligt. Bindt geen enkele trede de latencygrens,
+  dan wordt dat zo gerapporteerd.

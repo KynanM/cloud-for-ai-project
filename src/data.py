@@ -20,22 +20,62 @@ def laad_data(
     Geef `valideer_met=None` om zonder validatie in te lezen. Dat doe je alleen om te zien
     wat er misloopt zonder.
     """
-    df = pd.read_csv(pad)
+    try:
+        df = pd.read_csv(pad)
+    except pd.errors.EmptyDataError:
+        raise SystemExit(f"{pad} is leeg: geen kolommen, geen boekingen.") from None
     if valideer_met is None:
         return df
     try:
-        return valideer_met.validate(df, lazy=True)
+        return valideer(df, valideer_met, pad)
+    except OngeldigeDataError as fout:
+        # Op de opdrachtregel stoppen, met de samenvatting per controle als melding.
+        raise SystemExit(str(fout)) from None
+
+
+class OngeldigeDataError(ValueError):
+    """De data voldoet niet aan het schema. De melding is de samenvatting per controle.
+
+    `fouten` per veld: [{"kolom", "controle", "rijen", "voorbeelden"}], voor een API-antwoord.
+    """
+
+    def __init__(self, melding: str, fouten: list[dict]):
+        super().__init__(melding)
+        self.fouten = fouten
+
+
+def valideer(df: pd.DataFrame, met: pa.DataFrameSchema, bron="invoer") -> pd.DataFrame:
+    """Valideer tegen een schema, alle fouten in één keer (`lazy=True`).
+
+    Faalt met OngeldigeDataError, met de samenvatting per controle als melding.
+    """
+    try:
+        return met.validate(df, lazy=True)
     except pa.errors.SchemaErrors as fouten:
-        # Eerst loggen, zodat de fout ook in het logbestand staat. Daarna stoppen, met de
-        # samenvatting per controle als melding.
+        # Eerst loggen, zodat de fout ook in het logbestand staat.
         controles = fouten.failure_cases.groupby(["column", "check"], dropna=False).ngroups
         logger.error(
             "%s voldoet niet aan het schema: %d fouten in %d controle(s)",
-            pad,
+            bron,
             len(fouten.failure_cases),
             controles,
         )
-        raise SystemExit(samenvatting(fouten, pad)) from None
+        raise OngeldigeDataError(samenvatting(fouten, bron), per_controle(fouten)) from None
+
+
+def per_controle(fouten: pa.errors.SchemaErrors) -> list[dict]:
+    """De fouten per kolom en controle, als gewone waarden (geen numpy-typen)."""
+    uit = []
+    for (kolom, controle), groep in fouten.failure_cases.groupby(["column", "check"], dropna=False):
+        uit.append(
+            {
+                "kolom": None if pd.isna(kolom) else str(kolom),
+                "controle": str(controle),
+                "rijen": int(len(groep)),
+                "voorbeelden": [str(v) for v in groep["failure_case"].unique()[:3]],
+            }
+        )
+    return uit
 
 
 def samenvatting(fouten: pa.errors.SchemaErrors, pad) -> str:
@@ -48,16 +88,13 @@ def samenvatting(fouten: pa.errors.SchemaErrors, pad) -> str:
 
 
 def schoon_op(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Haal de boekingen weg die buiten de scope van deel 1 vallen. Zie configs/default.yaml."""
-    regels = cfg["opschoning"]
-    nachten = df["stays_in_weekend_nights"] + df["stays_in_week_nights"]
-    binnen_scope = (
-        (df["deposit_type"] != regels["uitgesloten_deposit"])
-        & (df["adr"] > regels["adr_min"])
-        & (df["adr"] < regels["adr_max"])
-        & (nachten > 0)
-    )
-    return df[binnen_scope]
+    """Haal de boekingen weg die buiten de scope van deel 1 vallen. Zie configs/default.yaml.
+
+    Dezelfde regels als bij voorspellen: src/scope.py is de enige plek waar ze staan.
+    """
+    from .scope import binnen_opschoning  # hier: scope gebruikt zelf aankomstdatum() uit data
+
+    return df[binnen_opschoning(df, cfg)]
 
 
 def aankomstdatum(df: pd.DataFrame) -> pd.Series:

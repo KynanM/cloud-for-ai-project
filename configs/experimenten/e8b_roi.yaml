@@ -1,0 +1,13 @@
+# Taak 4.2. Vastgelegd vóór de berekening.
+hypothese: >
+  De meerwaarde van boosting tegenover de vuistregel per volle nacht, maal het aantal volle nachten
+  per maand, is groter dan de kosten van infrastructuur en beheer.
+baseline: "de vuistregel van de revenue manager (geen modelkosten)"
+alternatieven: ["boosting, met infrastructuur- en beheerkosten"]
+metrics:
+  ml: "n.v.t."
+  software: "infrastructuurkosten per maand (taak 5.9)"
+  business: "netto € per maand en terugverdientijd in een pessimistisch, basis- en optimistisch scenario"
+beslisregel: >
+  Beschrijvend. Elke invoer is gelabeld als gemeten, geraamd of aangenomen. Een ROI-claim in de
+  README alleen met de scenario-aanduiding.
