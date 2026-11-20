@@ -1,0 +1,15 @@
+# Taak 1.8. Vastgelegd vóór de meting.
+hypothese: >
+  Een gecomprimeerd modelbestand is kleiner maar laadt trager; meer threads versnellen het
+  voorspellen weinig bij een portefeuille van enkele honderden boekingen. ONNX, quantization,
+  pruning en een GPU lonen alleen als het voorspellen een groot deel van de latency is.
+baseline: "joblib zonder compressie, OMP_NUM_THREADS=1"
+alternatieven: ["compress=3", "compress=9", "OMP_NUM_THREADS=2", "OMP_NUM_THREADS=4"]
+metrics:
+  ml: "identieke kansen (assert)"
+  software: "bestandsgrootte, laadtijd in een vers proces (30x), tijd van voorspellen (30x)"
+  business: "identiek"
+beslisregel: >
+  Compressie alleen als de laadtijd met minder dan 10 % stijgt. Meer threads alleen als de p95 van
+  de kern minstens 10 % daalt. Is het aandeel voorspellen in de kernlatency kleiner dan 30 %, dan
+  wordt compilatie (ONNX) afgewezen met dat getal: zelfs 10x sneller geeft dan minder dan 27 % winst.

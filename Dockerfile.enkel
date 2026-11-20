@@ -1,0 +1,12 @@
+# Alleen voor de vergelijking in taak 5.2: één stage, het volledige Python-image, alle
+# afhankelijkheden (ook die voor ontwikkelen). Niet gebruiken om te deployen.
+FROM python:3.13.14
+WORKDIR /app
+COPY requirements-dev.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements-dev.lock
+COPY src/ src/
+COPY configs/ configs/
+COPY models/actief/ models/actief/
+ENV OMP_NUM_THREADS=1 OVERBOEKING_MODELMAP=models/actief OVERBOEKING_LOGFORMAAT=json
+EXPOSE 7860
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "7860"]

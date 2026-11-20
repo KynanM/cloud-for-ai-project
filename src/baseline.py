@@ -1,13 +1,14 @@
 """De vuistregel van de revenue manager: de baseline die elk model moet verslaan.
 
 Een revenue manager kijkt niet naar 20 kolommen. Hij kijkt hoeveel boekingen van hetzelfde
-soort het afgelopen jaar alsnog annuleerden: per hotel, marktsegment en hoe ver vooraf geboekt.
+soort vroeger alsnog annuleerden: per hotel, marktsegment en hoe ver vooraf geboekt.
 Dat percentage is de kans voor elke nieuwe boeking van dat soort.
 
 Twee keuzes maken hem eerlijk, en geen stroman:
 
-- alleen de laatste 12 maanden. Met alle historiek overschat hij de annulaties, want het
-  annulatiegedrag verschuift in de tijd
+- standaard alle historiek. Eerst stonden alleen de laatste 12 maanden ingesteld, omdat het
+  annulatiegedrag verschuift; op de validatie bleek alle historiek beter (MAE 6,36 tegenover
+  6,65, `resultaten/audit/experimenten.csv`). Een venster blijft instelbaar met `venster_maanden`
 - een groep met te weinig boekingen krijgt het percentage van het hotel. Drie boekingen
   waarvan één annuleert, is geen 33 %
 
@@ -33,7 +34,7 @@ class Vuistregel(ClassifierMixin, BaseEstimator):
     minimum_groep      een groep met minder boekingen valt terug op het hotel
     """
 
-    def __init__(self, venster_maanden=12, lead_time_grenzen=(60, 120, 240), minimum_groep=30):
+    def __init__(self, venster_maanden=None, lead_time_grenzen=(60, 120, 240), minimum_groep=30):
         self.venster_maanden = venster_maanden
         self.lead_time_grenzen = lead_time_grenzen
         self.minimum_groep = minimum_groep

@@ -1,0 +1,14 @@
+id,document,anker,bestand,filter,kolom,bewerking,schaal,decimalen,achter
+risico-city-test-readme,README.md,City Hotel zit op de test op ,resultaten/evaluatie.csv,periode=test&model=boosting zonder land&hotel=City Hotel,te_veel,eerste,100,0, %
+risico-resort-test-readme,README.md,"(validatie 6 %), Resort op ",resultaten/evaluatie.csv,periode=test&model=boosting zonder land&hotel=Resort Hotel,te_veel,eerste,100,0, %
+risico-city-test-verantwoording,docs/verantwoording.md,boosting zit in City op 6 % (validatie) en **,resultaten/evaluatie.csv,periode=test&model=boosting zonder land&hotel=City Hotel,te_veel,eerste,100,0, %
+mae-boosting-validatie,docs/verantwoording.md,| **boosting** | **,resultaten/evaluatie.csv,periode=validatie&model=boosting zonder land&hotel=beide,mae,eerste,1,2,
+kern-p95-normaal,docs/softwaremetric.md,| **normaal** | **358** | **1 478** | **64** | **,resultaten/software/summary.csv,sessie=fase1&doel=kern&workload=normaal,p95_ms,eerste,1,0,
+http-p95-normaal,docs/softwaremetric.md,| **normaal** | **358** | **77** | **,resultaten/software/summary.csv,sessie=fase2_http&doel=http&workload=normaal,p95_ms,eerste,1,0,
+container-p95,docs/softwaremetric.md,"| **multi-stage, slank** (`Dockerfile`) | 670 MB | 70 ms | **",resultaten/serving/container.csv,image=overboeking:lokaal,p95_ms,eerste,1,0, ms
+rolling-boosting,docs/verantwoording.md,"| **MAE gemiddeld** | | 8,43 | 7,25 | **",resultaten/audit/rolling_origin.csv,model=boosting&hotel=beide,mae,gemiddelde,1,2,
+risico-resort-maart,docs/verantwoording.md,| Resort | **maart 2017** | **,resultaten/audit/risico_per_groep.csv,model=boosting&periode=validatie&hotel=Resort Hotel&maand=2017-03,te_veel,eerste,100,0, %
+complexiteit-max-p95,docs/verantwoording.md,de zwaarste trede haalt ,resultaten/audit/complexiteit.csv,,kern_p95_ms,max,1,0, ms
+business-aandeel,docs/business_roi.md,boosting ≥ vuistregel in **,resultaten/audit/business_scenario.csv,periode=validatie,boosting_min_vuistregel,aandeel_ge_0,100,0, %
+spearman,docs/business_roi.md,**Spearman ρ = ,resultaten/audit/metriekverband.csv,verband=MAE en € per volle nacht,spearman_rho,eerste,1,2,
+kosten-100x,docs/kosten.md,| **100× meer verkeer** | 100 | ,resultaten/serving/kosten.csv,scenario=100x meer verkeer,lokaal_eur_per_maand,eerste,1,2,

@@ -1,0 +1,6 @@
+variant,p50_ms,p95_ms,max_rps_binnen_grens,wat_breekt_eerst,idle,bron
+A batchjob (vers container per advies),3897.50,4049.90,,n.v.t. (één job per dag),geen container tussen de jobs,batchjob.csv
+"B API x1 achter nginx (0,5 vCPU / 512 MB elk)",151.35,276.54,2.03,latency (wachtrij),draait altijd,belasting.csv
+"B API x2 achter nginx (0,5 vCPU / 512 MB elk)",140.32,274.10,7.99,latency (wachtrij),draait altijd,belasting.csv
+"B API x4 achter nginx (0,5 vCPU / 512 MB elk)",139.35,215.01,7.95,latency (wachtrij),draait altijd,belasting.csv
+"C online, model laden per verzoek (één aanroep per boeking)",55451.89,56409.42,0.00,latency: 55 s per adviesnacht,—,modus.csv

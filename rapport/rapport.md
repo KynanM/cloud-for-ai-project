@@ -4,7 +4,7 @@ Kynan Melsens · Cloud for AI · 2026-2027 · repo: https://github.com/KynanM/cl
 
 ## 1. Probleem en metriek
 
-Een hotel beslist 30 dagen vóór elke nacht hoeveel kamers het extra mag verkopen. Het model
+Een hotel beslist 30 dagen vóór de aankomst hoeveel kamers het extra mag verkopen. Het model
 voorspelt per boeking die op dat moment nog actief is, de kans dat ze alsnog geannuleerd wordt of
 een no-show wordt. Opgeteld per hotel-nacht geeft dat het verwachte aantal kamers dat vrijkomt.
 Daaruit volgt het advies k: het grootste aantal waarvoor P(minstens k annulaties) ≥ 0,80.
@@ -52,13 +52,13 @@ maximum haalden de vuistregel en boosting op de test 638 € en 633 € per volg
 stadshotel raakte het advies op 98 % van de nachten het maximum, dus besliste het maximum en niet
 het model. Zonder maximum haalt boosting 480 € tegenover 328 € (validatie) en 715 € tegenover
 540 € (test). De vuistregel adviseert dan op 31 % van de testnachten te veel
-kamers, boven de risicogrens van 20 %; boosting op 16 %. De prijs: 0,54
+kamers, boven de risicogrens van 20 %; boosting op 16 % gepoold, maar City alleen op 22 %. De prijs: 0,54
 doorverwezen gasten per volle nacht in plaats van 0,09.
 
 ## 5. Data leakage
 
 **De split.** Met een willekeurige split haalt de logistische regressie een AUC van 0,756, in de
-tijd 0,627: het verschil is de toekomst die in de training lekt. Een embargo van 31 dagen zorgt dat
+tijd 0,627: optimisme door de tijd te mengen (en mogelijk door kopieën over de split). Een embargo van 31 dagen zorgt dat
 de afloop van elke trainingsboeking gekend is op het eerste beslismoment erna
 (`tests/test_split.py`). **Kolommen die pas bij aankomst ingevuld worden** (parkeerplaats,
 toegewezen kamer, wijzigingen, speciale wensen) zijn geen feature. **Het land** deed de AUC met 0,10 stijgen,

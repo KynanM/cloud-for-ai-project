@@ -201,3 +201,36 @@ def test_een_andere_winstcurve_mag_wel(gebouwd):
     cfg, _ = gebouwd
     cfg_anders = {**cfg, "advies": {**cfg["advies"], "winstcurve": {"van": 0.1}}}
     controleer(cfg_anders)
+
+
+@pytest.mark.parametrize(
+    ("sectie", "instelling", "melding"),
+    [
+        # Beleid: een risicogrens die het model per hotel niet haalt (City 6 %, Resort 16 %)
+        ("advies", {"risicogrens": 0.01}, "te veel City Hotel"),
+        # Software: een modelbestand dat de grens overschrijdt
+        ("poorten", {"max_model_mb": 0.0001}, "modelbestand"),
+    ],
+)
+def test_beleids_en_softwarepoort_houden_een_model_tegen(
+    ruw, tmp_path, sectie, instelling, melding
+):
+    pad = config_in(tmp_path)
+    ruwe = yaml.safe_load(pad.read_text(encoding="utf-8"))
+    ruwe[sectie].update(instelling)
+    pad.write_text(yaml.safe_dump(ruwe, allow_unicode=True), encoding="utf-8")
+    cfg = laad_config(pad)
+
+    with pytest.raises(SystemExit, match=melding):
+        bouw_en_bewaar(ruw, cfg)
+    assert not cfg["model"]["pad"].exists()
+    assert not cfg["model"]["manifest_pad"].exists()
+
+
+def test_het_manifest_bevat_elke_poort(gebouwd):
+    cfg, _ = gebouwd
+    manifest = json.loads(cfg["model"]["manifest_pad"].read_text(encoding="utf-8"))
+    soorten = {p["soort"] for p in manifest["poorten"]}
+    assert soorten == {"ml", "beleid", "software"}
+    assert all(p["geslaagd"] for p in manifest["poorten"])
+    assert manifest["poorten_overgeslagen"] is False

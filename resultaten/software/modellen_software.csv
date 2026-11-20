@@ -1,0 +1,4 @@
+model,mae_validatie,euro_per_volle_nacht_validatie,kern_p50_ms,kern_p95_ms,kern_p95_laag,kern_p95_hoog,cli_p50_ms,cli_p95_ms,piek_rss_mb_cli,model_kb,leertijd_s_mediaan,binnen_slo,gekozen
+vuistregel,6.3566,327.5722,50.8320,66.4810,63.1070,69.7780,2667.0320,2918.2210,184.7000,1.6182,0.0139,True,False
+logreg,5.7745,331.3142,58.5060,67.9030,66.1610,71.8780,2805.3070,3237.4940,186.1000,5.0957,1.3953,True,False
+boosting,4.7190,480.1901,64.0820,75.4240,72.6230,81.6400,2832.7210,3023.4370,186.7000,78.5986,0.8058,True,True

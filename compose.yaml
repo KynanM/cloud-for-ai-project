@@ -1,0 +1,62 @@
+# De lokale stack (taak 5.4). Zie docs/architectuur.md.
+#   docker compose up -d                                        API en MLflow
+#   docker compose --profile job run --rm advies-job <csv> ...  de dagelijkse batch
+#   docker compose --profile schaal up -d --scale api=4         vier API-containers achter nginx
+services:
+  api:
+    build: .
+    image: overboeking:lokaal
+    expose:
+      - "7860"
+    ports:
+      - "127.0.0.1::7860"
+    environment:
+      - OVERBOEKING_LOGFORMAAT=json
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        # De kleinste combinatie die de grens haalt (taak 5.6, resultaten/serving/sizing.csv):
+        # p95 259 ms, 100 000 boekingen zonder OOM. De softwaremetriek zelf is gemeten op de
+        # referentie-infrastructuur van 1 vCPU / 1 GiB (configs/benchmark.yaml).
+        limits:
+          cpus: "0.5"
+          memory: 512m
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command: >
+      mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artefacten --host 0.0.0.0 --port 5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+
+  advies-job:
+    profiles: ["job"]
+    image: overboeking:lokaal
+    entrypoint: ["python", "-m", "src.predict"]
+    volumes:
+      - ./invoer:/app/invoer:ro
+      - ./uitvoer:/app/uitvoer
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1g
+
+  proxy:
+    profiles: ["schaal"]
+    image: nginx:1.29.3-alpine
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+
+volumes:
+  mlflow-data:

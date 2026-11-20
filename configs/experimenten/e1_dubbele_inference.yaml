@@ -1,0 +1,15 @@
+# Taak 1.5 (E1). Vastgelegd vóór de meting.
+hypothese: >
+  De opdrachtregel voorspelde twee keer dezelfde kansen: één keer in main(), één keer in
+  adviseer(). Eén keer voorspellen geeft exact hetzelfde advies en een lagere latency.
+baseline: "oud pad (commit fb0c6e9): schema, voorspel(), daarna adviseer() dat opnieuw voorspelt"
+alternatieven: ["nieuw pad: schema, één keer voorspel(), adviseer_uit_kansen()"]
+metrics:
+  ml: "k en verwacht per hotel-nacht moeten identiek zijn"
+  software: "p50/p95 van de latency van de kern (zonder HTTP), 5 opwarm + 30 gemeten per workload"
+  business: "€ per volle nacht: identiek, want k is identiek"
+beslisregel: >
+  Overnemen als de uitvoer identiek is (assert). Het effect op de latency wordt gerapporteerd,
+  ook als het kleiner is dan 1 %.
+workloads: [normaal, kort_verblijf, lang_verblijf, schaal_10k]
+herhalingen: { opwarmen: 5, gemeten: 30 }

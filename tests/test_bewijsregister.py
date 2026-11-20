@@ -102,3 +102,88 @@ def test_register_heeft_de_mae_uit_evaluatie(evaluatie):
             for m in ("vuistregel", "logreg zonder land", "boosting zonder land")
         )
         assert rijen[f"MAE {periode} vuistregel / logreg / boosting"] == verwacht
+
+
+@pytest.mark.parametrize("periode", ["validatie", "test"])
+def test_te_veel_per_hotel_in_de_tekst(periode):
+    """Een gepoold gemiddelde mag de overschrijding in één hotel niet verbergen."""
+    tabel = pd.read_csv(PROJECT / "resultaten" / "evaluatie.csv")
+    rijen = tabel[(tabel["periode"] == periode) & (tabel["model"] == "boosting zonder land")]
+    per_hotel = rijen.set_index("hotel")["te_veel"]
+    for document in ("README.md", "docs/verantwoording.md"):
+        tekst = (PROJECT / document).read_text(encoding="utf-8")
+        for hotel in ("City Hotel", "Resort Hotel"):
+            procent = f"{100 * per_hotel[hotel]:.0f} %"
+            assert procent in tekst, f"{document} noemt te veel {procent} ({hotel}, {periode}) niet"
+
+
+def test_softwaretijden_in_de_verantwoording():
+    """De tijden in verantwoording §8 zijn de herhaalde metingen uit modellen_software.csv.
+
+    Niet de microbenchmark uit modelvergelijking.csv: één getimede aanroep verschilt van run tot
+    run, zodat elke reproductie de tekst zou tegenspreken (gezien na een verse clone).
+    """
+    tabel = pd.read_csv(PROJECT / "resultaten" / "software" / "modellen_software.csv")
+    tekst = (PROJECT / "docs" / "verantwoording.md").read_text(encoding="utf-8")
+    for _, rij in tabel.iterrows():
+        ms = f"{rij['kern_p95_ms']:.0f} ms |"
+        assert ms in tekst, f"verantwoording noemt {ms} voor {rij['model']} niet"
+
+
+# ------------------------------------------------------------------ semantische controle (taak 6.1)
+
+SEMANTISCH = PROJECT / "docs" / "bewijs_semantisch.csv"
+VENSTER = 12  # tekens na het anker waarin het getal moet staan
+
+
+def waarde_uit_bron(rij: dict) -> float:
+    tabel = pd.read_csv(PROJECT / rij["bestand"])
+    for voorwaarde in filter(None, rij["filter"].split("&")):
+        kolom, waarde = voorwaarde.split("=", 1)
+        tabel = tabel[tabel[kolom].astype(str) == waarde]
+    reeks = tabel[rij["kolom"]].astype(float)
+    assert len(reeks), f"{rij['id']}: geen rij in {rij['bestand']} voor {rij['filter']}"
+    bewerking = {
+        "eerste": lambda r: r.iloc[0],
+        "gemiddelde": lambda r: r.mean(),
+        "max": lambda r: r.max(),
+        "aandeel_ge_0": lambda r: (r >= 0).mean(),
+    }[rij["bewerking"]]
+    return float(bewerking(reeks)) * float(rij["schaal"])
+
+
+def als_tekst(waarde: float, decimalen: int) -> str:
+    """Zoals in de documentatie: komma, duizendtallen met een spatie, min als − (U+2212)."""
+    tekst = f"{abs(waarde):,.{decimalen}f}".replace(",", " ").replace(".", ",")
+    return ("−" if round(waarde, decimalen) < 0 else "") + tekst
+
+
+def staat_achter_het_anker(rij: dict, tekst: str) -> bool:
+    plek = tekst.find(rij["anker"])
+    assert plek >= 0, f"{rij['id']}: anker niet gevonden in {rij['document']}"
+    na = tekst[plek + len(rij["anker"]) : plek + len(rij["anker"]) + VENSTER]
+    verwacht = als_tekst(waarde_uit_bron(rij), int(rij["decimalen"])) + (rij["achter"] or "")
+    return na.startswith(verwacht)
+
+
+def semantische_rijen() -> list[dict]:
+    with SEMANTISCH.open(encoding="utf-8") as f:
+        return [{k: (v or "") for k, v in r.items()} for r in csv.DictReader(f)]
+
+
+@pytest.mark.parametrize("rij", semantische_rijen(), ids=lambda r: r["id"])
+def test_het_juiste_getal_op_de_juiste_plek(rij):
+    tekst = (PROJECT / rij["document"]).read_text(encoding="utf-8")
+    verwacht = als_tekst(waarde_uit_bron(rij), int(rij["decimalen"]))
+    assert staat_achter_het_anker(rij, tekst), (
+        f"{rij['document']}: na '{rij['anker']}' hoort {verwacht} te staan ({rij['bestand']})"
+    )
+
+
+def test_een_verwisseling_van_city_en_resort_valt_op():
+    # Zelfde getallen, verkeerde hotels: een gewone zoektocht naar "22 %" ziet dat niet
+    rij = next(r for r in semantische_rijen() if r["id"] == "risico-city-test-readme")
+    tekst = (PROJECT / rij["document"]).read_text(encoding="utf-8")
+    verwisseld = tekst.replace(rij["anker"] + "22 %", rij["anker"] + "10 %")
+    assert staat_achter_het_anker(rij, tekst)
+    assert not staat_achter_het_anker(rij, verwisseld)
