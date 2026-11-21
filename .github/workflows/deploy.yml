@@ -1,6 +1,8 @@
 # Naar de Hugging Face Space (taak 5.10), na een groene CI op main, of met de hand.
 # Vereist het GitHub-secret HF_TOKEN (schrijfrechten op de Space) en de repositoryvariabele
 # HF_SPACE ("gebruiker/naam"). Geen van beide staat in de repository.
+# Zolang HF_SPACE niet gezet is, wordt er niet gedeployd en meldt de workflow dat (geen rode ✗
+# voor een Space die nog niet bestaat). Is HF_SPACE gezet maar HF_TOKEN niet, dan faalt ze wel.
 name: deploy
 on:
   workflow_run:
@@ -10,8 +12,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  geen-space:
+    if: vars.HF_SPACE == ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::Deploy overgeslagen - de repositoryvariabele HF_SPACE is niet gezet."
+
   space:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: vars.HF_SPACE != '' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
