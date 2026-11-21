@@ -1,6 +1,6 @@
 # Overboeken per hotel-nacht op basis van annulatiekansen
 
-[![ci](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml/badge.svg?branch=audit-opvolging)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml)
+[![ci](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/ci.yml)
 
 Cloud for AI, 2026-2027. Kynan Melsens
 
