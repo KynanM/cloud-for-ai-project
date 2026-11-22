@@ -1,19 +1,32 @@
 # Restplan: wat er nog moet gebeuren na de merge van het actieplan
 
-Opgesteld op 20-11-2026, na de merge van PR #4 (`2112c6a` op `main`). Vervolgt `ACTION_PLAN.md`;
+Opgesteld op 20-11-2026, na de merge van PR #4 (`2112c6a` op `main`). Vervolgt `docs/archief/ACTION_PLAN.md`;
 dat plan blijft het archief van wat gedaan is.
+
+**Bijgewerkt op 22-11-2026** met de vereenvoudiging uit `docs/vereenvoudigingsplan.md` (branch
+`claude/wonderful-darwin-1z0dfp`). Gevolgen voor dit plan:
+
+- Taak 1.1 (deploy niet rood zonder `HF_SPACE`) en de badge uit taak 2.3 staan al in de code
+  (`ca097fd`); alleen een groene run als bewijs ontbreekt nog.
+- Taak 3.2 (E9 op smoke) kan nu veilig: E9 mat sinds `bec6182` twee keer dezelfde kernroute;
+  dat is hersteld en wordt door een test bewaakt.
+- Taak 1.4: bij `workflow_run` ook de geteste commit uitchecken
+  (`ref: ${{ github.event.workflow_run.head_sha }}`), en de export via `models/actief.tmp/` is niet
+  atomisch (twee hernoemingen): een foutinjectietest hoort bij de DoD.
+- Taak 2.3: de README is herschreven als korte voordeur; de URL komt in de sectie "De API openen".
+- Taak 4.2: de rondleiding kan vertrekken van `docs/architectuur.md` (routekaart door de code).
 
 **Stand nu**
 
 | Wat | Stand |
 |---|---|
-| `ACTION_PLAN.md` | 47 van 48 taken af; 16 DoD-punten open (5.10, PDF's, en afwijkingen met reden) |
+| `docs/archief/ACTION_PLAN.md` | 47 van 48 taken af; 16 DoD-punten open (5.10, PDF's, en afwijkingen met reden) |
 | CI op `main` | groen ([run 44758612058](https://github.com/KynanM/cloud-for-ai-project/actions/runs/44758612058)): ruff, training met poorten, 281 tests, gate, Docker-build en rooktest |
 | `deploy.yml` op `main` | **rood** ([run 44759328420](https://github.com/KynanM/cloud-for-ai-project/actions/runs/44759328420)): geen secret `HF_TOKEN`, geen variabele `HF_SPACE`. Elke push naar `main` geeft nu een rode deploy |
 | Publieke URL | **bestaat niet**, terwijl die de kern van deel 3 is ("een adres dat ik kan aanroepen") |
 | Rapport deel 3 | `rapport/rapport_deel3.md`, 1 153 woorden; de URL en de publieke latency ontbreken; geen PDF |
 
-**Bronnen van dit plan:** de open DoD-punten in `ACTION_PLAN.md`; de opdrachttekst van deel 3
+**Bronnen van dit plan:** de open DoD-punten in `docs/archief/ACTION_PLAN.md`; de opdrachttekst van deel 3
 (`01 Bronnen/OpdractVoorEvaluatieBelangrijk.txt`); de nog open stappen B3, C4–C7 en E uit
 `03 Taken en Opdrachten/Plan na onderzoek - audit en deel 3 - 2026-11-17.md`; de CI-runs na de merge.
 
@@ -160,7 +173,7 @@ de modellen, de keuze en data leakage + de AI-appendix. De repo is publiek.
   - **Warm:** 200 verzoeken op de normale workload tegen de Space.
   - **Netwerk apart:** de tijd van `GET /health` (round trip zonder werk) apart meten, zodat netwerk en rekenwerk te scheiden zijn.
   - **Koude start:** meten na het slapen van de Space. Hoe lang een gratis Space wacht voor ze slaapt, eerst nakijken in de documentatie van Hugging Face. Daarna de tijd tot de eerste geslaagde `/health` meten, minstens 3 keer.
-- **Bewijs:** `publiek.csv`, en een rij "publieke URL" in de tabel van `ACTION_PLAN.md` 4.6.
+- **Bewijs:** `publiek.csv`, en een rij "publieke URL" in de tabel van `docs/archief/ACTION_PLAN.md` 4.6.
 - **DoD:**
   - [ ] p50, p95 en max publiek, naast lokaal, met het netwerkdeel apart
   - [ ] Koude start van de Space, minstens 3 metingen
@@ -221,7 +234,7 @@ de modellen, de keuze en data leakage + de AI-appendix. De repo is publiek.
 
 ---
 
-## Fase 3 — Open punten uit `ACTION_PLAN.md` (P1)
+## Fase 3 — Open punten uit `docs/archief/ACTION_PLAN.md` (P1)
 
 ### Taak 3.1: Taak 1.4 volledig maken [C]
 
@@ -234,13 +247,13 @@ de modellen, de keuze en data leakage + de AI-appendix. De repo is publiek.
   - [ ] De drie modellen over HTTP gemeten
   - [ ] 100 000 boekingen over HTTP gemeten of de grens aangetoond
   - [ ] `functies.json` bestaat en staat in `docs/softwaremetric.md`
-  - [ ] De DoD in `ACTION_PLAN.md` 1.4 is afgevinkt
+  - [ ] De DoD in `docs/archief/ACTION_PLAN.md` 1.4 is afgevinkt
 
 ### Taak 3.2: E9 op de smoke-workload [C]
 
 - **Aanpak:** `smoke` toevoegen aan de workloads in `configs/experimenten/e9_aggregatie.yaml` (vooraf, met een commit) en `python -m benchmarks.experimenten_software e9` opnieuw draaien.
 - **DoD:**
-  - [ ] Zes workloads in `e9_aggregatie.csv`; de DoD in `ACTION_PLAN.md` 1.6 is afgevinkt
+  - [ ] Zes workloads in `e9_aggregatie.csv`; de DoD in `docs/archief/ACTION_PLAN.md` 1.6 is afgevinkt
 
 ### Taak 3.3: Hoofdbenchmark en metingen van fase 5 als MLflow-runs [C]
 
@@ -248,7 +261,7 @@ de modellen, de keuze en data leakage + de AI-appendix. De repo is publiek.
 - **Aanpak:** elk script logt zijn samenvatting met `log_metrics` en zijn CSV met `log_tabel`, in een run met de configuratie als parameters. De bestaande CSV's blijven de bron.
 - **DoD:**
   - [ ] Elke meting staat als run in `resultaten/runs.csv`
-  - [ ] De DoD in `ACTION_PLAN.md` 3.1 is afgevinkt
+  - [ ] De DoD in `docs/archief/ACTION_PLAN.md` 3.1 is afgevinkt
 
 ### Taak 3.4: Rapport deel 2 nakijken
 

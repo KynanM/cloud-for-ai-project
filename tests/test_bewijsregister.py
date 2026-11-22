@@ -1,4 +1,4 @@
-"""Spreken README, rapport en verantwoording de resultaten niet tegen?
+"""Spreken de documenten de resultaten niet tegen?
 
 Geen test op een voorspelling, wel op een invariant: elk kerncijfer dat in de tekst staat, is het
 cijfer dat de scripts in `resultaten/` geschreven hebben. Wie de code verandert en
@@ -12,7 +12,10 @@ import pytest
 
 from src.config import PROJECT
 
-DOCUMENTEN = ["README.md", "rapport/rapport.md", "docs/verantwoording.md"]
+# De documenten met de volledige modelvergelijking: elke MAE, elke euro en de AUC van de split
+# moeten erin staan. De README is een korte voordeur en hoeft dat niet; wat ze wel noemt, wordt
+# met een anker gecontroleerd (docs/bewijs_semantisch.csv) en door test_te_veel_per_hotel.
+DOCUMENTEN = ["docs/model.md", "rapport/rapport.md", "docs/verantwoording.md"]
 REGISTER = PROJECT / "docs" / "bewijsregister.csv"
 # Wat een script maakt maar niet gecommit wordt (logs/, models/), of geen bestand is.
 NIET_GECOMMIT = ("logs/", "models/", "notebook", "configs/default.yaml")

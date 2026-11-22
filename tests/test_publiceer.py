@@ -1,4 +1,4 @@
-"""Publiceren (taak 5.3): registry met alias, atomische export, rollback.
+"""Publiceren (taak 5.3): registry met alias, export via een tijdelijke map, rollback.
 
 MLflow draait hier op een tijdelijke sqlite-database: de echte mlflow.db blijft onaangeroerd.
 """
