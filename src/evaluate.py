@@ -10,25 +10,20 @@ Voor elke variant (vuistregel, logreg en boosting, de laatste twee met en zonder
    validatie. Op de test wordt niets gekozen
 
 Schrijft naar de map `resultaten` uit de config: evaluatie.csv, groepen.csv, winstcurve.csv,
-winstcurve.png en ijking.png.
+winstcurve.png en ijking.png. Hier wordt gerekend; het tekenen staat in src/figuren.py.
 """
 
 import copy
 import logging
 
-import matplotlib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import brier_score_loss, roc_auc_score
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from sklearn.calibration import calibration_curve  # noqa: E402
-from sklearn.metrics import brier_score_loss, roc_auc_score  # noqa: E402
-
-from .config import laad_config  # noqa: E402
-from .data import bereid_voor, laad_data  # noqa: E402
-from .logboek import zet_logging_op  # noqa: E402
-from .nachten import (  # noqa: E402
+from .config import laad_config
+from .data import bereid_voor, laad_data
+from .logboek import zet_logging_op
+from .nachten import (
     alleen_volledig,
     beoordeel,
     bezetting,
@@ -37,13 +32,13 @@ from .nachten import (  # noqa: E402
     per_nacht,
     spreidingsfactor,
 )
-from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits  # noqa: E402
+from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
-# (soort, land). De volgorde is ook die van de kleuren in de grafieken.
+# (soort, land). De volgorde is ook die van de kleuren in de grafieken (src/figuren.py).
 VARIANTEN = [
     ("vuistregel", False),
     ("logreg", False),
@@ -51,9 +46,6 @@ VARIANTEN = [
     ("logreg", True),
     ("boosting", True),
 ]
-# Eén kleur per model, in een vaste volgorde. Met land: dezelfde kleur, een stippellijn.
-KLEUR = {"vuistregel": "#2a78d6", "logreg": "#eb6834", "boosting": "#1baf7a"}
-INKT, INKT_ZACHT, RASTER = "#1f1f1e", "#5f5e58", "#e4e3df"
 
 
 def naam(soort: str, land: bool) -> str:
@@ -175,77 +167,6 @@ def winstcurve(uitkomst: dict, cfg: dict, zekerheden: np.ndarray) -> pd.DataFram
     return pd.DataFrame(rijen)
 
 
-def opmaak(ax) -> None:
-    """Rustige assen: alleen een licht raster, geen kader rechts en boven."""
-    ax.grid(True, color=RASTER, linewidth=0.8)
-    ax.set_axisbelow(True)
-    for kant in ["top", "right"]:
-        ax.spines[kant].set_visible(False)
-    for kant in ["left", "bottom"]:
-        ax.spines[kant].set_color(RASTER)
-    ax.tick_params(colors=INKT_ZACHT, labelsize=9)
-
-
-def teken_winstcurve(curve: pd.DataFrame, zekerheid: float, pad) -> None:
-    fig, assen = plt.subplots(1, 2, figsize=(10, 4), sharey=False)
-    for ax, periode in zip(assen, ["validatie", "test"], strict=True):
-        deel = curve[curve["periode"] == periode]
-        for soort, lijn in deel.groupby("soort", sort=False):
-            ax.plot(lijn["zekerheid"], lijn["euro"], color=KLEUR[soort], linewidth=2, label=soort)
-            top = lijn.loc[lijn["euro"].idxmax()]
-            ax.plot(top["zekerheid"], top["euro"], "o", color=KLEUR[soort], markersize=8)
-            ax.annotate(
-                soort,
-                (lijn["zekerheid"].iloc[-1], lijn["euro"].iloc[-1]),
-                xytext=(4, 0),
-                textcoords="offset points",
-                color=INKT,
-                fontsize=9,
-                va="center",
-            )
-        ax.axvline(zekerheid, color=INKT_ZACHT, linewidth=1, linestyle="--")
-        ax.text(zekerheid, ax.get_ylim()[1], f" {zekerheid:.2f}", color=INKT_ZACHT, fontsize=9)
-        ax.set_title(periode.capitalize(), color=INKT, fontsize=11, loc="left")
-        ax.set_xlabel("zekerheid: P(minstens k annulaties)", color=INKT_ZACHT, fontsize=9)
-        opmaak(ax)
-    assen[0].set_ylabel("€ per volgeboekte nacht", color=INKT_ZACHT, fontsize=9)
-    assen[0].legend(frameon=False, fontsize=9, loc="lower left")
-    fig.suptitle(
-        "Winst per volgeboekte nacht naargelang de zekerheid (bolletje: hoogste punt)",
-        color=INKT,
-        fontsize=12,
-        x=0.01,
-        ha="left",
-    )
-    fig.tight_layout()
-    fig.savefig(pad, dpi=150, facecolor="#fcfcfb")
-    plt.close(fig)
-
-
-def teken_ijking(uitkomst: dict, pad) -> None:
-    fig, ax = plt.subplots(figsize=(5.5, 5))
-    ax.plot([0, 0.6], [0, 0.6], color=INKT_ZACHT, linewidth=1, linestyle="--")
-    ax.text(0.45, 0.47, "perfect geijkt", color=INKT_ZACHT, fontsize=9, rotation=40)
-    for (soort, land), u in uitkomst["per_variant"].items():
-        if land:
-            continue
-        echt, voorspeld = calibration_curve(
-            u["validatie"]["y"], u["validatie"]["p"], n_bins=10, strategy="quantile"
-        )
-        # Bij weinig verschillende kansen (de vuistregel) vallen tienden samen: sorteer.
-        orde = np.argsort(voorspeld)
-        voorspeld, echt = voorspeld[orde], echt[orde]
-        ax.plot(voorspeld, echt, "-o", color=KLEUR[soort], linewidth=2, markersize=5, label=soort)
-    ax.set_xlabel("voorspelde kans (gemiddelde per tiende)", color=INKT_ZACHT, fontsize=9)
-    ax.set_ylabel("echt aandeel annulaties", color=INKT_ZACHT, fontsize=9)
-    ax.set_title("IJking op de validatie: is 20 % echt 20 %?", color=INKT, fontsize=11, loc="left")
-    ax.legend(frameon=False, fontsize=9, loc="upper left")
-    opmaak(ax)
-    fig.tight_layout()
-    fig.savefig(pad, dpi=150, facecolor="#fcfcfb")
-    plt.close(fig)
-
-
 def toon(tabel: pd.DataFrame, periode: str) -> None:
     kolommen = {
         "model": "model",
@@ -302,6 +223,9 @@ def main() -> None:
     tabel.round(4).to_csv(uit / "evaluatie.csv", index=False)
     groepen.round(4).to_csv(uit / "groepen.csv", index=False)
     curve.round(4).to_csv(uit / "winstcurve.csv", index=False)
+    # Pas hier: wie alleen VARIANTEN of met() nodig heeft (src.experimenten), laadt geen Matplotlib.
+    from .figuren import teken_ijking, teken_winstcurve
+
     teken_winstcurve(curve, zekerheid, uit / "winstcurve.png")
     teken_ijking(uitkomst, uit / "ijking.png")
     logger.info("Weggeschreven naar %s", uit)
