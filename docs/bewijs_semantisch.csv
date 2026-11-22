@@ -12,3 +12,6 @@ complexiteit-max-p95,docs/verantwoording.md,de zwaarste trede haalt ,resultaten/
 business-aandeel,docs/business_roi.md,boosting ≥ vuistregel in **,resultaten/audit/business_scenario.csv,periode=validatie,boosting_min_vuistregel,aandeel_ge_0,100,0, %
 spearman,docs/business_roi.md,**Spearman ρ = ,resultaten/audit/metriekverband.csv,verband=MAE en € per volle nacht,spearman_rho,eerste,1,2,
 kosten-100x,docs/kosten.md,| **100× meer verkeer** | 100 | ,resultaten/serving/kosten.csv,scenario=100x meer verkeer,lokaal_eur_per_maand,eerste,1,2,
+mae-boosting-validatie-readme,README.md,Het model zit gemiddeld **,resultaten/evaluatie.csv,periode=validatie&model=boosting zonder land&hotel=beide,mae,eerste,1,2,**
+mae-vuistregel-validatie-readme,README.md,de vuistregel van de revenue manager **,resultaten/evaluatie.csv,periode=validatie&model=vuistregel&hotel=beide,mae,eerste,1,2,**
+container-p95-readme,README.md,Eén advies duurt in de container **,resultaten/serving/container.csv,image=overboeking:lokaal,p95_ms,eerste,1,0, ms
