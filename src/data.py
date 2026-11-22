@@ -52,19 +52,22 @@ def valideer(df: pd.DataFrame, met: pa.DataFrameSchema, bron="invoer") -> pd.Dat
     try:
         return met.validate(df, lazy=True)
     except pa.errors.SchemaErrors as fouten:
+        lijst = per_controle(fouten)
         # Eerst loggen, zodat de fout ook in het logbestand staat.
-        controles = fouten.failure_cases.groupby(["column", "check"], dropna=False).ngroups
         logger.error(
             "%s voldoet niet aan het schema: %d fouten in %d controle(s)",
             bron,
             len(fouten.failure_cases),
-            controles,
+            len(lijst),
         )
-        raise OngeldigeDataError(samenvatting(fouten, bron), per_controle(fouten)) from None
+        raise OngeldigeDataError(samenvatting(lijst, bron), lijst) from None
 
 
 def per_controle(fouten: pa.errors.SchemaErrors) -> list[dict]:
-    """De fouten per kolom en controle, als gewone waarden (geen numpy-typen)."""
+    """De fouten per kolom en controle, als gewone waarden (geen numpy-typen).
+
+    Eén keer gegroepeerd: de API geeft deze lijst terug, en samenvatting() maakt er tekst van.
+    """
     uit = []
     for (kolom, controle), groep in fouten.failure_cases.groupby(["column", "check"], dropna=False):
         uit.append(
@@ -78,12 +81,13 @@ def per_controle(fouten: pa.errors.SchemaErrors) -> list[dict]:
     return uit
 
 
-def samenvatting(fouten: pa.errors.SchemaErrors, pad) -> str:
+def samenvatting(fouten: list[dict], bron) -> str:
     """Eén regel per kapotte controle, met drie voorbeelden, in plaats van een muur tekst."""
-    regels = [f"{pad} voldoet niet aan het schema:"]
-    for (kolom, controle), groep in fouten.failure_cases.groupby(["column", "check"], dropna=False):
-        voorbeelden = ", ".join(str(v) for v in groep["failure_case"].unique()[:3])
-        regels.append(f"  {kolom}: {controle}, {len(groep)} rijen fout, bv. {voorbeelden}")
+    regels = [f"{bron} voldoet niet aan het schema:"]
+    for f in fouten:
+        kolom = f["kolom"] or "hele tabel"
+        voorbeelden = ", ".join(f["voorbeelden"])
+        regels.append(f"  {kolom}: {f['controle']}, {f['rijen']} rijen fout, bv. {voorbeelden}")
     return "\n".join(regels)
 
 
