@@ -17,7 +17,7 @@ Het is een onderzoeksproject op historische data (twee Portugese hotels, 2015–
 is geen garantie dat er nooit een gast doorverwezen moet worden.
 
 **In cijfers.** Het model zit gemiddeld **4,72** annulaties naast per hotel-nacht (validatie,
-Q1 2017); de vuistregel van de revenue manager **6,36**. Het advies k is zo gekozen dat er in
+Q1 2017); de vuistregel van de revenue manager **6,36**. Het advies k mikt erop dat er in
 hoogstens 20 % van de nachten minder kamers vrijkomen dan k. **Per hotel niet overal:**
 City Hotel zit op de test op 22 % nachten met te veel kamers (validatie 6 %), Resort op 10 %
 (validatie 16 %). Eén advies duurt in de container **183 ms** (p95).
@@ -78,7 +78,8 @@ Advies voor de nacht van 15-08-2017 (zekerheid 80%):
 Het advies staat ook in `advies.csv`. Een regel `WARNING ... agent = 229.0` is een waarschuwing,
 geen fout: één boeking komt van een agent die het model nooit zag.
 
-De tests draai je **na** het trainen. Zonder getraind model slaan 42 tests over (*skipped*):
+De tests draai je **na** het trainen. Zonder getraind model slaan de tests die een model nodig
+hebben over (*skipped*):
 
 ```bash
 .venv/bin/python -m pytest

@@ -40,9 +40,9 @@ python -m src.train
 python -m pytest
 ```
 
-Train **vóór** de tests. Zonder model in `models/` slaan 42 tests over (*skipped*): de API-, job-,
+Train **vóór** de tests. Zonder model in `models/` slaan ruim 40 tests over (*skipped*): de API-, job-,
 foutgedrag- en enkele monitoringtests. Pytest meldt dat niet als fout, dus kijk naar de laatste
-regel: `281 passed` is volledig; `... skipped` betekent dat er iets niet gedraaid heeft.
+regel: staat er `skipped`, dan heeft er iets niet gedraaid.
 `python -m pytest -rs` toont waarom.
 
 `ruff format` controleert ook de codeblokken in Markdown.
