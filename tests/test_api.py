@@ -4,6 +4,8 @@ Labo 7: "pytest tot groen". Getest met FastAPI's TestClient, zonder server.
 """
 
 import json
+import subprocess
+import sys
 import typing
 
 import pandas as pd
@@ -150,3 +152,10 @@ def test_pydantic_en_pandera_zeggen_hetzelfde():
             if "allowed_values" in stat:
                 assert literal_waarden(velden[naam].annotation) == set(stat["allowed_values"]), naam
         assert (velden[naam].default is None) == kolom.nullable, naam
+
+
+def test_de_api_laadt_de_trainingscode_niet():
+    # In een apart proces: in deze testsessie is src.train al door andere tests geladen
+    code = "import sys, src.api; print('src.train' in sys.modules)"
+    uit = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert uit.stdout.strip() == "False"
