@@ -51,6 +51,30 @@ staat 16 keer in de verantwoording). De controles "staat ergens in de tekst" zij
 Vervolg: de kernrijen van de vergelijkingstabellen in rapport en verantwoording ook ankeren in
 `docs/bewijs_semantisch.csv`.
 
+**Eindcontrole (22-11, na de merge van PR #6).** Code, documentatie, tests en opdracht naast
+elkaar gelegd:
+
+| Controle | Uitkomst |
+|---|---|
+| Elk bestandspad in de documentatie bestaat | ja (op geplande bestanden in `RESTPLAN.md` na) |
+| Elke CLI-optie in de documentatie bestaat | ja |
+| Config-waarden in de tekst (zekerheid, risicogrens, dekking, capaciteit, bedragen, embargo) | kloppen; één onduidelijke zin over de gevoeligheid rechtgezet |
+| Logica advies k, scope, embargo, poorten, manifest, drift | klopt met de documentatie |
+| **Fout:** `src.predict` met een CSV zonder kolom | gaf een stacktrace; nu de schemamelding (test erbij, faalt op de oude code) |
+| **Fout:** `src.predict` met een onbestaande maand zonder `--nacht` | gaf een pandas-datumfout; nu de schemamelding |
+| `monitoring controleer --uren 48` zonder verzoeken | meldde "24 uur"; nu het echte venster |
+| `docs/model.md`: "percentage van het afgelopen jaar" | tegenstrijdig met `venster_maanden: null`; rechtgezet |
+| Tests zonder assert | drie, alle drie bewust "mag niet falen"-tests |
+| Tests zonder model | 45 overgeslagen, met model 290 geslaagd; vaste aantallen uit de docs gehaald |
+| Reproductie op Linux (evaluate, audit, experimenten, replay) | advies (k, verwacht) identiek; verschillen alleen in tijden, logreg op de 4e decimaal en "elke maand hertrainen" (test: MAE 5,08 → 5,07, € 725 → 721) |
+| Secrets in de volledige git-geschiedenis | geen treffers (tokens, sleutels, wachtwoorden, `.env`) |
+| Opdracht deel 2: structuur, exploratie, ≥ 2 modellen, Pandera, tests, README, rapport ≤ 2 p. (898 woorden), data leakage, AI-bijlage | aanwezig |
+| Opdracht deel 3: API met 422, geen secrets, rapport met de vijf vragen (ook 100× verkeer), AI-bijlage | aanwezig |
+| **Opdracht deel 3: publieke URL, online tot na het mondeling** | **ontbreekt**: Space en secrets aanmaken (`RESTPLAN.md` 1.2, door de student), daarna 1.3–1.7 |
+
+De oorspronkelijke opdrachttekst staat niet in de repo; gecontroleerd tegen de citaten in
+`RESTPLAN.md` en `docs/archief/ACTION_PLAN.md`.
+
 **Nieuwe bevinding.** Op Linux geeft `python -m src.evaluate` voor logreg andere vierde decimalen
 dan de gecommitte (Windows-)cijfers, met de oude code net zo goed. Op twee decimalen, zoals in de
 tekst, geen verschil. Dat is de meting die `RESTPLAN.md` 3.5 vraagt.
