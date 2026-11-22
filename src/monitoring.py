@@ -1,12 +1,18 @@
 """Monitoring (taak 5.7): invoerdrift per verzoek, en het risico zodra de annulaties bekend zijn.
 
-python -m src.monitoring labels --van 2017-04-01 --tot 2017-08-31   # te veel en MAE per 4 weken
-python -m src.monitoring controleer                                  # de laatste 24 u, alerts
+python -m src.monitoring labels --nachten resultaten/business/replay.csv  # te veel, MAE per 4 weken
+python -m src.monitoring controleer                                       # laatste 24 u, alerts
+
+`labels` leest een csv met per hotel-nacht `hotel`, `nacht`, `k`, `verwacht` en `echt` (de replay
+van benchmarks/replay.py, of in productie het advieslog plus de latere export) en schrijft
+resultaten/monitoring/risico_na_de_nacht.csv. Let op: dat bestand is gecommit; met de replay als
+invoer komt er exact hetzelfde uit.
 
 Drie soorten signalen:
 
 - service: elk verzoek logt één JSON-regel (latency, status, aantal boekingen, uitgesloten per
-  reden, aandeel onbekende categorieën) in logs/api.log (src/api.py, logs.formaat: json)
+  reden, aandeel onbekende categorieën) in logs/api.log (src/api.py; `logs_formaat: json` in de
+  config, of OVERBOEKING_LOGFORMAAT=json)
 - invoerdrift: per verzoek de PSI tegen de verdelingen van de training (in het manifest). Vangt
   wat het schema niet ziet: adr in dollar of per verblijf, een segment dat plots verdwijnt
 - model en beleid: zodra de nachten voorbij zijn, het aandeel nachten met te veel kamers per hotel
@@ -228,6 +234,8 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--nachten", help="csv met hotel, nacht, k, verwacht, echt (labels)")
     parser.add_argument("--uren", type=int, default=24)
     args = parser.parse_args(argv)
+    if args.opdracht == "labels" and not args.nachten:
+        parser.error("labels heeft --nachten <csv> nodig (hotel, nacht, k, verwacht, echt)")
     cfg = laad_config()
     zet_logging_op(cfg, "monitoring")
     if args.opdracht == "controleer":
