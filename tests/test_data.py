@@ -9,7 +9,7 @@ import pandera.errors
 import pytest
 
 from src import schema
-from src.data import laad_data
+from src.data import OngeldigeDataError, laad_data, valideer
 
 LABELKOLOMMEN = ["reservation_status", "reservation_status_date"]
 
@@ -106,3 +106,38 @@ def test_label_is_nul_of_een(df, cfg):
 
 def test_voorbeeldbestand_is_geldige_invoer(cfg):
     laad_data(cfg["data"]["voorbeeld"], valideer_met=schema.INVOER)
+
+
+def test_meerdere_fouten_tegelijk_een_regel_per_controle(ruw):
+    # Arrange: drie controles tegelijk stuk, één ervan op twee rijen
+    kapot = ruw.head(200).assign(reservation_status="Canceled")
+    kapot.loc[0:1, "hotel"] = "Airport Hotel"
+    kapot.loc[2, "adr"] = 50000.0
+
+    # Act
+    with pytest.raises(OngeldigeDataError) as fout:
+        valideer(kapot, schema.TRAINING, "kapot.csv")
+
+    # Assert: de tekst voor de opdrachtregel en de lijst voor de API zeggen hetzelfde
+    assert str(fout.value) == (
+        "kapot.csv voldoet niet aan het schema:\n"
+        "  adr: less_than(10000), 1 rijen fout, bv. 50000.0\n"
+        "  hotel: isin(['City Hotel', 'Resort Hotel']), 2 rijen fout, bv. Airport Hotel\n"
+        "  reservation_status: aandeel annulaties en no-shows ligt niet tussen 20 en 50 %,"
+        " 1 rijen fout, bv. False"
+    )
+    assert fout.value.fouten == [
+        {"kolom": "adr", "controle": "less_than(10000)", "rijen": 1, "voorbeelden": ["50000.0"]},
+        {
+            "kolom": "hotel",
+            "controle": "isin(['City Hotel', 'Resort Hotel'])",
+            "rijen": 2,
+            "voorbeelden": ["Airport Hotel"],
+        },
+        {
+            "kolom": "reservation_status",
+            "controle": "aandeel annulaties en no-shows ligt niet tussen 20 en 50 %",
+            "rijen": 1,
+            "voorbeelden": ["False"],
+        },
+    ]
