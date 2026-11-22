@@ -136,7 +136,7 @@ keer op de test gemeten. Op de test wordt niets gekozen.
 | `logreg` | logistische regressie: lege waarden invullen, schalen, one-hot-encoderen |
 | `boosting` | `HistGradientBoostingClassifier`, met de categorieën als categorieën, 100 iteraties. Zonder vroege stop, want die zet een willekeurig stuk van de training apart |
 
-De **vuistregel** neemt het annulatiepercentage van het afgelopen jaar, per hotel ×
+De **vuistregel** neemt het historische annulatiepercentage, per hotel ×
 `market_segment` × klasse van `lead_time` (<60, 60–120, 120–240, 240+ dagen). Een groep met
 minder dan 30 boekingen krijgt het percentage van het hotel. Ze gebruikt alle historiek
 (`venster_maanden: null`): op de validatie is dat de sterkere baseline (MAE 6,36 tegenover 6,65
@@ -202,7 +202,7 @@ Dezelfde functie (`met_advies()` in `src/nachten.py`) geeft het advies in de eva
 ### Resultaten
 
 `python -m src.evaluate` schrijft alles naar `resultaten/`: `evaluatie.csv` (per model en per
-hotel, met de gevoeligheid voor r = 0,3 en W = 3), `groepen.csv`, `winstcurve.csv`,
+hotel, met de gevoeligheid voor r = 0,3 of W = 3), `groepen.csv`, `winstcurve.csv`,
 `winstcurve.png` en `ijking.png`. `python -m src.experimenten` voegt in `resultaten/audit/` de
 vergelijkingen, de foutenanalyse en de gevoeligheid toe. Hieronder beide hotels samen.
 

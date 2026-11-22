@@ -134,3 +134,30 @@ def test_de_aggregatie_loopt_via_per_nacht_enkel(onderdelen, cfg, monkeypatch):
     voer_job_uit(nieuw, model, instellingen, cfg, NACHT)
 
     assert spion.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "maak_kapot",
+    [
+        pytest.param(lambda d: d.drop(columns=["market_segment"]), id="kolom ontbreekt"),
+        pytest.param(lambda d: d.assign(arrival_date_month="Febtember"), id="maand bestaat niet"),
+    ],
+)
+def test_opdrachtregel_geeft_een_nette_schemafout(tmp_path, cfg, maak_kapot):
+    # Het schema komt eerst: geen KeyError of datumfout uit een latere stap, geen stacktrace
+    if not cfg["model"]["pad"].exists():
+        pytest.skip("geen getraind model in models/")
+    pad = tmp_path / "kapot.csv"
+    maak_kapot(pd.read_csv(PROJECT / "data" / "nieuwe_boekingen.csv")).to_csv(pad, index=False)
+
+    draai = subprocess.run(
+        [sys.executable, "-m", "src.predict", str(pad)],
+        cwd=PROJECT,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+
+    assert draai.returncode != 0
+    assert "voldoet niet aan het schema" in draai.stderr
+    assert "Traceback" not in draai.stderr

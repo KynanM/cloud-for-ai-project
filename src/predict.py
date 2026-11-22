@@ -197,27 +197,24 @@ def main(argv: list[str]) -> None:
     with meting.fase("model_laden"):
         model = laad_model(cfg["model"]["pad"])
         instellingen = laad_advies(cfg["model"]["advies_pad"])
-    with meting.fase("onbekende_categorieen"):
-        onbekend = onbekende_categorieen(model, df, cfg)
-    for kolom, waarden in onbekend.items():
-        logger.warning(
-            "Het model is niet getraind op %s = %s; de voorspellingen daarvoor zijn minder"
-            " betrouwbaar.",
-            kolom,
-            ", ".join(waarden),
-        )
-
     try:
+        # Eerst het schema: een ontbrekende kolom of een onbestaande maand geeft zo de nette
+        # melding per controle, niet een fout uit een latere stap.
+        if not args.zonder_schema:
+            with meting.fase("schema"):
+                df = valideer(df, schema.invoer_schema(cfg), args.pad)
+        with meting.fase("onbekende_categorieen"):
+            onbekend = onbekende_categorieen(model, df, cfg)
+        for kolom, waarden in onbekend.items():
+            logger.warning(
+                "Het model is niet getraind op %s = %s; de voorspellingen daarvoor zijn minder"
+                " betrouwbaar.",
+                kolom,
+                ", ".join(waarden),
+            )
         nacht = pd.Timestamp(args.nacht) if args.nacht else standaardnacht(df)
         job = voer_job_uit(
-            df,
-            model,
-            instellingen,
-            cfg,
-            nacht,
-            meting,
-            valideer_invoer=not args.zonder_schema,
-            as_of=args.as_of,
+            df, model, instellingen, cfg, nacht, meting, valideer_invoer=False, as_of=args.as_of
         )
     except (OngeldigeDataError, BuitenScopeError) as fout:
         logger.error("%s", fout)

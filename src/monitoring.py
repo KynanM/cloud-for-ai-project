@@ -212,7 +212,7 @@ def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[di
                 }
             )
     else:
-        alerts.append({"alert": "geen enkel verzoek in de laatste 24 uur", "waarde": 0})
+        alerts.append({"alert": f"geen enkel verzoek in de laatste {uren} uur", "waarde": 0})
     uit = PROJECT / "uitvoer" if uitmap is None else Path(uitmap)
     uit.mkdir(parents=True, exist_ok=True)
     with (uit / "alerts.jsonl").open("a", encoding="utf-8") as f:

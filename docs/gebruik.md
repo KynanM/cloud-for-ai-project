@@ -128,7 +128,8 @@ python -m src.monitoring controleer
 ```
 
 leest de API-logs van de laatste 24 uur (`--uren` voor een ander venster) en schrijft alarmen naar
-`uitvoer/alerts.jsonl`: trage verzoeken, fouten, invoerdrift.
+`uitvoer/alerts.jsonl`: p95 boven de grens, 5xx-fouten, veel onbekende categorieën, invoerdrift per
+kolom, of helemaal geen verzoeken.
 
 ```bash
 python -m src.monitoring labels --nachten resultaten/business/replay.csv
