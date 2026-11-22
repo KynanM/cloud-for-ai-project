@@ -28,6 +28,25 @@ MAANDEN = [
     "December",
 ]
 
+# De toegelaten waarden per categorische kolom. Eén plek: de schema's hieronder en de API
+# (src/api.py, Boeking) gebruiken allebei deze lijsten.
+HOTELS = ["City Hotel", "Resort Hotel"]
+MAALTIJDEN = ["BB", "HB", "FB", "SC", "Undefined"]
+SEGMENTEN = [
+    "Online TA",
+    "Offline TA/TO",
+    "Groups",
+    "Direct",
+    "Corporate",
+    "Complementary",
+    "Aviation",
+    "Undefined",
+]
+KANALEN = ["TA/TO", "Direct", "Corporate", "GDS", "Undefined"]
+KAMERTYPES = list("ABCDEFGHLP")
+WAARBORGEN = ["No Deposit", "Refundable", "Non Refund"]
+KLANTTYPES = ["Transient", "Transient-Party", "Contract", "Group"]
+
 # Een kamerprijs per nacht, in euro. Geen hotel in Lissabon of de Algarve vraagt 10 000 euro
 # per nacht. Dit vangt een export in centen op voor de meeste rijen.
 ADR_PER_RIJ = [pa.Check.lt(10_000)]
@@ -36,7 +55,7 @@ LEAD_TIME_PER_RIJ = [pa.Check.in_range(0, 3 * 365)]
 
 INVOER = pa.DataFrameSchema(
     {
-        "hotel": pa.Column(str, pa.Check.isin(["City Hotel", "Resort Hotel"])),
+        "hotel": pa.Column(str, pa.Check.isin(HOTELS)),
         "lead_time": pa.Column(int, LEAD_TIME_PER_RIJ),
         "arrival_date_year": pa.Column(int, pa.Check.ge(2015)),
         "arrival_date_month": pa.Column(str, pa.Check.isin(MAANDEN)),
@@ -47,35 +66,17 @@ INVOER = pa.DataFrameSchema(
         # Een paar lege waarden in de export, dus float. De pijplijn vult ze in.
         "children": pa.Column(float, pa.Check.ge(0), nullable=True),
         "babies": pa.Column(int, pa.Check.ge(0)),
-        "meal": pa.Column(str, pa.Check.isin(["BB", "HB", "FB", "SC", "Undefined"])),
+        "meal": pa.Column(str, pa.Check.isin(MAALTIJDEN)),
         # Geen feature, alleen voor de controle per groep. Een landcode, soms leeg.
         "country": pa.Column(str, pa.Check.str_matches(r"^[A-Z]{2,3}$"), nullable=True),
-        "market_segment": pa.Column(
-            str,
-            pa.Check.isin(
-                [
-                    "Online TA",
-                    "Offline TA/TO",
-                    "Groups",
-                    "Direct",
-                    "Corporate",
-                    "Complementary",
-                    "Aviation",
-                    "Undefined",
-                ]
-            ),
-        ),
-        "distribution_channel": pa.Column(
-            str, pa.Check.isin(["TA/TO", "Direct", "Corporate", "GDS", "Undefined"])
-        ),
+        "market_segment": pa.Column(str, pa.Check.isin(SEGMENTEN)),
+        "distribution_channel": pa.Column(str, pa.Check.isin(KANALEN)),
         "is_repeated_guest": pa.Column(int, pa.Check.isin([0, 1])),
         "previous_cancellations": pa.Column(int, pa.Check.ge(0)),
         "previous_bookings_not_canceled": pa.Column(int, pa.Check.ge(0)),
-        "reserved_room_type": pa.Column(str, pa.Check.isin(list("ABCDEFGHLP"))),
-        "deposit_type": pa.Column(str, pa.Check.isin(["No Deposit", "Refundable", "Non Refund"])),
-        "customer_type": pa.Column(
-            str, pa.Check.isin(["Transient", "Transient-Party", "Contract", "Group"])
-        ),
+        "reserved_room_type": pa.Column(str, pa.Check.isin(KAMERTYPES)),
+        "deposit_type": pa.Column(str, pa.Check.isin(WAARBORGEN)),
+        "customer_type": pa.Column(str, pa.Check.isin(KLANTTYPES)),
         # Een id, geen getal. Leeg betekent: geboekt zonder agent. Float omdat er lege zijn.
         "agent": pa.Column(float, pa.Check.ge(0), nullable=True),
         "adr": pa.Column(float, ADR_PER_RIJ),
@@ -142,7 +143,7 @@ TRAINING = INVOER.update_columns(
 # terugsturen, zodat een ongeldig advies nooit het systeem verlaat.
 ADVIES = pa.DataFrameSchema(
     {
-        "hotel": pa.Column(str, pa.Check.isin(["City Hotel", "Resort Hotel"])),
+        "hotel": pa.Column(str, pa.Check.isin(HOTELS)),
         "nacht": pa.Column(pa.DateTime),
         "boekingen": pa.Column(int, pa.Check.gt(0)),
         "verwacht": pa.Column(float, pa.Check.ge(0)),

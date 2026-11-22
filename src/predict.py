@@ -6,12 +6,15 @@ python -m src.predict data/nieuwe_boekingen.csv --zonder-schema  # alleen voor d
 python -m src.predict data/nieuwe_boekingen.csv --uitvoer advies.csv --metrics-json metrics.json
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import joblib
 import numpy as np
@@ -27,7 +30,11 @@ from .manifest import controleer
 from .meting import Meting
 from .nachten import met_advies, per_nacht, per_nacht_enkel
 from .scope import BuitenScopeError, controleer_scope
-from .train import Model
+
+# `Model` is alleen een type-aanduiding (Pipeline of Vuistregel). Voorspellen hoeft de
+# trainingscode niet te laden: de API importeert zo src/train.py niet mee.
+if TYPE_CHECKING:
+    from .train import Model
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.

@@ -7,12 +7,13 @@ Getest op vorm en invarianten: elke fase gemeten, één keer voorspellen, zelfde
 import json
 import subprocess
 import sys
+from unittest import mock
 
 import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from src import schema
+from src import predict, schema
 from src.config import PROJECT
 from src.data import OngeldigeDataError, laad_data
 from src.meting import Meting
@@ -121,3 +122,15 @@ def test_opdrachtregel_schrijft_advies_en_metingen(tmp_path, cfg):
     resultaat = json.loads(metingen.read_text(encoding="utf-8"))
     assert {"lezen", "model_laden", "schrijven"} | FASES <= set(resultaat["fases_ms"])
     assert resultaat["nacht"] == "2017-08-15"
+
+
+def test_de_aggregatie_loopt_via_per_nacht_enkel(onderdelen, cfg, monkeypatch):
+    # E9 (benchmarks/experimenten_software.py) vervangt precies deze naam om de oude route te
+    # meten. Roept voer_job_uit() een andere functie aan, dan meet E9 stil twee keer hetzelfde.
+    model, instellingen, nieuw = onderdelen
+    spion = mock.Mock(wraps=predict.per_nacht_enkel)
+    monkeypatch.setattr(predict, "per_nacht_enkel", spion)
+
+    voer_job_uit(nieuw, model, instellingen, cfg, NACHT)
+
+    assert spion.call_count == 1

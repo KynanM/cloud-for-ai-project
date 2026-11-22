@@ -35,7 +35,8 @@ def alle_features(cfg: dict) -> list[str]:
     return cfg["features"]["numeriek"] + cfg["features"]["categorisch"] + land
 
 
-# De vuistregel kijkt alleen naar het laatste jaar, en heeft daarvoor de aankomstdatum nodig.
+# De vuistregel kiest haar venster (baseline.venster_maanden, standaard alle historiek) op de
+# aankomstdatum, en heeft die dus nodig.
 AANKOMST = ["arrival_date_year", "arrival_date_month", "arrival_date_day_of_month"]
 
 

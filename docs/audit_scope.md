@@ -2,7 +2,7 @@
 
 Dit document hoort bij de audit van november 2026 (zie de AI-bijlage van het rapport). Het legt
 vast welke bestanden onderzocht zijn en hoe elk cijfer terug te vinden is. Sinds 19-11-2026 valt
-ook **deel 3** (API, Docker, deployment, monitoring) eronder: de uitvoering van `ACTION_PLAN.md`,
+ook **deel 3** (API, Docker, deployment, monitoring) eronder: de uitvoering van `docs/archief/ACTION_PLAN.md`,
 fase 0 tot 6.
 
 ## Versie
@@ -52,7 +52,7 @@ Een verse `git clone`, een nieuwe omgeving uit `requirements-dev.lock` (met hash
 | `resultaten/audit/modelvergelijking.csv` | identiek op de twee tijdkolommen na (één getimede aanroep: boosting 8,0 ms per 1 000 in de clone, 11,0 in de repository) |
 | `pytest` | 276 van 277 groen. De ene fout was de test die de microbenchmarktijden in de verantwoording vergeleek: die tijden verschillen bij elke run. De verantwoording gebruikt sindsdien de herhaalde metingen (`modellen_software.csv`), en de test ook; daarna groen in de clone |
 
-## Nieuw sinds de audit van 17-11 (ACTION_PLAN.md)
+## Nieuw sinds de audit van 17-11 (docs/archief/ACTION_PLAN.md)
 
 | Wat | Waar |
 |---|---|

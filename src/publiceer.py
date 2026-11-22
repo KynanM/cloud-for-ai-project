@@ -10,8 +10,9 @@ python -m src.publiceer --lijst         # alle versies, met hun poorten
    registreren, met elke poort als tag;
 2. alleen als het manifest alle poorten gehaald heeft (en ze niet overgeslagen zijn): de alias
    `kampioen` op die versie zetten;
-3. de kampioen exporteren naar models/actief/: eerst naar models/actief.tmp/, dan in één keer
-   hernoemd. Een onderbroken export laat de vorige versie dus intact.
+3. de kampioen exporteren naar models/actief/: eerst volledig naar models/actief.tmp/, en pas
+   als elk bestand er is omschakelen. Een download die halverwege stopt, laat de vorige versie
+   dus intact. Het omschakelen zelf zijn twee hernoemingen (zie exporteer()).
 
 De API en het image gebruiken alleen models/actief/ (OVERBOEKING_MODELMAP); ze hebben MLflow niet
 nodig om te draaien.
@@ -89,7 +90,12 @@ def zet_kampioen(versie: int) -> None:
 
 
 def exporteer(doel: Path = ACTIEF) -> Path:
-    """Download de kampioen naar `doel`, atomisch: eerst een tijdelijke map, dan hernoemen."""
+    """Download de kampioen naar `doel`, via een tijdelijke map.
+
+    Eerst alles naar `<doel>.tmp`, en pas als elk bestand er is, omschakelen. Dat omschakelen zijn
+    twee hernoemingen (doel → .oud, .tmp → doel): niet atomisch. Stopt het proces er precies
+    tussen, dan ontbreekt `doel` even en staat de vorige versie in `<doel>.oud`.
+    """
     mf = mlflow()
     tijdelijk = doel.with_name(doel.name + ".tmp")
     if tijdelijk.exists():

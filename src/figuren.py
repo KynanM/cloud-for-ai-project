@@ -10,7 +10,8 @@ modus.png               batch, online, model laden per verzoek (les 07 p. 8, met
 serving_belasting.png   p95 tegenover de aangeboden belasting, 1, 2 en 4 containers
 sizing_pareto.png       CPU per advies tegenover p95, per infrastructuur
 
-De andere figuren maken de opdrachten die ook de cijfers maken: src.evaluate (winstcurve, ijking),
+Daarnaast de tekenfuncties voor src.evaluate (teken_winstcurve, teken_ijking): evaluate rekent,
+deze module tekent. De andere figuren maken de opdrachten die ook de cijfers maken:
 src.robuustheid (risico per maand, rolling origin, complexiteit, bootstrap, ijking met intervallen)
 en src.business (scenario's, ROI, MAE tegenover euro's).
 """
@@ -23,6 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+from sklearn.calibration import calibration_curve  # noqa: E402
 
 from .config import PROJECT  # noqa: E402
 
@@ -30,9 +32,84 @@ RES = PROJECT / "resultaten"
 UIT = RES / "figuren"
 GRENS_MS = 1000
 
+# Eén kleur per model, in een vaste volgorde. Met land: dezelfde kleur, een stippellijn.
+KLEUR = {"vuistregel": "#2a78d6", "logreg": "#eb6834", "boosting": "#1baf7a"}
+INKT, INKT_ZACHT, RASTER = "#1f1f1e", "#5f5e58", "#e4e3df"
+
 
 def bron(ax, tekst: str) -> None:
     ax.annotate(f"bron: {tekst}", (0, -0.2), xycoords="axes fraction", fontsize=7, color="#666")
+
+
+def opmaak(ax) -> None:
+    """Rustige assen: alleen een licht raster, geen kader rechts en boven."""
+    ax.grid(True, color=RASTER, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for kant in ["top", "right"]:
+        ax.spines[kant].set_visible(False)
+    for kant in ["left", "bottom"]:
+        ax.spines[kant].set_color(RASTER)
+    ax.tick_params(colors=INKT_ZACHT, labelsize=9)
+
+
+def teken_winstcurve(curve: pd.DataFrame, zekerheid: float, pad) -> None:
+    fig, assen = plt.subplots(1, 2, figsize=(10, 4), sharey=False)
+    for ax, periode in zip(assen, ["validatie", "test"], strict=True):
+        deel = curve[curve["periode"] == periode]
+        for soort, lijn in deel.groupby("soort", sort=False):
+            ax.plot(lijn["zekerheid"], lijn["euro"], color=KLEUR[soort], linewidth=2, label=soort)
+            top = lijn.loc[lijn["euro"].idxmax()]
+            ax.plot(top["zekerheid"], top["euro"], "o", color=KLEUR[soort], markersize=8)
+            ax.annotate(
+                soort,
+                (lijn["zekerheid"].iloc[-1], lijn["euro"].iloc[-1]),
+                xytext=(4, 0),
+                textcoords="offset points",
+                color=INKT,
+                fontsize=9,
+                va="center",
+            )
+        ax.axvline(zekerheid, color=INKT_ZACHT, linewidth=1, linestyle="--")
+        ax.text(zekerheid, ax.get_ylim()[1], f" {zekerheid:.2f}", color=INKT_ZACHT, fontsize=9)
+        ax.set_title(periode.capitalize(), color=INKT, fontsize=11, loc="left")
+        ax.set_xlabel("zekerheid: P(minstens k annulaties)", color=INKT_ZACHT, fontsize=9)
+        opmaak(ax)
+    assen[0].set_ylabel("€ per volgeboekte nacht", color=INKT_ZACHT, fontsize=9)
+    assen[0].legend(frameon=False, fontsize=9, loc="lower left")
+    fig.suptitle(
+        "Winst per volgeboekte nacht naargelang de zekerheid (bolletje: hoogste punt)",
+        color=INKT,
+        fontsize=12,
+        x=0.01,
+        ha="left",
+    )
+    fig.tight_layout()
+    fig.savefig(pad, dpi=150, facecolor="#fcfcfb")
+    plt.close(fig)
+
+
+def teken_ijking(uitkomst: dict, pad) -> None:
+    fig, ax = plt.subplots(figsize=(5.5, 5))
+    ax.plot([0, 0.6], [0, 0.6], color=INKT_ZACHT, linewidth=1, linestyle="--")
+    ax.text(0.45, 0.47, "perfect geijkt", color=INKT_ZACHT, fontsize=9, rotation=40)
+    for (soort, land), u in uitkomst["per_variant"].items():
+        if land:
+            continue
+        echt, voorspeld = calibration_curve(
+            u["validatie"]["y"], u["validatie"]["p"], n_bins=10, strategy="quantile"
+        )
+        # Bij weinig verschillende kansen (de vuistregel) vallen tienden samen: sorteer.
+        orde = np.argsort(voorspeld)
+        voorspeld, echt = voorspeld[orde], echt[orde]
+        ax.plot(voorspeld, echt, "-o", color=KLEUR[soort], linewidth=2, markersize=5, label=soort)
+    ax.set_xlabel("voorspelde kans (gemiddelde per tiende)", color=INKT_ZACHT, fontsize=9)
+    ax.set_ylabel("echt aandeel annulaties", color=INKT_ZACHT, fontsize=9)
+    ax.set_title("IJking op de validatie: is 20 % echt 20 %?", color=INKT, fontsize=11, loc="left")
+    ax.legend(frameon=False, fontsize=9, loc="upper left")
+    opmaak(ax)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=150, facecolor="#fcfcfb")
+    plt.close(fig)
 
 
 def software_fases() -> Path:

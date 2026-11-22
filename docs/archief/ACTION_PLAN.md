@@ -1,5 +1,9 @@
 # ACTION_PLAN — van gap-analyse naar aantoonbaar bewijs
 
+> **Archief.** Dit plan is afgerond (zie `RESTPLAN.md` voor wat nog open staat). Het stond tot
+> 22-11-2026 in de hoofdmap. Verwijzingen als "taak 5.7" in de code en de documentatie wijzen
+> naar de taaknummers hieronder.
+
 Project: *Overboeken per hotel-nacht op basis van annulatiekansen* (Cloud for AI, 2026-2027)
 Basis: gap-analyse `onderzoekGaps.md` (referentiecommit `6fa739c`), geverifieerd tegen branch
 `audit-opvolging` op commit `fb340e1`. Versie 2: aangepast aan je keuzes (SLO's, lokaal draaien,
