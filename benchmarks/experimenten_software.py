@@ -40,7 +40,7 @@ from benchmarks.bench import bench_config, bootstrap_p95, workloads  # noqa: E40
 from src import predict, schema  # noqa: E402
 from src.config import laad_config  # noqa: E402
 from src.data import bereid_voor, laad_data, valideer  # noqa: E402
-from src.nachten import met_advies, per_nacht, per_nacht_enkel  # noqa: E402
+from src.nachten import per_nacht, per_nacht_enkel  # noqa: E402
 from src.predict import (  # noqa: E402
     adviseer,
     adviseer_uit_kansen,
@@ -275,11 +275,6 @@ def e9() -> pd.DataFrame:
 # ---------------------------------------------------------------------------------- modus
 
 
-def advies_uit(df, kansen, instellingen, cfg, nacht):
-    nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
-    return met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
-
-
 def modus() -> pd.DataFrame:
     exp = laad_experiment("modus")
     cfg, model, instellingen = onderdelen()
@@ -296,7 +291,7 @@ def modus() -> pd.DataFrame:
                 rij = valideer(df.iloc[[i]], schema.INVOER)  # elk verzoek valideert zijn invoer
                 m = laad_model(cfg["model"]["pad"]) if laden else model
                 kansen[i] = voorspel(m, rij, cfg)[0]
-            return advies_uit(df, kansen, instellingen, cfg, nacht)
+            return adviseer_uit_kansen(kansen, instellingen, df, cfg, nacht)
 
         return draai
 
