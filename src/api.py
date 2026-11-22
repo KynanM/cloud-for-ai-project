@@ -44,7 +44,16 @@ from .scope import BuitenScopeError
 
 logger = logging.getLogger(__name__)
 
+# Dezelfde toegelaten waarden als het schema (src/schema.py), niet overgetypt. Literal maakt er
+# in /docs een keuzelijst van, en een 422 met de toegelaten waarden.
 Maand = Literal[tuple(schema.MAANDEN)]  # type: ignore[valid-type]
+Hotel = Literal[tuple(schema.HOTELS)]  # type: ignore[valid-type]
+Maaltijd = Literal[tuple(schema.MAALTIJDEN)]  # type: ignore[valid-type]
+Segment = Literal[tuple(schema.SEGMENTEN)]  # type: ignore[valid-type]
+Kanaal = Literal[tuple(schema.KANALEN)]  # type: ignore[valid-type]
+Kamertype = Literal[tuple(schema.KAMERTYPES)]  # type: ignore[valid-type]
+Waarborg = Literal[tuple(schema.WAARBORGEN)]  # type: ignore[valid-type]
+Klanttype = Literal[tuple(schema.KLANTTYPES)]  # type: ignore[valid-type]
 
 
 class Boeking(BaseModel):
@@ -52,7 +61,7 @@ class Boeking(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    hotel: Literal["City Hotel", "Resort Hotel"]
+    hotel: Hotel
     lead_time: int = Field(ge=0, le=3 * 365, description="dagen tussen boeken en aankomst")
     arrival_date_year: int = Field(ge=2015)
     arrival_date_month: Maand
@@ -62,25 +71,16 @@ class Boeking(BaseModel):
     adults: int = Field(ge=0)
     children: float | None = Field(default=None, ge=0)
     babies: int = Field(ge=0)
-    meal: Literal["BB", "HB", "FB", "SC", "Undefined"]
+    meal: Maaltijd
     country: str | None = Field(default=None, pattern=r"^[A-Z]{2,3}$")
-    market_segment: Literal[
-        "Online TA",
-        "Offline TA/TO",
-        "Groups",
-        "Direct",
-        "Corporate",
-        "Complementary",
-        "Aviation",
-        "Undefined",
-    ]
-    distribution_channel: Literal["TA/TO", "Direct", "Corporate", "GDS", "Undefined"]
+    market_segment: Segment
+    distribution_channel: Kanaal
     is_repeated_guest: Literal[0, 1]
     previous_cancellations: int = Field(ge=0)
     previous_bookings_not_canceled: int = Field(ge=0)
-    reserved_room_type: Literal["A", "B", "C", "D", "E", "F", "G", "H", "L", "P"]
-    deposit_type: Literal["No Deposit", "Refundable", "Non Refund"]
-    customer_type: Literal["Transient", "Transient-Party", "Contract", "Group"]
+    reserved_room_type: Kamertype
+    deposit_type: Waarborg
+    customer_type: Klanttype
     agent: float | None = Field(default=None, ge=0, description="id van de agent, leeg: geen")
     adr: float = Field(lt=10_000, description="prijs per nacht in euro")
 
