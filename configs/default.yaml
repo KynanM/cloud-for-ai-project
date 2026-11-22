@@ -2,7 +2,7 @@
 # Paden zijn relatief ten opzichte van de projectmap.
 
 data:
-  # Hotel booking demand (Antonio, Almeida & Nunes, 2019), van Kaggle. Zie de README.
+  # Hotel booking demand (Antonio, Almeida & Nunes, 2019), van Kaggle. Zie docs/model.md.
   pad: data/hotel_bookings.csv
   voorbeeld: data/nieuwe_boekingen.csv
 
@@ -54,7 +54,7 @@ features:
   # total_of_special_requests zijn pas na het beslismoment gekend (lek).
   # Het land, gegroepeerd tot PRT tegenover de rest, in de pijplijn (land_als_groep in
   # src/kenmerken.py). Standaard uit: het land is waarschijnlijk pas na het beslismoment
-  # ingevuld, en dan is het een lek. Zie "Bevindingen" in de README. true: met land.
+  # ingevuld, en dan is het een lek. Zie "Bevindingen" in docs/model.md. true: met land.
   gebruik_land: false
 
 # Een split in de tijd, op aankomstdatum. Een willekeurige split laat de toekomst in de
@@ -180,7 +180,7 @@ model:
     n_estimators: 300
     min_samples_leaf: 50
     max_features: sqrt
-  # Twee poorten vóór het wegschrijven, allebei op de validatie:
-  # - de MAE per hotel-nacht moet lager zijn dan die van de vuistregel (src/train.py)
-  # - de AUC moet minstens dit zijn. Zonder land: logreg 0,63, boosting 0,69. Zie de README.
+  # De ML-poort op de AUC: op de validatie minstens dit. Zonder land: logreg 0,63, boosting 0,69.
+  # De andere poorten (MAE onder de vuistregel, ijking, risico per hotel, software) staan in
+  # src/poorten.py en bij `poorten:` hierboven; het overzicht in docs/model.md.
   minimum_auc: 0.60
