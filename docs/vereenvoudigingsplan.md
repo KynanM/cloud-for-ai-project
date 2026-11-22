@@ -11,6 +11,50 @@ het project *gebruiken*, het project *ontwikkelen* en het onderzoek *verantwoord
 eerst indienen en bevriezen, dan de uitleg rechtzetten, dan de bewijstests losmaken van de README,
 dan pas de README herschrijven, en de codewijzigingen als laatste, elk apart.
 
+## Stand van de uitvoering (22-11-2026)
+
+**Beslissing D1 is beantwoord: niet eerst indienen.** De student wil eerst vereenvoudigen. Alles
+hieronder staat op de branch `claude/wonderful-darwin-1z0dfp`; `main` (`40d7eba`) is ongewijzigd en
+blijft indienbaar. De volgorde is daardoor omgedraaid: eerst de code, dan de documentatie, zodat
+die meteen de vereenvoudigde code beschrijft.
+
+| Pakket | Stand | Bewijs |
+|---|---|---|
+| W1.1 monitoringopdracht en `labels` zonder `--nachten` | **gedaan** | test; de opdracht reproduceert het gecommitte bestand |
+| W1.1 README-installatie | **gedaan** (in W3.1) | snelstart letterlijk uitgevoerd in een verse clone, Linux |
+| W1.2 verouderde uitleg | **gedaan** | config, publiceer, monitoring, architectuur, poorten |
+| W1.3 `RESTPLAN.md` | **gedaan** | blok "Bijgewerkt op 22-11-2026" bovenaan |
+| W2 bewijstests | **gedaan** | mutatietest, zie hieronder |
+| W3.1–W3.5 documentatie | **gedaan** | README 133 regels; `gebruik.md`, `ontwikkelen.md`, `deployment.md`, `model.md`; geen kapotte links |
+| W4.1 één foutoverzicht | **gedaan** | eerst een test die de melding letterlijk vastlegt |
+| W4.2 `advies_uit` | **gedaan** | uitvoer identiek |
+| W4.3 geen trainingscode bij voorspellen | **gedaan** | test in een apart proces |
+| W4.4 gedeelde categorieën | **gedaan** | `/openapi.json` byte-identiek |
+| W4.5 grafieken naar `figuren.py` | **gedaan** | vijf uitvoerbestanden byte-identiek, oud tegenover nieuw |
+| W5 E9 | **gedaan** | de oude patch werd 0 keer gebruikt; nu een teller per variant en een test |
+| W6.1 `ACTION_PLAN.md` archiveren | **gedaan** | `docs/archief/ACTION_PLAN.md`, verwijzingen bijgewerkt |
+| W6.2 inline comments | doorlopend | |
+| W6.3 dependencies | wacht op `RESTPLAN.md` 3.1 | `pytest-benchmark` is daar gepland |
+| W7.1 MLflow-paden | **gedaan** (in `deployment.md`) | |
+| W7.2, W7.3 publiceren en `deploy.yml` | open, hoort bij `RESTPLAN.md` 1.4 | gedrag, geen opruimwerk |
+
+**Afwijking van het plan.** De inhoud van de oude README (data, split, modellen, resultaten,
+bevindingen) is niet over `verantwoording.md` verspreid, maar letterlijk verplaatst naar
+`docs/model.md`. Zo gaat er niets verloren en blijft de doorlopende uitleg van deel 2 bij elkaar.
+De bewijstests eisen de volledige vergelijking daarom in `docs/model.md`, het rapport en de
+verantwoording; de README-cijfers zijn geankerd.
+
+**Mutatietest W2.** Gevangen: elk gewijzigd README-cijfer (MAE, p95), de verwisseling City/Resort,
+een gewijzigde MAE in `docs/model.md`. Gemist, **en dat was vóór deze wijziging ook al zo**: een
+gewijzigd getal in de verantwoording of het rapport als hetzelfde getal er elders nog staat (4,72
+staat 16 keer in de verantwoording). De controles "staat ergens in de tekst" zijn daar zwak.
+Vervolg: de kernrijen van de vergelijkingstabellen in rapport en verantwoording ook ankeren in
+`docs/bewijs_semantisch.csv`.
+
+**Nieuwe bevinding.** Op Linux geeft `python -m src.evaluate` voor logreg andere vierde decimalen
+dan de gecommitte (Windows-)cijfers, met de oude code net zo goed. Op twee decimalen, zoals in de
+tekst, geen verschil. Dat is de meting die `RESTPLAN.md` 3.5 vraagt.
+
 ---
 
 ## 0. Randvoorwaarden: lees dit eerst
