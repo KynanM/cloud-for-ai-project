@@ -78,7 +78,8 @@ Advies voor de nacht van 15-08-2017 (zekerheid 80%):
 Het advies staat ook in `advies.csv`. Een regel `WARNING ... agent = 229.0` is een waarschuwing,
 geen fout: één boeking komt van een agent die het model nooit zag.
 
-De tests draai je **na** het trainen. Zonder getraind model slaan 42 tests over (*skipped*):
+De tests draai je **na** het trainen. Zonder getraind model slaan de tests die een model nodig
+hebben over (*skipped*):
 
 ```bash
 .venv/bin/python -m pytest
