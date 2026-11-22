@@ -183,16 +183,32 @@ def kopie_job(df, model, instellingen, cfg, nacht):
     return voer_job_uit(df.copy(), model, instellingen, cfg, nacht, as_of=as_of)
 
 
+def uitrollen(df, kansen, cfg, nacht):
+    """De aggregatie van vóór E9 (per_nacht: elk verblijf uitrollen), met de vorm van
+    per_nacht_enkel(), zodat ze die in voer_job_uit() kan vervangen."""
+    return per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
+
+
+def kern_met(route, job, h) -> np.ndarray:
+    """Meet `job` (een volledige voer_job_uit) met `route` als aggregatie.
+
+    voer_job_uit() roept predict.per_nacht_enkel aan; die naam wordt hier vervangen door een spion
+    rond `route`. De teller bewijst dat elke run echt over `route` liep. Tot deze controle patchte
+    E9 predict.per_nacht, een naam die voer_job_uit() sinds 52e19a8 niet meer gebruikt: dan
+    meten beide varianten stil dezelfde code.
+    """
+    spion = mock.Mock(wraps=route)
+    with mock.patch.object(predict, "per_nacht_enkel", spion):
+        x = tijden(job, h["opwarmen"], h["gemeten"])
+    assert spion.call_count == h["opwarmen"] + h["gemeten"], "de aggregatie werd niet vervangen"
+    return x
+
+
 def e9() -> pd.DataFrame:
     exp = laad_experiment("e9_aggregatie")
     cfg, model, instellingen = onderdelen()
     h = exp["herhalingen"]
     rijen = []
-    enkel = mock.patch.object(
-        predict,
-        "per_nacht",
-        lambda d, k, c, begin=None, einde=None: per_nacht_enkel(d, k, c, begin),
-    )
     for naam in exp["workloads"]:
         wl = workloads()[naam]
         df, nacht = lees(wl)
@@ -204,18 +220,11 @@ def e9() -> pd.DataFrame:
             "per_nacht (uitrollen)": partial(per_nacht, df, kansen, cfg, begin=nacht, einde=nacht),
             "per_nacht_enkel": partial(per_nacht_enkel, df, kansen, cfg, nacht),
         }
-        kern = {}
-        kern["per_nacht (uitrollen)"] = tijden(
-            partial(kopie_job, df, model, instellingen, cfg, nacht),
-            h["opwarmen"],
-            h["gemeten"],
-        )
-        with enkel:
-            kern["per_nacht_enkel"] = tijden(
-                partial(kopie_job, df, model, instellingen, cfg, nacht),
-                h["opwarmen"],
-                h["gemeten"],
-            )
+        job = partial(kopie_job, df, model, instellingen, cfg, nacht)
+        kern = {
+            "per_nacht (uitrollen)": kern_met(uitrollen, job, h),
+            "per_nacht_enkel": kern_met(per_nacht_enkel, job, h),
+        }
         for variant, functie in varianten.items():
             x = tijden(functie, h["opwarmen"], h["gemeten"])
             k = kern[variant]
