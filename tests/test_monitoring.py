@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.monitoring import controleer, drift, psi, referentie, risico_na_de_nacht
+from src.monitoring import controleer, drift, main, psi, referentie, risico_na_de_nacht
 
 
 @pytest.fixture(scope="module")
@@ -118,3 +118,10 @@ def test_drempels_geijkt_op_de_validatie_vangen_adr_per_verblijf(df, cfg, ref):
     fout["adr"] = fout["adr"] * (fout["stays_in_weekend_nights"] + fout["stays_in_week_nights"])
     assert drift(fout[fout["adr"] < 1000], ref)["adr"] > drempels["adr"]
     assert drift(deel, ref)["adr"] <= drempels["adr"]
+
+
+def test_labels_zonder_nachten_geeft_een_leesbare_fout(capsys):
+    with pytest.raises(SystemExit) as fout:
+        main(["labels"])
+    assert fout.value.code == 2
+    assert "--nachten" in capsys.readouterr().err

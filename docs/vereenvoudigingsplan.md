@@ -484,6 +484,7 @@ Voor elk pakket: één PR, de vaste controles uit §10, en het voorbeeldadvies m
 
   ```python
   from typing import TYPE_CHECKING
+
   if TYPE_CHECKING:
       from .train import Model
   ```

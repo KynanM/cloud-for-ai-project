@@ -89,7 +89,12 @@ def zet_kampioen(versie: int) -> None:
 
 
 def exporteer(doel: Path = ACTIEF) -> Path:
-    """Download de kampioen naar `doel`, atomisch: eerst een tijdelijke map, dan hernoemen."""
+    """Download de kampioen naar `doel`, via een tijdelijke map.
+
+    Eerst alles naar `<doel>.tmp`, en pas als elk bestand er is, omschakelen. Dat omschakelen zijn
+    twee hernoemingen (doel → .oud, .tmp → doel): niet atomisch. Stopt het proces er precies
+    tussen, dan ontbreekt `doel` even en staat de vorige versie in `<doel>.oud`.
+    """
     mf = mlflow()
     tijdelijk = doel.with_name(doel.name + ".tmp")
     if tijdelijk.exists():
