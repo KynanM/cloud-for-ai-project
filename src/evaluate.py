@@ -24,16 +24,13 @@ from .config import laad_config
 from .data import bereid_voor, laad_data, stop_bij_fout
 from .logboek import zet_logging_op
 from .nachten import (
-    alleen_volledig,
     beoordeel,
     bezetting,
     capaciteit,
-    dekking,
-    per_nacht,
     spreidingsfactor,
 )
 from .predict import voorspel
-from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
+from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits, volledige_nachten
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -60,6 +57,13 @@ def met(cfg: dict, soort: str, land: bool) -> dict:
     return nieuw
 
 
+def per_hotel(metriek, y: np.ndarray, p: np.ndarray, hotels: np.ndarray, h: str) -> float:
+    """`metriek(y, p)` voor één hotel, of over beide samen als `h` "beide" is."""
+    if h == "beide":
+        return metriek(y, p)
+    return metriek(y[hotels == h], p[hotels == h])
+
+
 def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
     """Alle varianten, beide periodes. Geeft de tabellen en wat de grafieken nodig hebben."""
     delen = splits(df, cfg)
@@ -78,11 +82,7 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
             model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
             p = voorspel(model, delen[meet], c)
             begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
-            nachten = alleen_volledig(
-                per_nacht(delen[meet], p, c, begin, einde),
-                dekking(df, begin, einde),
-                c["evaluatie"]["min_dekking"],
-            )
+            nachten = volledige_nachten(delen[meet], p, begin, einde, c, df)
             if periode == "validatie":
                 factor = spreidingsfactor(nachten)
             y = delen[meet][c["doel"]].to_numpy()
@@ -91,18 +91,8 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
             # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
             # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
             hotels = delen[meet]["hotel"].to_numpy()
-            tabel["auc"] = [
-                roc_auc_score(
-                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
-                )
-                for h in tabel["hotel"]
-            ]
-            tabel["brier"] = [
-                brier_score_loss(
-                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
-                )
-                for h in tabel["hotel"]
-            ]
+            tabel["auc"] = [per_hotel(roc_auc_score, y, p, hotels, h) for h in tabel["hotel"]]
+            tabel["brier"] = [per_hotel(brier_score_loss, y, p, hotels, h) for h in tabel["hotel"]]
             rijen.append(tabel.assign(periode=periode, model=naam(soort, land)))
 
             prt = (delen[meet]["country"] == "PRT").to_numpy()

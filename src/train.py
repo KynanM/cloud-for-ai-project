@@ -214,7 +214,13 @@ def nachten_van(
     onvolledig is: gasten die vóór `begin` aankwamen en dan nog blijven. Zie
     `evaluatie.min_dekking` in de config en `dekking()` in src/nachten.py.
     """
-    kansen = voorspel(model, deel, cfg)
+    return volledige_nachten(deel, voorspel(model, deel, cfg), begin, einde, cfg, alle)
+
+
+def volledige_nachten(
+    deel: pd.DataFrame, kansen, begin, einde, cfg: dict, alle: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Tel kansen per hotel-nacht; met `alle` alleen de nachten met een volledige portefeuille."""
     nachten = per_nacht(deel, kansen, cfg, begin, einde)
     if alle is None:
         return nachten
