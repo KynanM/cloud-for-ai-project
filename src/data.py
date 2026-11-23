@@ -7,6 +7,7 @@ import pandas as pd
 import pandera.pandas as pa
 
 from . import schema
+from .datums import aankomstdatum
 
 logger = logging.getLogger(__name__)
 
@@ -99,18 +100,6 @@ def schoon_op(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     from .scope import binnen_opschoning  # hier: scope gebruikt zelf aankomstdatum() uit data
 
     return df[binnen_opschoning(df, cfg)]
-
-
-def aankomstdatum(df: pd.DataFrame) -> pd.Series:
-    """De aankomstdatum uit de drie losse kolommen van de export."""
-    return pd.to_datetime(
-        df["arrival_date_year"].astype(str)
-        + "-"
-        + df["arrival_date_month"]
-        + "-"
-        + df["arrival_date_day_of_month"].astype(str),
-        format="%Y-%B-%d",
-    )
 
 
 def maak_label(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:

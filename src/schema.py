@@ -10,8 +10,9 @@ De ruwe export bevat bekende fouten (Non Refund, adr van 0 of minder, nul nachte
 laat het schema door, want ze zitten in de echte data. Ze gaan eruit in schoon_op().
 """
 
-import pandas as pd
 import pandera.pandas as pa
+
+from .datums import aankomstdatum
 
 MAANDEN = [
     "January",
@@ -83,15 +84,7 @@ INVOER = pa.DataFrameSchema(
     },
     # Elke kolom apart kan kloppen terwijl de datum niet bestaat: 31 februari
     checks=pa.Check(
-        lambda df: pd.to_datetime(
-            df["arrival_date_year"].astype(str)
-            + "-"
-            + df["arrival_date_month"].astype(str)
-            + "-"
-            + df["arrival_date_day_of_month"].astype(str),
-            format="%Y-%B-%d",
-            errors="coerce",
-        ).notna(),
+        lambda df: aankomstdatum(df, ongeldig_wordt_leeg=True).notna(),
         error="aankomstdatum bestaat niet (bv. 31 februari)",
     ),
     strict=False,
