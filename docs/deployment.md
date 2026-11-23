@@ -126,7 +126,7 @@ In GitHub nodig (*Settings → Secrets and variables → Actions*):
 Zonder `HF_SPACE` slaat de workflow de deploy over en blijft groen. Met `HF_SPACE` maar zonder
 `HF_TOKEN` faalt ze.
 
-**Open punten** (`RESTPLAN.md` taak 1.4):
+**Open punten** ([`archief/RESTPLAN.md`](archief/RESTPLAN.md) taak 1.4):
 
 - de workflow traint opnieuw, terwijl beslist is dat de Space het MLflow-kampioenmodel draait;
 - bij een start na de CI checkt de workflow de laatste commit van `main` uit, niet per se de commit
