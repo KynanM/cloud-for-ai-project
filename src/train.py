@@ -46,6 +46,7 @@ from .nachten import (
     spreidingsfactor,
 )
 from .poorten import als_dicts, beleidspoorten, ml_poorten, softwarepoorten
+from .scope import controleer_scope
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -327,11 +328,13 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     # grens van de softwaremetriek (les 06 p. 23: de softwaremetriek is de grens)
     deel, nacht = portefeuille_van_een_nacht(splits(df, cfg)["validatie"], cfg)
     instellingen = {"factor": v["factor"], "capaciteit": cap}
+    as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
+    # Eén keer melden wat buiten scope valt; tijdens de 33 metingen zwijgt src.scope (poorten.stil)
+    controleer_scope(deel, cfg, nacht, as_of=as_of)
 
     def een_job():
         from .predict import voer_job_uit
 
-        as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
         voer_job_uit(deel, model, instellingen, cfg, nacht, as_of=as_of)
 
     with tempfile.TemporaryDirectory() as tmp:
