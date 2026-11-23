@@ -118,10 +118,11 @@ advies:
   # maximum blijft het advies gepoold binnen de risicogrens hieronder (test 16 %), maar City
   # alleen niet (test 22 %, resultaten/evaluatie.csv). Weggehaald op 10-11-2026.
   max_aandeel: null
-  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.onderzoek.experimenten, drempel.csv).
-  # Een keuzecriterium, geen controle bij het voorspellen:
-  # op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k. Gekozen wordt de
-  # zekerheid met de hoogste europroxy binnen die grens.
+  # Risicogrens: op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k.
+  # Keuzeregel voor de zekerheid (src.onderzoek.experimenten, resultaten/audit/drempel.csv):
+  # 0,80 uit deel 1 blijft, tenzij een andere zekerheid binnen deze grens aantoonbaar meer
+  # euro oplevert (bootstrapinterval volledig boven nul). Op de validatie haalt geen enkele dat.
+  # Een keuzecriterium, geen controle bij het voorspellen.
   risicogrens: 0.20
   # De zekerheden waarvoor src.evaluate de winstcurve tekent. Begin en einde zijn inbegrepen.
   winstcurve:
