@@ -12,13 +12,14 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 import yaml
 
 from src.config import PROJECT, invoerkolommen, laad_config
 from src.data import laad_data
 from src.manifest import controleer
-from src.predict import adviseer, laad_advies, laad_model
+from src.predict import adviseer, laad_advies, laad_model, voer_job_uit
 from src.schema import INVOER
 from src.train import bouw_en_bewaar
 
@@ -26,6 +27,7 @@ from src.train import bouw_en_bewaar
 pytestmark = pytest.mark.traag
 
 NACHT = "2017-08-15"
+AS_OF = "2017-07-16"  # contract A: 30 dagen vóór de nacht
 
 
 def config_in(map_: Path, **model) -> Path:
@@ -58,8 +60,9 @@ def test_van_csv_tot_advies_k(gebouwd):
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
 
-    # Act
-    tabel = adviseer(model, instellingen, nieuw, cfg, nacht=NACHT).set_index("hotel")
+    # Act: de route van de opdrachtregel en de API
+    job = voer_job_uit(nieuw, model, instellingen, cfg, pd.Timestamp(NACHT), as_of=AS_OF)
+    tabel = job.advies.set_index("hotel")
 
     # Assert: per hotel één advies, een geheel aantal kamers, binnen de grenzen
     assert tabel["boekingen"].to_dict() == {"City Hotel": 62, "Resort Hotel": 14}
@@ -76,7 +79,8 @@ def test_zonder_maximum_is_de_capaciteit_de_grens(gebouwd):
     assert cfg["advies"]["max_aandeel"] is None
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
-    tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg, nacht=NACHT)
+    model = laad_model(cfg["model"]["pad"])
+    tabel = voer_job_uit(nieuw, model, instellingen, cfg, pd.Timestamp(NACHT), as_of=AS_OF).advies
 
     verwacht = {hotel: int(np.floor(cap)) for hotel, cap in instellingen["capaciteit"].items()}
     assert tabel.set_index("hotel")["maximum"].to_dict() == verwacht
@@ -88,6 +92,8 @@ def test_een_maximum_van_vijf_procent_kan_nog_altijd(gebouwd):
     # Wil het hotel toch een maximum, dan volstaat max_aandeel in de config
     cfg, _ = gebouwd
     cfg_5 = {**cfg, "advies": {**cfg["advies"], "max_aandeel": 0.05}}
+    # adviseer() en niet voer_job_uit(): de test gaat over het maximum, niet over schema en scope
+    # (dezelfde uitkomst als voer_job_uit bewijst tests/test_job.py)
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
     tabel = adviseer(laad_model(cfg["model"]["pad"]), instellingen, nieuw, cfg_5, nacht=NACHT)
@@ -106,6 +112,8 @@ def test_meer_zekerheid_geeft_nooit_meer_kamers(gebouwd):
     instellingen = laad_advies(cfg["model"]["advies_pad"])
     nieuw = laad_data(cfg["data"]["voorbeeld"], valideer_met=INVOER)
 
+    # adviseer() over alle nachten van het bestand: voer_job_uit() adviseert per definitie voor
+    # één nacht, en deze eigenschap moet voor elke nacht gelden
     k = {}
     for zekerheid in [0.6, 0.8, 0.95]:
         cfg_z = {**cfg, "advies": {**cfg["advies"], "zekerheid": zekerheid}}
