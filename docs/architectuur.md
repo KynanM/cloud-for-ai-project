@@ -210,7 +210,7 @@ de API lokaal op 0,5 vCPU / 512 MB, de kleinste combinatie die de grens haalt.
 | Experimenten en registry | `src/tracking.py`, `src/publiceer.py` | MLflow (sqlite lokaal, of de compose-service) | `resultaten/runs.csv` |
 | Releasepoorten | `src/poorten.py` | in `src.train`, vóór het wegschrijven | `models/manifest.json`, `tests/test_poorten.py` |
 | Monitoring | `src/monitoring.py` | na de dagelijkse batch: `python -m src.monitoring controleer` | `tests/test_monitoring.py`, `resultaten/monitoring/` |
-| CI en deploy | `.github/workflows/ci.yml`, `deploy.yml` | GitHub Actions | — |
+| CI en deploy | `.github/workflows/ci.yml`, `docker.yml`, `deploy.yml` | GitHub Actions | — |
 
 ## Planning op Windows (niet automatisch ingesteld)
 

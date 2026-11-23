@@ -138,6 +138,8 @@ Verder lezen:
 
 ## Deel 3 (in uitvoering)
 
+[![docker](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/docker.yml)
+
 Deel 3 zet het model achter een webservice (`src/api.py`) in een container.
 Eén advies duurt in de container **183 ms** (p95).
 
