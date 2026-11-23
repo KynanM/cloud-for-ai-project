@@ -162,7 +162,7 @@ def main(argv: list[str]) -> None:
     if alleen is None:
         OVERZICHT.parent.mkdir(parents=True, exist_ok=True)
         OVERZICHT.write_text(json.dumps(overzicht, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps(overzicht, indent=2, ensure_ascii=False))
+    sys.stdout.write(json.dumps(overzicht, indent=2, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

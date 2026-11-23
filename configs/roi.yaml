@@ -1,4 +1,4 @@
-# Aannames voor de ROI-raming (src/onderzoek/business.py, taak 4.2). Alles hier is AANGENOMEN, niet gemeten.
+# Aannames voor de ROI-raming (src/onderzoek/business.py roi). Alles hier is AANGENOMEN, niet gemeten.
 # Wat gemeten is (de meerwaarde per volle nacht, het aantal volle nachten, de infrastructuur),
 # komt uit resultaten/.
 uurtarief_eur: 60 # aanname: kost van een uur van een data engineer of revenue manager
@@ -7,5 +7,5 @@ beheer_uren_per_maand: # aanname: opvolgen, hertrainen bij drift, fouten oplosse
   pessimistisch: 16
   basis: 8
   optimistisch: 4
-# Alleen als resultaten/serving/kosten.json (taak 5.9) nog niet bestaat
+# Alleen als resultaten/serving/kosten.json (de gemeten kosten) nog niet bestaat
 infrastructuur_eur_per_maand_aanname: 5

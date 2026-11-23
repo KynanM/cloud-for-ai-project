@@ -13,7 +13,7 @@ python -m pip install --require-hashes -r requirements-dev.lock
 | `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib, pytest) | de lector: `pip install -r requirements.txt` |
 | `requirements-api.txt` | de webservice: wat `src.serving.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
 | `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
-| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, het notebook | ontwikkelen |
+| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, pytest-cov, het notebook | ontwikkelen |
 | `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
 
 Matplotlib staat niet in het image: met Matplotlib groeit het van 670 naar 794 MB, en de API
@@ -53,6 +53,27 @@ de opdrachtregel starten. `python -m pytest -m "not traag"` draait de rest in ±
 
 `ruff format` controleert ook de codeblokken in Markdown.
 
+### Coverage
+
+```bash
+python -m pytest --cov=src --cov=benchmarks
+```
+
+Gemeten op 23-11-2026 (291 tests, na `python -m src.train`), als aandeel van de regels:
+
+| Deel | Coverage |
+|---|---|
+| kern (`src/*.py`) | 68 % |
+| `src/serving/` | 71 % |
+| `src/onderzoek/` | 20 % |
+| `benchmarks/` | 13 % |
+| alles samen | 40 % |
+
+De kern zonder de tekenfuncties en `src.evaluate` ligt hoger: `nachten.py`, `poorten.py`,
+`scope.py` en `vrijgave.py` staan op 100 %, `train.py` op 92 %. Het onderzoek en de benchmarks
+zijn opdrachten die `resultaten/` opnieuw maken; die worden niet door tests gedraaid, wel door
+de bewijstests nagelezen (`tests/test_bewijsregister.py`).
+
 ## Trainen en van model wisselen
 
 `python -m src.train` traint wat in `configs/default.yaml` staat, en schrijft het alleen weg als
@@ -83,7 +104,7 @@ benchmarks.
 | `python -m src.onderzoek.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
 | `python -m src.onderzoek.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
 | `python -m src.onderzoek.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
-| `python -m src.figuren` | de figuren van de softwaremetriek | `resultaten/figuren/` |
+| `python -m src.serving.figuren` | de figuren van de softwaremetriek en de deployment | `resultaten/figuren/` |
 | `python -m benchmarks.workloads` | de vaste werklasten voor de benchmarks | `benchmarks/workloads/*.csv` (niet gecommit) en `resultaten/software/workloads.json` |
 | `python -m benchmarks.bench` | de softwaremetriek | `resultaten/software/` |
 | `python -m benchmarks.experimenten_software e1` (of `e9`, `modus`, `artefact`, `modellen`) | software-experimenten met vooraf vastgelegde beslisregel | `resultaten/software/` |

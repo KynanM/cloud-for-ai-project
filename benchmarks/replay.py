@@ -88,11 +88,11 @@ def main() -> pd.DataFrame:
     UIT.parent.mkdir(parents=True, exist_ok=True)
     tabel.to_csv(UIT, index=False, float_format="%.3f")
     ok = tabel[tabel["status"] == 200]
-    print(
+    sys.stdout.write(
         f"{ok['nacht'].nunique()} nachten, {len(tabel) - len(ok)} mislukt;"
         f" latency p50 {np.percentile(ok['latency_ms'], 50):.0f} ms,"
         f" p95 {np.percentile(ok['latency_ms'], 95):.0f} ms;"
-        f" te veel {(ok['echt'] < ok['k']).mean():.1%}"
+        f" te veel {(ok['echt'] < ok['k']).mean():.1%}\n"
     )
     return tabel
 

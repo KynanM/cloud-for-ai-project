@@ -108,7 +108,7 @@ def schrijf(tabel: pd.DataFrame, naam: str) -> Path:
     UIT.mkdir(parents=True, exist_ok=True)
     pad = UIT / naam
     tabel.to_csv(pad, index=False, float_format="%.4f")
-    print(tabel.to_string(index=False))
+    sys.stdout.write(tabel.to_string(index=False) + "\n")
     return pad
 
 
@@ -275,9 +275,9 @@ def e9_besluit(tabel: pd.DataFrame) -> pd.DataFrame:
     )
     besluit = "overnemen" if sneller >= 10 or zuiniger >= 20 else "afwijzen"
     tabel["besluit"] = besluit
-    print(
+    sys.stdout.write(
         f"normaal: kern p95 {sneller:.1f} % sneller,"
-        f" geheugenpiek {zuiniger:.1f} % lager → {besluit}"
+        f" geheugenpiek {zuiniger:.1f} % lager → {besluit}\n"
     )
     return tabel
 
@@ -378,8 +378,8 @@ def modus() -> pd.DataFrame:
 # ---------------------------------------------------------------------------------- artefact
 
 LAAD = (
-    "import time; t = time.perf_counter(); import joblib; m = joblib.load(r'{pad}');"
-    " print((time.perf_counter() - t) * 1000)"
+    "import sys, time; t = time.perf_counter(); import joblib; m = joblib.load(r'{pad}');"
+    " sys.stdout.write(str((time.perf_counter() - t) * 1000))"
 )
 
 
@@ -548,4 +548,4 @@ if __name__ == "__main__":
         raise SystemExit(f"python -m benchmarks.experimenten_software {{{','.join(EXPERIMENTEN)}}}")
     with stop_bij_fout():
         EXPERIMENTEN[sys.argv[1]]()
-    print(json.dumps({"klaar": sys.argv[1]}))
+    sys.stdout.write(json.dumps({"klaar": sys.argv[1]}) + "\n")

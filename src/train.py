@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import sys
+from itertools import pairwise
 
 import joblib
 import numpy as np
@@ -104,7 +105,7 @@ def boosting(cfg: dict) -> Pipeline:
 
 
 def randomforest(cfg: dict) -> Pipeline:
-    """Alleen voor de complexiteitsladder (taak 3.7). Zelfde voorbewerking als boosting.
+    """Alleen voor de complexiteitsladder (src.onderzoek.robuustheid). Voorbewerking als boosting.
 
     scikit-learn-bossen kunnen sinds 1.4 met lege waarden om.
     """
@@ -155,7 +156,7 @@ def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
     g["hertraining_einde"] = embargo_einde(g["test_start"], cfg)
 
     volgorde = ["validatie_start", "validatie_einde", "test_start", "test_einde"]
-    if any(g[a] >= g[b] for a, b in zip(volgorde, volgorde[1:], strict=False)):
+    if any(g[a] >= g[b] for a, b in pairwise(volgorde)):
         raise ValueError(f"De periodes in de config staan niet na elkaar: {s}")
     return g
 
@@ -192,13 +193,13 @@ def train(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model
 
     `delen`: de uitkomst van splits(), als de aanroeper die al heeft.
     """
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     return fit_en_meet(delen["training"], delen["validatie"], cfg)
 
 
 def hertrain(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model, float]:
     """Train opnieuw op de hertraining en meet één keer op de test. Alleen om te rapporteren."""
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
@@ -236,7 +237,7 @@ def valideer(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> dict:
     mae_vuistregel    van de vuistregel, op dezelfde nachten
     factor            de spreidingsfactor per hotel, voor het advies k
     """
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     g = grenzen(cfg)
     model, auc = train(df, cfg, delen)
     vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
