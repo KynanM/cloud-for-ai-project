@@ -29,8 +29,44 @@ from src.train import grenzen
 UIT = PROJECT / "resultaten" / "business" / "replay.csv"
 
 
+def verzoek_voor(deel: pd.DataFrame, nacht: pd.Timestamp, cfg: dict) -> dict:
+    """Het API-verzoek voor één nacht: de boekingen die er verblijven, as_of volgens contract A."""
+    as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
+    return {
+        "nacht": f"{nacht:%Y-%m-%d}",
+        "as_of": f"{as_of:%Y-%m-%d}",
+        "boekingen": json.loads(deel[list(schema.INVOER.columns)].to_json(orient="records")),
+    }
+
+
+def replay_rijen(antwoord, deel: pd.DataFrame, nacht, latency: float, cfg: dict) -> list[dict]:
+    """Per hotel: het advies van de API naast het echte aantal annulaties van die nacht."""
+    if antwoord.status_code != 200:
+        return [{"nacht": nacht, "status": antwoord.status_code, "latency_ms": latency}]
+    inhoud = antwoord.json()
+    uitgesloten = {u["rij"] for u in inhoud["uitgesloten"]}
+    binnen = deel.iloc[[i for i in range(len(deel)) if i not in uitgesloten]]
+    echt = binnen.groupby("hotel")[cfg["doel"]].sum()
+    return [
+        {
+            "nacht": nacht,
+            "hotel": a["hotel"],
+            "boekingen": a["boekingen"],
+            "verwacht": a["verwacht"],
+            "k": a["k"],
+            "echt": int(echt.get(a["hotel"], 0)),
+            "uitgesloten": len(uitgesloten),
+            "status": 200,
+            "latency_ms": latency,
+            "server_ms": inhoud["latency_ms"],
+        }
+        for a in inhoud["advies"]
+    ]
+
+
 @stop_bij_fout()
 def main() -> pd.DataFrame:
+    """python -m benchmarks.replay: elke testnacht als API-verzoek, naast de echte uitkomst."""
     cfg = laad_config()
     df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
     g = grenzen(cfg)
@@ -38,46 +74,16 @@ def main() -> pd.DataFrame:
     vertrek = aankomst + pd.to_timedelta(
         df["stays_in_weekend_nights"] + df["stays_in_week_nights"], unit="D"
     )
-    kolommen = list(schema.INVOER.columns)
     rijen = []
     with TestClient(app) as client:
         for nacht in pd.date_range(g["test_start"], g["test_einde"], freq="D"):
             deel = df[(aankomst <= nacht) & (nacht < vertrek)]
             if deel.empty:
                 continue
-            as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
-            lichaam = {
-                "nacht": f"{nacht:%Y-%m-%d}",
-                "as_of": f"{as_of:%Y-%m-%d}",
-                "boekingen": json.loads(deel[kolommen].to_json(orient="records")),
-            }
             start = time.perf_counter()
-            antwoord = client.post("/advies", json=lichaam)
+            antwoord = client.post("/advies", json=verzoek_voor(deel, nacht, cfg))
             latency = (time.perf_counter() - start) * 1000
-            if antwoord.status_code != 200:
-                rijen.append(
-                    {"nacht": nacht, "status": antwoord.status_code, "latency_ms": latency}
-                )
-                continue
-            inhoud = antwoord.json()
-            uitgesloten = {u["rij"] for u in inhoud["uitgesloten"]}
-            binnen = deel.iloc[[i for i in range(len(deel)) if i not in uitgesloten]]
-            echt = binnen.groupby("hotel")[cfg["doel"]].sum()
-            for a in inhoud["advies"]:
-                rijen.append(
-                    {
-                        "nacht": nacht,
-                        "hotel": a["hotel"],
-                        "boekingen": a["boekingen"],
-                        "verwacht": a["verwacht"],
-                        "k": a["k"],
-                        "echt": int(echt.get(a["hotel"], 0)),
-                        "uitgesloten": len(uitgesloten),
-                        "status": 200,
-                        "latency_ms": latency,
-                        "server_ms": inhoud["latency_ms"],
-                    }
-                )
+            rijen += replay_rijen(antwoord, deel, nacht, latency, cfg)
     tabel = pd.DataFrame(rijen)
     UIT.parent.mkdir(parents=True, exist_ok=True)
     tabel.to_csv(UIT, index=False, float_format="%.3f")

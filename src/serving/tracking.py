@@ -55,6 +55,7 @@ def laad_experiment(naam: str) -> dict:
 
 
 def controleer_experiment(exp: dict, naam: str = "experiment") -> None:
+    """Faal als een verplicht veld (hypothese, beslisregel, ...) leeg is."""
     ontbreekt = [sleutel for sleutel in VERPLICHT if not exp.get(sleutel)]
     if ontbreekt:
         raise ValueError(f"{naam}: verplicht vooraf vast te leggen, maar leeg: {ontbreekt}")
@@ -150,6 +151,7 @@ def log_tabel(df: pd.DataFrame, naam: str) -> None:
 
 
 def log_figuur(fig, naam: str) -> None:
+    """Een figuur als artefact bij de actieve MLflow-run."""
     mlflow().log_figure(fig, naam)
 
 

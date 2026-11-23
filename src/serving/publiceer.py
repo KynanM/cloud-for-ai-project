@@ -86,6 +86,7 @@ def registreer(cfg: dict) -> tuple[int, bool]:
 
 
 def zet_kampioen(versie: int) -> None:
+    """Zet de alias kampioen op een versie in de registry (rollback)."""
     mlflow().MlflowClient().set_registered_model_alias(NAAM, ALIAS, str(versie))
 
 
@@ -124,6 +125,7 @@ def exporteer(doel: Path = ACTIEF) -> Path:
 
 
 def lijst() -> list[dict]:
+    """Alle versies in de registry, met welke de kampioen is."""
     client = mlflow().MlflowClient()
     kampioen = None
     try:
@@ -137,6 +139,7 @@ def lijst() -> list[dict]:
 
 
 def main(argv: list[str]) -> None:
+    """python -m src.serving.publiceer: registreren en publiceren, rollback of lijst."""
     parser = argparse.ArgumentParser(description="Registreer en publiceer het model.")
     parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
     parser.add_argument("--versie", type=int, help="rollback naar deze versie")

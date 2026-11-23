@@ -66,6 +66,7 @@ def commit() -> str:
 
 
 def versies() -> dict[str, str]:
+    """De versies van Python en de bibliotheken die model en advies bepalen."""
     uit = {"python": platform.python_version()}
     for naam in BIBLIOTHEKEN:
         try:

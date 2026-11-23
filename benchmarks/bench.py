@@ -55,6 +55,7 @@ SOORTEN = ["vuistregel", "logreg", "boosting"]
 
 
 def cpu_model() -> str:
+    """De naam van de processor, voor bij de metingen."""
     if sys.platform == "win32":
         try:
             uit = subprocess.run(
@@ -93,6 +94,7 @@ CPU_MODEL = cpu_model()
 
 
 def workloads() -> dict:
+    """De workloads uit resultaten/software/workloads.json."""
     if not WORKLOADS.exists():
         raise SystemExit("Geen workloads: eerst python -m benchmarks.workloads")
     return json.loads(WORKLOADS.read_text(encoding="utf-8"))["workloads"]
@@ -126,10 +128,12 @@ def bench_config(soort: str) -> Path:
 
 
 def hash_tabel(tabel: pd.DataFrame) -> str:
+    """Een korte hash van een advies, om te zien of elke herhaling hetzelfde gaf."""
     return hashlib.sha256(tabel.to_csv(index=False).encode()).hexdigest()[:16]
 
 
 def meet_kern(config: Path, soort: str, naam: str, wl: dict, opwarmen: int, gemeten: int) -> list:
+    """Meet voer_job_uit() in het proces zelf: opwarmen, dan `gemeten` keer."""
     cfg = laad_config(config)
     model = laad_model(cfg["model"]["pad"])
     instellingen = laad_advies(cfg["model"]["advies_pad"])
@@ -171,6 +175,7 @@ def meet_kern(config: Path, soort: str, naam: str, wl: dict, opwarmen: int, geme
 
 
 def meet_cli(config: Path, soort: str, naam: str, wl: dict, herhalingen: int) -> list:
+    """Meet python -m src.predict als vers proces, met tijd en piekgeheugen."""
     rijen, referentie = [], None
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(herhalingen):
@@ -226,6 +231,7 @@ def verzoek(df: pd.DataFrame, wl: dict) -> dict:
 
 
 def meet_http(url: str, soort: str, naam: str, wl: dict, opwarmen: int, gemeten: int) -> list:
+    """Meet POST /advies tegen een draaiende API (lokaal of in een container)."""
     import httpx
 
     df = pd.read_csv(PROJECT / wl["bestand"])
@@ -275,6 +281,7 @@ def schrijf_ruw(rijen: list[dict], sessie: str, basis: dict) -> None:
 
 
 def bootstrap_p95(x: np.ndarray, seed: int = 42, herhalingen: int = 2000) -> tuple[float, float]:
+    """95 %-interval van de p95, door de metingen opnieuw te trekken."""
     rng = np.random.default_rng(seed)
     trek = x[rng.integers(0, len(x), size=(herhalingen, len(x)))]
     p95 = np.percentile(trek, 95, axis=1)

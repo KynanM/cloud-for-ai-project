@@ -43,6 +43,7 @@ class Meting:
 
     @contextlib.contextmanager
     def fase(self, naam: str):
+        """Meet de duur van één fase van de adviesjob."""
         start = time.perf_counter_ns()
         try:
             yield
@@ -51,9 +52,11 @@ class Meting:
             self.fases_ms[naam] = self.fases_ms.get(naam, 0.0) + duur
 
     def totaal_ms(self) -> float:
+        """De tijd sinds het begin van de meting, in ms."""
         return (time.perf_counter_ns() - self._start) / 1e6
 
     def als_dict(self) -> dict:
+        """De meting als dict: fases, totaal, geheugenpiek en de extra velden."""
         return {
             **self.extra,
             "fases_ms": {k: round(v, 3) for k, v in self.fases_ms.items()},
