@@ -32,6 +32,7 @@ from .nachten import (
     per_nacht,
     spreidingsfactor,
 )
+from .predict import voorspel
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
@@ -59,10 +60,6 @@ def met(cfg: dict, soort: str, land: bool) -> dict:
     return nieuw
 
 
-def kansen(model, deel: pd.DataFrame, cfg: dict) -> np.ndarray:
-    return model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
-
-
 def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
     """Alle varianten, beide periodes. Geeft de tabellen en wat de grafieken nodig hebben."""
     delen = splits(df, cfg)
@@ -79,7 +76,7 @@ def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
             ("test", "hertraining", "test"),
         ]:
             model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
-            p = kansen(model, delen[meet], c)
+            p = voorspel(model, delen[meet], c)
             begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
             nachten = alleen_volledig(
                 per_nacht(delen[meet], p, c, begin, einde),

@@ -49,6 +49,7 @@ from .nachten import (  # noqa: E402
     per_nacht,
     spreidingsfactor,
 )
+from .predict import voorspel  # noqa: E402
 from .tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
 from .train import bouw_pijplijn, kenmerken_en_label  # noqa: E402
 
@@ -336,8 +337,8 @@ def log_figuur_los(fig, experiment: str, exp: dict, cfg: dict, naam: str) -> Non
 
 def meet_fold(model, fold, o: Opzet, cfg: dict, factor: dict | None) -> tuple:
     """Voorspel een meetblok, tel per hotel-nacht (alleen volledige nachten), beoordeel."""
-    X, y = kenmerken_en_label(fold.meet, cfg)
-    p = model.predict_proba(X)[:, 1]
+    y = fold.meet[cfg["doel"]]
+    p = voorspel(model, fold.meet, cfg)
     nachten = alleen_volledig(
         per_nacht(fold.meet, p, cfg, fold.begin, fold.einde),
         dekking(o.df, fold.begin, fold.einde),
@@ -651,7 +652,7 @@ def weging(o: Opzet) -> pd.DataFrame:
     ]
     rijen, fouten = [], {}
     g = o.g
-    X_meet, y_meet = kenmerken_en_label(o.delen["validatie"], basis)
+    y_meet = o.delen["validatie"][basis["doel"]]
     for naam, cfg, herijk in varianten:
         if herijk:
             model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(vroeg, cfg))
@@ -660,7 +661,7 @@ def weging(o: Opzet) -> pd.DataFrame:
             )
         else:
             model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(training, cfg))
-        p = model.predict_proba(X_meet)[:, 1]
+        p = voorspel(model, o.delen["validatie"], basis)
         nachten = alleen_volledig(
             per_nacht(o.delen["validatie"], p, cfg, g["validatie_start"], g["validatie_einde"]),
             dekking(o.df, g["validatie_start"], g["validatie_einde"]),
@@ -913,12 +914,11 @@ def duplicaten_split(o: Opzet) -> pd.DataFrame:
         cfg = met(o.cfg, soort, False)
         for naam, a, b in splitsen:
             model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(a, cfg))
-            X, y = kenmerken_en_label(b, cfg)
             rijen.append(
                 {
                     "model": soort,
                     "split": naam,
-                    "auc": roc_auc_score(y, model.predict_proba(X)[:, 1]),
+                    "auc": roc_auc_score(b[cfg["doel"]], voorspel(model, b, cfg)),
                     "meet_boekingen": len(b),
                 }
             )
