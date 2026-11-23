@@ -29,7 +29,7 @@ from .kenmerken import als_tekst
 from .logboek import zet_logging_op
 from .manifest import controleer
 from .meting import Meting
-from .nachten import met_advies, per_nacht, per_nacht_enkel
+from .nachten import met_advies, per_nacht
 from .scope import BuitenScopeError, controleer_scope
 
 # `Model` is alleen een type-aanduiding (Pipeline of Vuistregel). Voorspellen hoeft de
@@ -162,8 +162,8 @@ def voer_job_uit(
     with meting.fase("voorspellen"):
         kansen = voorspel(model, df, cfg)
     with meting.fase("aggregeren"):
-        # Eén nacht: niet elk verblijf uitrollen (E9, resultaten/software/e9_aggregatie.csv)
-        nachten = per_nacht_enkel(df, kansen, cfg, nacht)
+        # Eén nacht: per_nacht() rolt dan niet elk verblijf uit (E9, e9_aggregatie.csv)
+        nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
     with meting.fase("advies"):
         tabel = met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
     with meting.fase("advies_valideren"):

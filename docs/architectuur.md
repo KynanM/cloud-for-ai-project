@@ -17,7 +17,7 @@ voer_job_uit()  in src/predict.py: de enige plek waar het advies berekend wordt
         |-- 1. schema:  zijn de gegevens geldig?               src/schema.py + src/data.py
         |-- 2. scope:   mag dit model deze boekingen beoordelen? src/scope.py
         |-- 3. voorspellen: kans op annuleren per boeking      model.predict_proba
-        |-- 4. aggregeren: kansen optellen per hotel-nacht     src/nachten.py (per_nacht_enkel)
+        |-- 4. aggregeren: kansen optellen per hotel-nacht     src/nachten.py (per_nacht)
         |-- 5. advies:  het grootste k met 80 % zekerheid      src/nachten.py (met_advies)
         '-- 6. het advies zelf valideren                       src/schema.py (ADVIES)
         |
@@ -71,7 +71,7 @@ Ze lijken misschien overbodig, maar elk vangt een ander probleem:
 | manifest met hashes (`src/manifest.py`) | dat een model, adviesinstellingen en config uit verschillende runs samen gebruikt worden |
 | releasepoorten (`src/poorten.py`) | dat een model dat slechter is dan de vuistregel, te traag is of één hotel te veel risico geeft, gepubliceerd wordt |
 | `src/kenmerken.py` als aparte module | een opgeslagen model verwijst naar de functies erin met hun modulepad; zouden ze verhuizen, dan laadt het model niet meer |
-| één-nachtaggregatie naast meer-nachtenaggregatie | `per_nacht_enkel` is zuiniger voor het advies van één nacht; `per_nacht` is nodig voor de evaluatie over een periode. De uitvoer is dezelfde (getest) |
+| twee routes achter één `per_nacht()` | voor één nacht (het advies) neemt `per_nacht()` zelf de zuinige route `_een_nacht`; over een periode (de evaluatie) rolt `_alle_nachten` elk verblijf uit. De uitvoer is dezelfde (getest), en E9 meet de twee routes naast elkaar |
 
 ## Alle bestanden, één zin elk
 
