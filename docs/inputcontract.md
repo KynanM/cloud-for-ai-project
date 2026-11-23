@@ -2,13 +2,13 @@
 
 Voor de opdrachtregel (`python -m src.predict`) en de API (`POST /advies`) geldt hetzelfde contract:
 beide gebruiken `voer_job_uit()` in `src/predict.py`. Code: `src/schema.py` (vorm), `src/scope.py`
-(toepassingsdomein en besliscontract), `src/api.py` (velden van het verzoek).
+(toepassingsdomein en besliscontract), `src/serving/api.py` (velden van het verzoek).
 
 ## Drie lagen
 
 | Laag | Vraag | Waar | Bij een fout |
 |---|---|---|---|
-| 1. Vorm per veld | is elk veld van het juiste type, binnen het bereik, een toegelaten waarde? | Pydantic (`Boeking` in `src/api.py`), daarna Pandera (`schema.invoer_schema()`) | API: 422 met per veld wat er mis is. CLI: stopt met een samenvatting per controle |
+| 1. Vorm per veld | is elk veld van het juiste type, binnen het bereik, een toegelaten waarde? | Pydantic (`Boeking` in `src/serving/api.py`), daarna Pandera (`schema.invoer_schema()`) | API: 422 met per veld wat er mis is. CLI: stopt met een samenvatting per controle |
 | 2. Toepassingsdomein per boeking | mag het model over deze boeking iets zeggen? | `src/scope.py` | de boeking wordt uitgesloten, met een reden (beleid `sluit_uit`), of het hele verzoek faalt (beleid `weiger`) |
 | 3. Besliscontract voor het verzoek | klopt het beslismoment, en is er een portefeuille voor de nacht? | `controleer_scope()` | API: 422 met een reden. CLI: stopt met exitcode ≠ 0 |
 

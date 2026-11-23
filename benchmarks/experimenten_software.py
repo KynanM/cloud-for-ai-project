@@ -7,7 +7,7 @@ python -m benchmarks.experimenten_software artefact    # compressie en threads (
 python -m benchmarks.experimenten_software modellen    # de drie modellen (1.9)
 
 Beschrijving en beslisregel: configs/experimenten/<naam>.yaml. Uitvoer: resultaten/software/ en
-een MLflow-run per variant (src/tracking.py).
+een MLflow-run per variant (src/serving/tracking.py).
 """
 
 import os
@@ -52,7 +52,7 @@ from src.predict import (  # noqa: E402
     voer_job_uit,
     voorspel,
 )
-from src.tracking import experimentrun, laad_experiment, log_metrics, log_tabel  # noqa: E402
+from src.serving.tracking import experimentrun, laad_experiment, log_metrics, log_tabel  # noqa: E402
 from src.train import bouw_pijplijn, kenmerken_en_label, splits  # noqa: E402
 
 UIT = PROJECT / "resultaten" / "software"

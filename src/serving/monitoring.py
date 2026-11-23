@@ -33,9 +33,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .config import PROJECT, laad_config
-from .logboek import zet_logging_op
-from .poorten import slo_p95_ms
+from ..config import PROJECT, laad_config
+from ..data import aankomstdatum
+from ..logboek import zet_logging_op
+from ..poorten import slo_p95_ms
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
@@ -83,8 +84,6 @@ def drift(df: pd.DataFrame, ref: dict) -> dict[str, float]:
 
 def portefeuilles(df: pd.DataFrame, begin, einde):
     """Per nacht tussen begin en einde: de boekingen die er verblijven (zoals in een verzoek)."""
-    from .data import aankomstdatum
-
     aankomst = aankomstdatum(df)
     vertrek = aankomst + pd.to_timedelta(
         df["stays_in_weekend_nights"] + df["stays_in_week_nights"], unit="D"

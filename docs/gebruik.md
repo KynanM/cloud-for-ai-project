@@ -68,7 +68,7 @@ De volledige regels: [inputcontract.md](inputcontract.md) en `src/scope.py`.
 Start de service (blijft draaien tot `Ctrl+C`):
 
 ```bash
-python -m uvicorn src.api:app --port 7860
+python -m uvicorn src.serving.api:app --port 7860
 ```
 
 | Endpoint | Wat |
@@ -128,7 +128,7 @@ een variabele in je terminal of in Docker.
 Twee opdrachten, voor na de dagelijkse batch:
 
 ```bash
-python -m src.monitoring controleer
+python -m src.serving.monitoring controleer
 ```
 
 leest de API-logs van de laatste 24 uur (`--uren` voor een ander venster) en schrijft alarmen naar
@@ -136,7 +136,7 @@ leest de API-logs van de laatste 24 uur (`--uren` voor een ander venster) en sch
 kolom, of helemaal geen verzoeken.
 
 ```bash
-python -m src.monitoring labels --nachten resultaten/business/replay.csv
+python -m src.serving.monitoring labels --nachten resultaten/business/replay.csv
 ```
 
 rekent achteraf, zodra de echte annulaties bekend zijn, per hotel en per vier weken uit hoe vaak

@@ -9,7 +9,7 @@ dezelfde config (`configs/default.yaml`) en dezelfde regels voor geldige en toep
 ## De adviesweg: van boekingen naar advies
 
 ```text
-CSV-bestand (src/predict.py)  of  API-verzoek (src/api.py)
+CSV-bestand (src/predict.py)  of  API-verzoek (src/serving/api.py)
         |
         v
 voer_job_uit()  in src/predict.py: de enige plek waar het advies berekend wordt
@@ -25,7 +25,7 @@ voer_job_uit()  in src/predict.py: de enige plek waar het advies berekend wordt
 advies per hotel + de uitgesloten boekingen met hun reden  →  CSV of JSON
 ```
 
-Elke stap is een fase in een `Meting` (`src/meting.py`): zo is te zien waar de tijd naartoe gaat.
+Elke stap is een fase in een `Meting` (`src/serving/meting.py`): zo is te zien waar de tijd naartoe gaat.
 Omdat de opdrachtregel en de API allebei `voer_job_uit()` aanroepen, kunnen ze nooit een ander
 advies geven (`tests/test_job.py`).
 
@@ -36,7 +36,7 @@ advies geven (`tests/test_job.py`).
 | een kolom of toegelaten waarde aanpassen | `src/schema.py` (de API volgt automatisch) |
 | een uitsluitingsregel aanpassen | `src/scope.py`, de grenzen in `configs/default.yaml` |
 | de zekerheid of de risicogrens aanpassen | `configs/default.yaml` (`advies`) |
-| een veld in het API-antwoord toevoegen | `src/api.py` |
+| een veld in het API-antwoord toevoegen | `src/serving/api.py` |
 
 ## De trainingsweg: van historische data naar een model
 
@@ -48,7 +48,7 @@ data/hotel_bookings.csv
     -> ML- en beleidspoorten op de validatie         src/poorten.py
     -> opnieuw leren op de hertraining, test meten   src/train.py
     -> softwarepoorten (latency, modelgrootte)       src/poorten.py
-    -> model + advies + manifest wegschrijven        src/train.py, src/manifest.py
+    -> model + advies + manifest wegschrijven        src/train.py, src/serving/manifest.py
 ```
 
 Alles in `train.bouw_en_bewaar()`. Faalt één poort, dan wordt er niets weggeschreven.
@@ -68,29 +68,28 @@ Ze lijken misschien overbodig, maar elk vangt een ander probleem:
 |---|---|
 | schema **én** scope | geldige gegevens zijn nog geen gegevens waarover dit model mag oordelen (een Non Refund-boeking is geldig, maar valt buiten het domein) |
 | split op tijd, met embargo | dat toekomstige uitkomsten ongemerkt in de training lekken |
-| manifest met hashes (`src/manifest.py`) | dat een model, adviesinstellingen en config uit verschillende runs samen gebruikt worden |
+| manifest met hashes (`src/serving/manifest.py`) | dat een model, adviesinstellingen en config uit verschillende runs samen gebruikt worden |
 | releasepoorten (`src/poorten.py`) | dat een model dat slechter is dan de vuistregel, te traag is of één hotel te veel risico geeft, gepubliceerd wordt |
 | `src/kenmerken.py` als aparte module | een opgeslagen model verwijst naar de functies erin met hun modulepad; zouden ze verhuizen, dan laadt het model niet meer |
 | twee routes achter één `per_nacht()` | voor één nacht (het advies) neemt `per_nacht()` zelf de zuinige route `_een_nacht`; over een periode (de evaluatie) rolt `_alle_nachten` elk verblijf uit. De uitvoer is dezelfde (getest), en E9 meet de twee routes naast elkaar |
 
 ## Alle bestanden, één zin elk
 
-`src/` telt 24 modules, in drie groepen. Bestanden verplaatsen doet niemand: een opgeslagen model
-verwijst naar `src.kenmerken`, en de groepen zijn een leeswijzer.
-
-### Kern (deel 2)
-
-De weg van deel 2: inlezen, controleren, trainen, evalueren en voorspellen.
+`src/` heeft drie delen: de kern van deel 2 rechtstreeks in `src/`, het onderzoek in
+`src/onderzoek/` en deel 3 in `src/serving/`. `src/kenmerken.py` blijft op zijn plaats: een
+opgeslagen model verwijst naar `src.kenmerken`.
 
 ```text
-src/
+src/                   kern (deel 2): inlezen, controleren, trainen, evalueren, voorspellen
   config.py            leest de config
   data.py              inlezen, valideren met leesbare fouten, opschonen, label afleiden
+  datums.py            de aankomstdatum uit drie kolommen, op één plek
   schema.py            hoe invoer, trainingsdata en advies eruitzien (Pandera), met de categorieën
   kenmerken.py         bewerkingen ín de pijplijn (stabiel modulepad, zie hierboven)
   baseline.py          de vuistregel van de revenue manager
   train.py             split, model bouwen, trainen, poorten, wegschrijven
   folds.py             het embargo van de split; train.py gebruikt dezelfde formule als rolling origin
+  kansen.py            voorspel(): van model en boekingen naar kansen, voor trainen en voorspellen
   nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de euro's
   evaluate.py          alle modellen naast elkaar, per hotel-nacht
   figuren.py           alle grafieken; evaluate.py tekent ermee, net als het onderzoek
@@ -98,40 +97,37 @@ src/
   scope.py             het toepassingsdomein; data.schoon_op() en predict.py delen die grens
   logboek.py           logging naar het scherm en naar logs/<opdracht>.log, voor elke opdracht
   poorten.py           de releasepoorten: ML, beleid per hotel, software; train.py stopt erop
-```
+  api.py, publiceer.py ingangen voor het Dockerfile en deploy.yml (zie hieronder)
 
-### Onderzoek en verantwoording (extra, geen eis van deel 2)
-
-```text
-src/
+src/onderzoek/         onderzoek en verantwoording (extra, geen eis van deel 2)
   audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
   experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
   robuustheid.py       risico per hotel en maand, blokbootstrap, rolling origin, complexiteit
   business.py          businessstress, ROI-raming, verband tussen MAE en euro's
-```
 
-### Serving en opereren (deel 3)
-
-```text
-src/
+src/serving/           serving en opereren (deel 3)
   api.py               POST /advies, POST /kansen, GET /health (FastAPI)
   manifest.py          model, advies, config en data aan één run binden
   meting.py            tijd per fase en geheugenpiek van een adviesjob
   monitoring.py        drift per verzoek, risico na de nacht, alarmen
   publiceer.py         MLflow-registry, alias kampioen, export naar models/actief/
   tracking.py          experimenten in MLflow, met verplichte beslisregel
+  vrijgave.py          wat src.train voor deel 3 voorbereidt: softwarepoort en manifest
 ```
 
-`train.py` en `predict.py` roepen `manifest`, `meting` en `monitoring` al aan (het manifest, de
-tijd per fase, de driftreferentie). Dat bereidt deel 3 voor; wie deel 2 leest, hoeft ze niet te
-openen.
+De kern gebruikt drie modules uit `src/serving/`: `train.py` roept `vrijgave` en `manifest` aan
+(softwarepoort, manifest, driftreferentie), `predict.py` gebruikt `manifest` en `meting`. Dat
+bereidt deel 3 voor; wie deel 2 leest, hoeft ze niet te openen. `src/api.py` en
+`src/publiceer.py` zijn ingangen van twee regels: het Dockerfile (`uvicorn src.api:app`) en
+`deploy.yml` (`python -m src.publiceer`) horen bij deel 3 en wijzen nog naar die namen.
 
 De onderzoeksmodules gaan verder dan wat de opdracht van deel 2 vraagt ("een ML-oplossing in een
 gestructureerde repo, met data-exploratie en minstens twee modellen"), en `InfoVak.txt` zegt dat
 modellen kiezen, architecturen vergelijken en hyperparameters tunen niet het werk van dit vak is.
 Ze staan er als verantwoording van de keuzes (bootstrap, rolling origin, complexiteitsladder,
-kalibratie); om deel 2 te beoordelen zijn ze niet nodig. Met deze indeling telt de kern 2 320
-regels code en de rest 3 667; de audit, met negen kernmodules, kwam op ongeveer 1 op 3.
+kalibratie); om deel 2 te beoordelen zijn ze niet nodig. De kern telt 2 640 regels code,
+`src/onderzoek/` 2 552 en `src/serving/` 1 251; de audit, met negen kernmodules, kwam op
+ongeveer 1 op 3.
 
 ### De rest van de repo
 
@@ -173,12 +169,12 @@ flowchart LR
     NGINX["nginx<br/>(profiel schaal)"]
     MLF["MLflow<br/>experimenten + registry"]
     LOGS[("logs/api.log<br/>JSON per verzoek")]
-    MON["src.monitoring<br/>drift, risico, alerts"]
+    MON["src.serving.monitoring<br/>drift, risico, alerts"]
   end
 
   subgraph BOUW["Bouwen en publiceren"]
     TRAIN["src.train<br/>poorten: ML, beleid, software"]
-    PUB["src.publiceer<br/>alias kampioen → models/actief"]
+    PUB["src.serving.publiceer<br/>alias kampioen → models/actief"]
     CI["GitHub Actions<br/>ruff, pytest, perfpoort, docker"]
   end
 
@@ -204,12 +200,12 @@ de API lokaal op 0,5 vCPU / 512 MB, de kleinste combinatie die de grens haalt.
 | Onderdeel | Code | Draait als | Bewijs |
 |---|---|---|---|
 | Advies (kern) | `voer_job_uit()` in `src/predict.py` | gedeeld door API en batch | `tests/test_job.py` |
-| API | `src/api.py` | `uvicorn`, in het image (`Dockerfile`) | `tests/test_api.py`, `foutgedrag.csv` |
+| API | `src/serving/api.py` | `uvicorn`, in het image (`Dockerfile`) | `tests/test_api.py`, `foutgedrag.csv` |
 | Batchjob | `src/predict.py` | `docker compose --profile job run --rm advies-job <csv> --nacht ... --as-of ... --uitvoer uitvoer/advies.csv` | `resultaten/serving/batchjob.csv` |
 | Schalen | `infra/nginx.conf` | `docker compose --profile schaal up -d --scale api=4` | `resultaten/serving/belasting.csv` |
-| Experimenten en registry | `src/tracking.py`, `src/publiceer.py` | MLflow (sqlite lokaal, of de compose-service) | `resultaten/runs.csv` |
+| Experimenten en registry | `src/serving/tracking.py`, `src/serving/publiceer.py` | MLflow (sqlite lokaal, of de compose-service) | `resultaten/runs.csv` |
 | Releasepoorten | `src/poorten.py` | in `src.train`, vóór het wegschrijven | `models/manifest.json`, `tests/test_poorten.py` |
-| Monitoring | `src/monitoring.py` | na de dagelijkse batch: `python -m src.monitoring controleer` | `tests/test_monitoring.py`, `resultaten/monitoring/` |
+| Monitoring | `src/serving/monitoring.py` | na de dagelijkse batch: `python -m src.serving.monitoring controleer` | `tests/test_monitoring.py`, `resultaten/monitoring/` |
 | CI en deploy | `.github/workflows/ci.yml`, `docker.yml`, `deploy.yml` | GitHub Actions | — |
 
 ## Planning op Windows (niet automatisch ingesteld)
@@ -218,5 +214,5 @@ De dagelijkse batch en de controle kunnen met de Windows-taakplanner. Dit comman
 aan; het is bewust niet uitgevoerd, omdat het een blijvende instelling op de machine wijzigt:
 
 ```powershell
-schtasks /Create /TN "Overboeking advies" /SC DAILY /ST 06:00 /TR "cmd /c cd /d C:\pad\naar\cloud-for-ai-project && docker compose --profile job run --rm advies-job invoer/vandaag.csv --uitvoer uitvoer/advies.csv && .venv\Scripts\python.exe -m src.monitoring controleer"
+schtasks /Create /TN "Overboeking advies" /SC DAILY /ST 06:00 /TR "cmd /c cd /d C:\pad\naar\cloud-for-ai-project && docker compose --profile job run --rm advies-job invoer/vandaag.csv --uitvoer uitvoer/advies.csv && .venv\Scripts\python.exe -m src.serving.monitoring controleer"
 ```

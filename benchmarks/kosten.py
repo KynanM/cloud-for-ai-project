@@ -15,7 +15,8 @@ gemeten verbruik en gelabelde aannames:
 Scenario's: vandaag één verzoek per dag (beide hotels in één batch), 100× meer verkeer (100
 verzoeken per dag), en het niveau waarop één container de grens breekt
 (resultaten/serving/belasting.csv).
-Schrijft resultaten/serving/kosten.csv en kosten.json (gebruikt door src/business.py, ROI).
+Schrijft resultaten/serving/kosten.csv en kosten.json (gebruikt door src/onderzoek/business.py,
+voor de ROI).
 """
 
 import json

@@ -2,7 +2,7 @@
 hypothese: >
   Hotel-nachten zijn niet onafhankelijk (lange verblijven, groepen, seizoen). Losse nachten
   hertrekken geeft dan te smalle intervallen; met blokken van dagen worden ze breder.
-baseline: "huidige bootstrap: losse hotel-nachten (bootstrap() in src/experimenten.py)"
+baseline: "huidige bootstrap: losse hotel-nachten (bootstrap() in src/onderzoek/experimenten.py)"
 alternatieven: ["blokken van 1, 7, 14 en 28 kalenderdagen, beide hotels gepaard"]
 metrics:
   ml: "Δ MAE per nacht: 200 tegenover 100 iteraties, logreg en vuistregel tegenover boosting"

@@ -21,16 +21,16 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from .data import aankomstdatum
+from ..data import aankomstdatum
+from ..nachten import per_nacht
+from ..poorten import als_dicts, softwarepoorten
+from ..predict import voer_job_uit
+from ..scope import controleer_scope
 from .manifest import maak_manifest
 from .monitoring import drift_drempels, referentie
-from .nachten import per_nacht
-from .poorten import als_dicts, softwarepoorten
-from .predict import voer_job_uit
-from .scope import controleer_scope
 
 if TYPE_CHECKING:
-    from .train import Model
+    from ..train import Model
 
 
 def portefeuille_van_een_nacht(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Timestamp]:

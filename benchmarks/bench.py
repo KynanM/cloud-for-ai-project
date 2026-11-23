@@ -42,9 +42,9 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from src.config import laad_config  # noqa: E402
-from src.manifest import commit  # noqa: E402
-from src.meting import Meting  # noqa: E402
 from src.predict import laad_advies, laad_model, voer_job_uit  # noqa: E402
+from src.serving.manifest import commit  # noqa: E402
+from src.serving.meting import Meting  # noqa: E402
 
 UIT = PROJECT / "resultaten" / "software"
 RUW = UIT / "raw_runs.csv"
@@ -218,7 +218,7 @@ def meet_cli(config: Path, soort: str, naam: str, wl: dict, herhalingen: int) ->
 
 
 def verzoek(df: pd.DataFrame, wl: dict) -> dict:
-    """Het JSON-lichaam van POST /advies voor een workload (zie src/api.py)."""
+    """Het JSON-lichaam van POST /advies voor een workload (zie src/serving/api.py)."""
     boekingen = json.loads(df.to_json(orient="records"))
     nacht = pd.Timestamp(wl["nacht"])
     as_of = nacht - pd.Timedelta(days=laad_config()["label"]["horizon_dagen"])

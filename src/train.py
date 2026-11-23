@@ -33,7 +33,6 @@ from .folds import embargo_einde  # één formule voor de split en de rolling-or
 from .kansen import voorspel
 from .kenmerken import als_tekst, land_als_groep
 from .logboek import zet_logging_op
-from .manifest import bestand_hash as manifest_hash
 from .nachten import (
     alleen_volledig,
     beoordeel,
@@ -44,7 +43,8 @@ from .nachten import (
     spreidingsfactor,
 )
 from .poorten import als_dicts, beleidspoorten, ml_poorten
-from .vrijgave import bereid_serving_voor
+from .serving.manifest import bestand_hash as manifest_hash
+from .serving.vrijgave import bereid_serving_voor
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.monitoring import controleer, drift, main, psi, referentie, risico_na_de_nacht
+from src.serving.monitoring import controleer, drift, main, psi, referentie, risico_na_de_nacht
 
 # Deel 3: drift en alarmen; één test start de API. Alleen deel 2: pytest -m "not deel3"
 pytestmark = pytest.mark.deel3
@@ -90,18 +90,19 @@ def test_de_api_logt_elk_verzoek_met_drift(cfg):
     from fastapi.testclient import TestClient
 
     from src import schema
-    from src.api import app
     from src.data import laad_data
+    from src.serving.api import app
 
     df = laad_data(cfg["data"]["voorbeeld"], valideer_met=None)
     boekingen = json.loads(df[list(schema.INVOER.columns)].to_json(orient="records"))
     opvanger = Opvanger()
     with TestClient(app) as client:
-        logging.getLogger("src.api").addHandler(opvanger)  # na het opstarten: zet_logging_op
+        # Na het opstarten, want zet_logging_op vervangt de handlers
+        logging.getLogger("src.serving.api").addHandler(opvanger)
         try:
             client.post("/advies", json={"nacht": "2017-08-15", "boekingen": boekingen})
         finally:
-            logging.getLogger("src.api").removeHandler(opvanger)
+            logging.getLogger("src.serving.api").removeHandler(opvanger)
     verzoeken = [r for r in opvanger.records if getattr(r, "velden", {}).get("soort") == "verzoek"]
     assert verzoeken, "geen logregel voor het verzoek"
     velden = verzoeken[-1].velden
@@ -111,7 +112,7 @@ def test_de_api_logt_elk_verzoek_met_drift(cfg):
 
 
 def test_drempels_geijkt_op_de_validatie_vangen_adr_per_verblijf(df, cfg, ref):
-    from src.monitoring import drift_drempels, portefeuilles
+    from src.serving.monitoring import drift_drempels, portefeuilles
     from src.train import grenzen
 
     g = grenzen(cfg)

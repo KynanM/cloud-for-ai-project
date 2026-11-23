@@ -26,8 +26,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .config import PROJECT, laad_config
-from .logboek import zet_logging_op
+from ..config import PROJECT, laad_config
+from ..logboek import zet_logging_op
 from .manifest import bestand_hash, versies
 
 VERPLICHT = ["hypothese", "baseline", "alternatieven", "metrics", "beslisregel"]

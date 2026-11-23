@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import PROJECT, invoerkolommen
+from ..config import PROJECT, invoerkolommen
 
 # Wat het gedrag van model en advies bepaalt. Paden, logs, de winstcurve en de
 # gevoeligheidsanalyse horen er niet bij: die veranderen niets aan wat het hotel te zien krijgt.

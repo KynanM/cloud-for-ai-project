@@ -1,4 +1,4 @@
-# De webservice en het image (deel 3): wat src.api en src.predict nodig hebben, zonder Matplotlib.
+# De webservice en het image (deel 3): wat src.serving.api en src.predict nodig hebben, zonder Matplotlib.
 # Het image installeert requirements.lock: deze pakketten plus de onrechtstreekse, met hashes, via
 #   uv pip compile requirements-api.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
 pandas==3.1.1

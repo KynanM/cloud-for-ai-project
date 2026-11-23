@@ -18,9 +18,9 @@ import yaml
 
 from src.config import PROJECT, invoerkolommen, laad_config
 from src.data import laad_data
-from src.manifest import controleer
 from src.predict import adviseer, laad_advies, laad_model, voer_job_uit
 from src.schema import INVOER
+from src.serving.manifest import controleer
 from src.train import bouw_en_bewaar
 
 # Elke test hier traint en start de opdrachtregel: buiten de snelle set (pytest -m "not traag")

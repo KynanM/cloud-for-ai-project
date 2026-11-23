@@ -15,7 +15,7 @@ jobs:
         with:
           python-version-file: .python-version
       - run: pip install --require-hashes -r requirements-dev.lock
-      - run: python -m src.train && python -m src.publiceer
+      - run: python -m src.train && python -m src.serving.publiceer
       - run: docker build -t overboeking:ci .
       - name: imagegrootte
         run: |
