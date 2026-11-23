@@ -37,10 +37,16 @@ Gekozen: gradient boosting zonder het land, omdat het de laagste MAE op de valid
 test die volgorde bevestigt. Uitleg en alle cijfers: [rapport/rapport.md](rapport/rapport.md)
 en [docs/model.md](docs/model.md).
 
+De AUC-poort staat op 0,60 (`model.minimum_auc` in `configs/default.yaml`), lager dan de 0,65
+uit het sjabloon van labo 5. Zonder land haalt logistische regressie 0,63 op de validatie en
+boosting 0,695; met 0,65 zou de poort het tweede model tegenhouden, terwijl de keuze tussen de
+modellen op de MAE per hotel-nacht valt en niet op de AUC.
+
 ## Wat heb je nodig?
 
 - Git
-- Python 3.13 (de exacte versie staat in `.python-version`). Geen Python 3.13? Met `uv`:
+- Python 3.12 of hoger (de CI draait 3.13, de exacte versie staat in `.python-version`).
+  Python 3.11 werkt niet: numpy 2.5 vraagt minstens 3.12. Geen 3.12 of 3.13? Met `uv`:
   `uv python install 3.13`, of de download van python.org
 
 Geen Docker, geen account, geen API-sleutel: de trainingsdata staat al in `data/`.
@@ -55,7 +61,7 @@ activeren: elke opdracht roept rechtstreeks de Python uit `.venv` aan.
 ```powershell
 git clone https://github.com/KynanM/cloud-for-ai-project.git
 cd cloud-for-ai-project
-py -3.13 -m venv .venv
+py -3.13 -m venv .venv                # of py -3.12
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m src.train
 .\.venv\Scripts\python.exe -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-15 --as-of 2017-07-16 --uitvoer advies.csv
@@ -66,7 +72,7 @@ py -3.13 -m venv .venv
 ```bash
 git clone https://github.com/KynanM/cloud-for-ai-project.git
 cd cloud-for-ai-project
-python3.13 -m venv .venv
+python3.13 -m venv .venv                # of python3.12
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m src.train
 .venv/bin/python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-15 --as-of 2017-07-16 --uitvoer advies.csv
