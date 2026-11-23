@@ -1,4 +1,6 @@
-# Alles om het project te draaien en te ontwikkelen: pip install -r requirements.txt
-# Exact reproduceerbaar, met hashes: pip install --require-hashes -r requirements-dev.lock
-# Alleen de runtime (de API, het image): requirements.in / requirements.lock
--r requirements-dev.in
+# Deel 2: trainen, evalueren, voorspellen en de tests van deel 2.
+#   pip install -r requirements.txt
+# Alles, exact en met hashes (zo installeert de CI): requirements-dev.lock.
+-r requirements-api.txt
+# src.evaluate tekent zijn grafieken met src.figuren
+matplotlib==3.11.2
