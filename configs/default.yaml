@@ -164,6 +164,9 @@ model:
   # Bindt model, advies, config en data aan één run. src.predict stopt als ze niet bij
   # elkaar horen. Zie src/manifest.py.
   manifest_pad: models/manifest.json
+  # joblib-compressie van het modelbestand: 254 -> 79 KB, laden +6 %
+  # (resultaten/software/artefact.csv, taak 1.8).
+  compress: 3
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42
   logreg:

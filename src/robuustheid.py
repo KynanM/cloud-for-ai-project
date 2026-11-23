@@ -470,10 +470,11 @@ def kern_latency(model, cfg: dict, factor: dict, cap: dict, herhalingen: int = 5
     return {"p50_ms": float(np.percentile(tijden, 50)), "p95_ms": float(np.percentile(tijden, 95))}
 
 
-def model_kb(model) -> float:
+def model_kb(model, cfg: dict) -> float:
+    """De grootte van het modelbestand in KB, gecomprimeerd zoals src.train het wegschrijft."""
     with tempfile.TemporaryDirectory() as tmp:
         pad = Path(tmp) / "m.joblib"
-        joblib.dump(model, pad, compress=3)
+        joblib.dump(model, pad, compress=cfg["model"]["compress"])
         return pad.stat().st_size / 1024
 
 
@@ -541,7 +542,7 @@ def complexiteitsladder(o: Opzet) -> pd.DataFrame:
                 "euro_per_volle_nacht": t["euro_per_volle_nacht"],
                 "kern_p50_ms": latency["p50_ms"],
                 "kern_p95_ms": latency["p95_ms"],
-                "model_kb": model_kb(model),
+                "model_kb": model_kb(model, cfg),
                 "leertijd_s": leertijd,
                 "duur_s": time.perf_counter() - start,
             }

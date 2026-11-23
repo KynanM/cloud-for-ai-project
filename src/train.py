@@ -351,7 +351,7 @@ def meet_software(model: Model, v: dict, cap: dict, delen: dict, cfg: dict, poor
     een_job = partial(voer_job_uit, deel, model, instellingen, cfg, nacht, as_of=as_of)
     with tempfile.TemporaryDirectory() as tmp:
         tijdelijk = Path(tmp) / "model.joblib"
-        joblib.dump(model, tijdelijk, compress=3)  # zoals het weggeschreven wordt
+        joblib.dump(model, tijdelijk, compress=cfg["model"]["compress"])  # zoals weggeschreven
         software = softwarepoorten(een_job, tijdelijk, cfg)
     controleer_poorten(software, poorten)
     return software
@@ -391,8 +391,7 @@ def adviesinstellingen(run_id: str, v: dict, cap: dict, cfg: dict) -> dict:
 def schrijf_weg(model: Model, manifest: dict, advies: dict, cfg: dict) -> None:
     """Model, advies en manifest naar de paden uit de config; het manifest bindt ze met hashes."""
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
-    # compress=3: 254 -> 79 KB, laden +6 % (resultaten/software/artefact.csv, taak 1.8)
-    joblib.dump(model, cfg["model"]["pad"], compress=3)
+    joblib.dump(model, cfg["model"]["pad"], compress=cfg["model"]["compress"])
     cfg["model"]["advies_pad"].write_text(json.dumps(advies, indent=2), encoding="utf-8")
     manifest["bestanden"] = {
         "model": manifest_hash(cfg["model"]["pad"]),
