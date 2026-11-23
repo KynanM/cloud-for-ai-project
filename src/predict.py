@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -188,6 +189,9 @@ def main(argv: list[str]) -> None:
     with meting.fase("config"):
         cfg = laad_config(args.config)
         zet_logging_op(cfg, "predict")
+    # laad_config vervangt de modelpaden stil als de variabele gezet is; hier wordt dat zichtbaar
+    if os.environ.get("OVERBOEKING_MODELMAP"):
+        logger.info("Model uit OVERBOEKING_MODELMAP: %s", cfg["model"]["pad"].parent)
 
     with meting.fase("lezen"):
         df = laad_data(args.pad, valideer_met=None)
