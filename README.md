@@ -37,6 +37,11 @@ Gekozen: gradient boosting zonder het land, omdat het de laagste MAE op de valid
 test die volgorde bevestigt. Uitleg en alle cijfers: [rapport/rapport.md](rapport/rapport.md)
 en [docs/model.md](docs/model.md).
 
+De AUC-poort staat op 0,60 (`model.minimum_auc` in `configs/default.yaml`), lager dan de 0,65
+uit het sjabloon van labo 5. Zonder land haalt logistische regressie 0,63 op de validatie en
+boosting 0,695; met 0,65 zou de poort het tweede model tegenhouden, terwijl de keuze tussen de
+modellen op de MAE per hotel-nacht valt en niet op de AUC.
+
 ## Wat heb je nodig?
 
 - Git
