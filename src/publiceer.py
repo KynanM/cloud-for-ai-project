@@ -146,7 +146,8 @@ def main(argv: list[str]) -> None:
     zet_logging_op(cfg, "publiceer")
     if args.lijst:
         for rij in lijst():
-            print(json.dumps(rij, ensure_ascii=False))
+            # Eén JSON-object per regel: de uitvoer van het commando, voor een script; geen logregel
+            sys.stdout.write(json.dumps(rij, ensure_ascii=False) + "\n")
         return
     if args.versie is not None:
         zet_kampioen(args.versie)

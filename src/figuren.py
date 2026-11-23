@@ -16,6 +16,7 @@ src.robuustheid (risico per maand, rolling origin, complexiteit, bootstrap, ijki
 en src.business (scenario's, ROI, MAE tegenover euro's).
 """
 
+import logging
 from pathlib import Path
 
 import matplotlib
@@ -26,10 +27,13 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.calibration import calibration_curve  # noqa: E402
 
-from .config import PROJECT  # noqa: E402
+from .config import PROJECT, laad_config  # noqa: E402
+from .logboek import zet_logging_op  # noqa: E402
 
 RES = PROJECT / "resultaten"
 UIT = RES / "figuren"
+
+logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 GRENS_MS = 1000
 
 # Eén kleur per model, in een vaste volgorde. Met land: dezelfde kleur, een stippellijn.
@@ -245,9 +249,11 @@ def sizing_pareto() -> Path:
 
 
 def main() -> None:
+    """Teken de figuren van de softwaremetriek en zeg waar elke figuur staat."""
+    zet_logging_op(laad_config(), "figuren")
     UIT.mkdir(parents=True, exist_ok=True)
     for maak in (software_fases, software_schaal, modus, serving_belasting, sizing_pareto):
-        print(maak())
+        logger.info("Figuur weggeschreven naar %s", maak())
 
 
 if __name__ == "__main__":

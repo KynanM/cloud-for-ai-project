@@ -253,7 +253,8 @@ def main(argv: list[str]) -> None:
                 f"{r['venster_start']:%d-%m-%Y}",
                 100 * r["te_veel"],
             )
-        print(tabel.to_string(index=False))
+        # De tabel is de uitvoer van het commando zelf, geen logregel
+        sys.stdout.write(tabel.to_string(index=False) + "\n")
 
 
 if __name__ == "__main__":
