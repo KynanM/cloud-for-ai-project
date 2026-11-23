@@ -182,10 +182,12 @@ def splits(df: pd.DataFrame, cfg: dict) -> dict[str, pd.DataFrame]:
 
 
 def kenmerken_en_label(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Series]:
+    """X en y voor scikit-learn: alleen de invoerkolommen uit de config, en het label."""
     return deel[invoerkolommen(cfg)], deel[cfg["doel"]]
 
 
 def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
+    """Leer op `train_deel`, geef het model en zijn AUC op `meet_deel` terug."""
     pijplijn = bouw_pijplijn(cfg).fit(*kenmerken_en_label(train_deel, cfg))
     return pijplijn, roc_auc_score(meet_deel[cfg["doel"]], voorspel(pijplijn, meet_deel, cfg))
 
@@ -437,6 +439,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
+    """python -m src.train: lees config en data, train, en schrijf weg als de poorten slagen."""
     parser = argparse.ArgumentParser(description="Train model.soort en schrijf het weg.")
     parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
     parser.add_argument(

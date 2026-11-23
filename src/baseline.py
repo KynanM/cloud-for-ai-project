@@ -51,6 +51,7 @@ class Vuistregel(ClassifierMixin, BaseEstimator):
         )
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> "Vuistregel":
+        """Tel het annulatiepercentage per groep (met genoeg boekingen) en per hotel."""
         y = pd.Series(np.asarray(y), index=X.index)
         if self.venster_maanden is not None:
             aankomst = aankomstdatum(X)
@@ -78,10 +79,12 @@ class Vuistregel(ClassifierMixin, BaseEstimator):
         return np.column_stack([1 - kans, kans])
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Ja/nee per boeking (kans ≥ 0,5), voor scikit-learn; het advies gebruikt de kansen."""
         return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
 
 
 def maak_vuistregel(cfg: dict) -> Vuistregel:
+    """De vuistregel met het venster, de lead-timegrenzen en de minimumgroep uit `vuistregel`."""
     instellingen = cfg["vuistregel"]
     return Vuistregel(
         venster_maanden=instellingen["venster_maanden"],
