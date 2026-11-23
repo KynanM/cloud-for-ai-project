@@ -72,7 +72,8 @@ def main(argv: list[str]) -> pd.DataFrame:
                 "piek_rss_mb": metingen.get("piek_rss_mb"),
             }
         )
-        print(json.dumps(rijen[-1]), flush=True)
+        sys.stdout.write(json.dumps(rijen[-1]) + "\n")
+        sys.stdout.flush()
     tabel = pd.DataFrame(rijen)
     UIT.parent.mkdir(parents=True, exist_ok=True)
     tabel.to_csv(UIT, index=False, float_format="%.3f")

@@ -168,7 +168,8 @@ def vergelijk(args) -> None:
                 "health_p50_s": k["start_tot_health_s"].median(),
             }
         )
-        print(json.dumps(rijen[-1]), flush=True)
+        sys.stdout.write(json.dumps(rijen[-1]) + "\n")
+        sys.stdout.flush()
     pd.DataFrame(rijen).to_csv(UIT / "container.csv", index=False, float_format="%.3f")
     samenvatting()
 
@@ -193,7 +194,8 @@ def sizing(args) -> None:
                 "oom_100k": heel["oom"],
             }
         )
-        print(json.dumps(rijen[-1]), flush=True)
+        sys.stdout.write(json.dumps(rijen[-1]) + "\n")
+        sys.stdout.flush()
     pd.DataFrame(rijen).to_csv(UIT / "sizing.csv", index=False, float_format="%.4f")
     samenvatting()
 

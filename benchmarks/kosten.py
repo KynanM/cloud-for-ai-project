@@ -147,8 +147,8 @@ def main() -> dict:
         "hugging_face_space_eur_per_maand": 0.0,
     }
     (UIT / "kosten.json").write_text(json.dumps(samenvatting, indent=2), encoding="utf-8")
-    print(tabel.to_string(index=False))
-    print(json.dumps(samenvatting, indent=2))
+    sys.stdout.write(tabel.to_string(index=False) + "\n")
+    sys.stdout.write(json.dumps(samenvatting, indent=2) + "\n")
     return samenvatting
 
 

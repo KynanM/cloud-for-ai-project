@@ -380,18 +380,19 @@ def main(argv: list[str]) -> None:
     """python -m benchmarks.bench: meet de gevraagde doelen, modellen en workloads, en vat samen."""
     args = lees_argumenten(argv)
     if args.samenvatting:
-        print(samenvatting().to_string(index=False))
+        sys.stdout.write(samenvatting().to_string(index=False) + "\n")
         return
     alle = workloads()
     for soort in args.modellen.split(","):
         config = bench_config(soort) if soort != "huidig" else PROJECT / "configs" / "default.yaml"
         for naam in args.workloads.split(","):
             for doel in args.doelen.split(","):
-                print(f"{soort} · {naam} · {doel}", flush=True)
+                sys.stdout.write(f"{soort} · {naam} · {doel}\n")
+                sys.stdout.flush()
                 rijen, basis = meet_doel(doel, args, config, soort, naam, alle[naam])
                 schrijf_ruw(rijen, args.sessie, basis)
     tabel = samenvatting()
-    print(tabel[tabel["sessie"] == args.sessie].to_string(index=False))
+    sys.stdout.write(tabel[tabel["sessie"] == args.sessie].to_string(index=False) + "\n")
 
 
 if __name__ == "__main__":
