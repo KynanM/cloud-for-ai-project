@@ -259,6 +259,64 @@ def teken_kalibratie(tabel: pd.DataFrame, pad: Path):
     return fig
 
 
+# ----------------------------------------------------------------------- figuren van src.business
+
+
+def teken_scenario(tabel: pd.DataFrame, w_waarden: list, pad: Path):
+    """Businessstress: boosting − vuistregel per scenario, één paneel per kost van doorverwijzen."""
+    fig, assen = plt.subplots(1, len(w_waarden), figsize=(14, 3.6), sharey=True)
+    basis = tabel[tabel["cap_factor"] == 1.0]
+    grens = np.abs(basis["boosting_min_vuistregel"]).max()
+    for ax, w in zip(assen, w_waarden, strict=True):
+        g = basis[basis["w"] == w].pivot(
+            index="verkoopkans", columns="geboekt_cap", values="boosting_min_vuistregel"
+        )
+        beeld = ax.imshow(g.to_numpy(), cmap="RdBu", vmin=-grens, vmax=grens, origin="lower")
+        ax.set_xticks(range(len(g.columns)), [f"{c:.2f}" for c in g.columns])
+        ax.set_yticks(range(len(g.index)), [f"{i:.1f}" for i in g.index])
+        for (i, j), v in np.ndenumerate(g.to_numpy()):
+            ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=8)
+        ax.set_title(f"w = {w}", fontsize=9)
+        ax.set_xlabel("geboekt / capaciteit op T")
+    assen[0].set_ylabel("verkoopkans extra kamer")
+    fig.colorbar(beeld, ax=assen, shrink=0.8, label="€ per volle nacht: boosting − vuistregel")
+    fig.suptitle(
+        "Businessstress (validatie, capaciteit zoals geschat): blauw = boosting beter", fontsize=9
+    )
+    fig.savefig(pad, dpi=130, bbox_inches="tight")
+    return fig
+
+
+def teken_tornado(hefbomen: dict, pad: Path):
+    """Welke aanname beweegt de netto waarde van de ROI het meest? Eén balk per aanname."""
+    fig, ax = plt.subplots(figsize=(8, 3.5))
+    for i, (laag, hoog) in enumerate(hefbomen.values()):
+        ax.barh(i, hoog - laag, left=laag, color="#2b6cb0")
+    ax.set_yticks(range(len(hefbomen)), list(hefbomen), fontsize=8)
+    ax.set_xlabel("bijdrage aan de netto waarde per maand (€), andere aannames op basis")
+    ax.set_title("Welke aanname beweegt de netto waarde het meest?", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
+def teken_verband(tabel: pd.DataFrame, rho: float, pad: Path):
+    """MAE tegenover euro's per volle nacht, over alle varianten van de experimenten."""
+    fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    for bron_, g in tabel.groupby("bron"):
+        ax.scatter(g["mae"], g["euro_per_volle_nacht"], label=bron_, s=22)
+    ax.set_xlabel("MAE per hotel-nacht")
+    ax.set_ylabel("€ per volle nacht (europroxy)")
+    ax.set_title(
+        f"ML-metriek tegenover businessmetriek: Spearman ρ = {rho:.2f} (n = {len(tabel)})",
+        fontsize=9,
+    )
+    ax.legend(fontsize=7)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
 def software_fases() -> Path:
     ruw = pd.read_csv(RES / "software" / "raw_runs.csv", low_memory=False)
     kern = ruw[(ruw["sessie"] == "fase1") & (ruw["doel"] == "kern")]

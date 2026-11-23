@@ -96,6 +96,7 @@ def boeking_nachten(schoon: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     horizon = np.timedelta64(cfg["label"]["horizon_dagen"], "D")
 
     def actief(t: np.ndarray) -> np.ndarray:
+        """Per boeking-nacht: geboekt op tijdstip t en dan nog niet geannuleerd."""
         return (geboekt[i] <= t) & ~(geannuleerd[i] & (status[i] <= t))
 
     return pd.DataFrame(
@@ -179,6 +180,7 @@ def dekkingstabel(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 @stop_bij_fout()
 def main() -> None:
+    """python -m src.audit: filterwaterval, contract A tegenover B en de dekking per nacht."""
     cfg = laad_config()
     zet_logging_op(cfg, "audit")
     uit = cfg["resultaten"] / "audit"
