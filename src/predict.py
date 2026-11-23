@@ -88,6 +88,8 @@ def adviseer(
 
     Eén rij per hotel-nacht, met het aantal boekingen, het verwachte aantal annulaties, het
     maximum per nacht en k. Met `nacht` alleen die nacht.
+
+    Voor tests en de E1-meting; de opdrachtregel en de API gebruiken voer_job_uit().
     """
     return adviseer_uit_kansen(voorspel(model, df, cfg), instellingen, df, cfg, nacht)
 
