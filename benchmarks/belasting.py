@@ -99,7 +99,8 @@ def main(argv: list[str]) -> None:
         rij = asyncio.run(trap(args.url, inhoud, rps, args.duur, args.timeout))
         rij["variant"] = args.variant
         rijen.append(rij)
-        print(json.dumps(rij), flush=True)
+        sys.stdout.write(json.dumps(rij) + "\n")
+        sys.stdout.flush()
         if rij["foutrate"] > 0.5:  # verder opdrijven heeft geen zin meer
             break
     tabel = pd.DataFrame(rijen)

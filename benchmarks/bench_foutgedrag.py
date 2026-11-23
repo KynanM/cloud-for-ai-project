@@ -295,8 +295,8 @@ def main() -> pd.DataFrame:
     tabel = pd.DataFrame(rijen)
     UIT.parent.mkdir(parents=True, exist_ok=True)
     tabel.to_csv(UIT, index=False)
-    print(tabel.drop(columns="melding").to_string(index=False))
-    print(f"\n{int(tabel['klopt'].sum())} van {len(tabel)} kloppen")
+    sys.stdout.write(tabel.drop(columns="melding").to_string(index=False) + "\n")
+    sys.stdout.write(f"\n{int(tabel['klopt'].sum())} van {len(tabel)} kloppen\n")
     return tabel
 
 

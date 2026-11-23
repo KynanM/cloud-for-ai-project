@@ -96,7 +96,7 @@ def main(argv: list[str]) -> None:
     resultaat["geslaagd"] = resultaat["absoluut_ok"] and resultaat["relatief_ok"]
     UIT.parent.mkdir(parents=True, exist_ok=True)
     UIT.write_text(json.dumps(resultaat, indent=2), encoding="utf-8")
-    print(json.dumps(resultaat, indent=2))
+    sys.stdout.write(json.dumps(resultaat, indent=2) + "\n")
     if not resultaat["geslaagd"]:
         raise SystemExit("Performancepoort gefaald: de softwaremetriek is verslechterd.")
 
