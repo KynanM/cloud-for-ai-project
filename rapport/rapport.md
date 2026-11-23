@@ -12,7 +12,10 @@ Daaruit volgt het advies k: het grootste aantal waarvoor P(minstens k annulaties
 De ML-metriek uit deel 1 is de **MAE van het aantal annulaties per hotel-nacht**. De
 businessmetriek is een **europroxy** per volgeboekte nacht: een extra verkochte kamer die echt
 vrijkomt levert 0,5 × de prijs op, een doorverwezen gast kost 2 × de prijs. Daaruit volgt de
-drempel: 2 / 2,5 = 0,80.
+drempel: 2 / 2,5 = 0,80. De winstcurve (`resultaten/winstcurve.png`) bevestigt die drempel: op de
+validatie ligt het hoogste punt van boosting bij 0,725 (494 € tegenover 480 € per volle nacht bij
+0,80), maar dat is niet aantoonbaar beter (+13,9 €, interval −34,9 tot +56,6 €), en onder 0,70
+gaat het advies over de risicogrens. Daarom blijft 0,80 (`docs/model.md`, "De winstcurve").
 
 ## 2. Data en opzet
 
