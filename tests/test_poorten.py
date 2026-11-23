@@ -1,5 +1,7 @@
 """De releasepoorten (taak 2.5): ML, beleid en software, elk afzonderlijk getest."""
 
+import logging
+
 import pandas as pd
 
 from src.poorten import Poort, beleidspoorten, ml_poorten, softwarepoorten
@@ -47,6 +49,22 @@ def test_softwarepoort_meet_de_latency(cfg, tmp_path):
 
     traag = softwarepoorten(lambda: time.sleep(1.2), bestand, cfg, herhalingen=2)
     assert not traag[0].geslaagd
+
+
+def test_softwarepoort_herhaalt_de_scopewaarschuwing_niet(cfg, tmp_path, caplog):
+    # Arrange: een job die bij elke run waarschuwt, zoals src.scope bij een boeking buiten scope
+    bestand = tmp_path / "model.joblib"
+    bestand.write_bytes(b"x" * 1024)
+    scope = logging.getLogger("src.scope")
+    niveau_ervoor = scope.level
+
+    # Act
+    with caplog.at_level(logging.INFO):
+        softwarepoorten(lambda: scope.warning("1 boeking(en) buiten scope"), bestand, cfg, 5)
+
+    # Assert: hoogstens één keer gelogd, en het niveau van de logger is terug zoals ervoor
+    assert sum("buiten scope" in r.getMessage() for r in caplog.records) <= 1
+    assert scope.level == niveau_ervoor
 
 
 def test_tekst_zegt_of_de_poort_faalde():
