@@ -281,52 +281,64 @@ def bootstrap_p95(x: np.ndarray, seed: int = 42, herhalingen: int = 2000) -> tup
     return float(np.percentile(p95, 2.5)), float(np.percentile(p95, 97.5))
 
 
+def samenvat_groep(sleutels: list, sleutel: tuple, groep: pd.DataFrame, slo: dict) -> dict:
+    """Eén rij van de samenvatting: latency (met interval op de p95), geheugen, fouten, SLO."""
+    ok = groep[groep["status"] == "ok"]
+    x = ok["latency_ms"].to_numpy(dtype=float)
+    laag, hoog = bootstrap_p95(x) if len(x) >= 10 else (np.nan, np.nan)
+    rss = groep["piek_rss_mb"].max() if "piek_rss_mb" in groep else np.nan
+    p95 = float(np.percentile(x, 95)) if len(x) else np.nan
+    rij = dict(zip(sleutels, sleutel, strict=True))
+    rij.update(
+        {
+            "n": len(groep),
+            "n_boekingen": int(groep["n_boekingen"].iloc[0]),
+            "p50_ms": float(np.percentile(x, 50)) if len(x) else np.nan,
+            "p95_ms": p95,
+            "p95_laag": laag,
+            "p95_hoog": hoog,
+            "max_ms": float(x.max()) if len(x) else np.nan,
+            "std_ms": float(x.std(ddof=1)) if len(x) > 1 else np.nan,
+            "piek_rss_mb": rss,
+            "mislukt": int((groep["status"] != "ok").sum()),
+            "ongeldig": int((~groep["output_geldig"].astype(bool)).sum()),
+        }
+    )
+    if "fase_voorspellen_ms" in ok:
+        rij["aandeel_voorspellen"] = float(
+            ok["fase_voorspellen_ms"].median() / ok["latency_ms"].median()
+        )
+    rij["slo_gehaald"] = slo_gehaald(rij, p95, rss, slo)
+    return rij
+
+
+def slo_gehaald(rij: dict, p95: float, rss: float, slo: dict) -> bool:
+    """De SLO geldt voor de normale workload: p95, piekgeheugen, geen fouten, geldige uitvoer."""
+    return bool(
+        rij["workload"] == "normaal"
+        and p95 <= slo["p95_latency_ms"]
+        and (np.isnan(rss) or rss <= slo["piek_rss_mb"])
+        and rij["mislukt"] == 0
+        and rij["ongeldig"] == 0
+    )
+
+
 def samenvatting() -> pd.DataFrame:
     """Per sessie × doel × model × workload × infrastructuur: p50, p95 (met 95 %-interval), max."""
     ruw = pd.read_csv(RUW, low_memory=False)
     slo = BENCH["slo"]["normaal"]
     sleutels = ["sessie", "doel", "model", "workload", "cpus", "geheugen", "threads"]
-    rijen = []
-    for sleutel, groep in ruw.groupby(sleutels, dropna=False):
-        ok = groep[groep["status"] == "ok"]
-        x = ok["latency_ms"].to_numpy(dtype=float)
-        laag, hoog = bootstrap_p95(x) if len(x) >= 10 else (np.nan, np.nan)
-        rss = groep["piek_rss_mb"].max() if "piek_rss_mb" in groep else np.nan
-        p95 = float(np.percentile(x, 95)) if len(x) else np.nan
-        rij = dict(zip(sleutels, sleutel, strict=True))
-        rij.update(
-            {
-                "n": len(groep),
-                "n_boekingen": int(groep["n_boekingen"].iloc[0]),
-                "p50_ms": float(np.percentile(x, 50)) if len(x) else np.nan,
-                "p95_ms": p95,
-                "p95_laag": laag,
-                "p95_hoog": hoog,
-                "max_ms": float(x.max()) if len(x) else np.nan,
-                "std_ms": float(x.std(ddof=1)) if len(x) > 1 else np.nan,
-                "piek_rss_mb": rss,
-                "mislukt": int((groep["status"] != "ok").sum()),
-                "ongeldig": int((~groep["output_geldig"].astype(bool)).sum()),
-            }
-        )
-        if "fase_voorspellen_ms" in ok:
-            rij["aandeel_voorspellen"] = float(
-                ok["fase_voorspellen_ms"].median() / ok["latency_ms"].median()
-            )
-        rij["slo_gehaald"] = bool(
-            rij["workload"] == "normaal"
-            and p95 <= slo["p95_latency_ms"]
-            and (np.isnan(rss) or rss <= slo["piek_rss_mb"])
-            and rij["mislukt"] == 0
-            and rij["ongeldig"] == 0
-        )
-        rijen.append(rij)
+    rijen = [
+        samenvat_groep(sleutels, sleutel, groep, slo)
+        for sleutel, groep in ruw.groupby(sleutels, dropna=False)
+    ]
     tabel = pd.DataFrame(rijen)
     tabel.to_csv(SAMENVATTING, index=False, float_format="%.3f")
     return tabel
 
 
-def main(argv: list[str]) -> None:
+def lees_argumenten(argv: list[str]) -> argparse.Namespace:
+    """De opties van python -m benchmarks.bench (zie docs/softwaremetric.md)."""
     parser = argparse.ArgumentParser(description="Meet de softwaremetriek.")
     parser.add_argument("--doelen", default="kern,cli")
     parser.add_argument("--modellen", default="boosting")
@@ -341,30 +353,35 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--gemeten", type=int, default=BENCH["herhalingen"]["warm"]["gemeten"])
     parser.add_argument("--vers", type=int, default=BENCH["herhalingen"]["vers_proces"])
     parser.add_argument("--samenvatting", action="store_true")
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def meet_doel(doel: str, args, config, soort: str, naam: str, wl: dict) -> tuple[list, dict]:
+    """Meet één doel (kern, cli of http) en geef de ruwe rijen en de omgeving terug."""
+    if doel == "kern":
+        return meet_kern(config, soort, naam, wl, args.opwarmen, args.gemeten), omgeving(doel)
+    if doel == "cli":
+        return meet_cli(config, soort, naam, wl, args.vers), omgeving(doel)
+    if doel == "http":
+        rijen = meet_http(args.url, soort, naam, wl, args.opwarmen, args.gemeten)
+        infra = {"cpus": args.cpus or "host", "geheugen": args.geheugen or "host"}
+        return rijen, omgeving(doel, infra)
+    raise SystemExit(f"Onbekend doel {doel!r}")
+
+
+def main(argv: list[str]) -> None:
+    """python -m benchmarks.bench: meet de gevraagde doelen, modellen en workloads, en vat samen."""
+    args = lees_argumenten(argv)
     if args.samenvatting:
         print(samenvatting().to_string(index=False))
         return
-
     alle = workloads()
     for soort in args.modellen.split(","):
         config = bench_config(soort) if soort != "huidig" else PROJECT / "configs" / "default.yaml"
         for naam in args.workloads.split(","):
-            wl = alle[naam]
             for doel in args.doelen.split(","):
                 print(f"{soort} · {naam} · {doel}", flush=True)
-                if doel == "kern":
-                    rijen = meet_kern(config, soort, naam, wl, args.opwarmen, args.gemeten)
-                    basis = omgeving(doel)
-                elif doel == "cli":
-                    rijen = meet_cli(config, soort, naam, wl, args.vers)
-                    basis = omgeving(doel)
-                elif doel == "http":
-                    rijen = meet_http(args.url, soort, naam, wl, args.opwarmen, args.gemeten)
-                    infra = {"cpus": args.cpus or "host", "geheugen": args.geheugen or "host"}
-                    basis = omgeving(doel, infra)
-                else:
-                    raise SystemExit(f"Onbekend doel {doel!r}")
+                rijen, basis = meet_doel(doel, args, config, soort, naam, alle[naam])
                 schrijf_ruw(rijen, args.sessie, basis)
     tabel = samenvatting()
     print(tabel[tabel["sessie"] == args.sessie].to_string(index=False))
