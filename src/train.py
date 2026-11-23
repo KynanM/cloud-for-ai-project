@@ -176,15 +176,18 @@ def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
     return pijplijn, roc_auc_score(y_meet, pijplijn.predict_proba(X_meet)[:, 1])
 
 
-def train(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
-    """Train op de training, geef het model en de AUC op de validatie terug. Hierop kies je."""
-    delen = splits(df, cfg)
+def train(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model, float]:
+    """Train op de training, geef het model en de AUC op de validatie terug. Hierop kies je.
+
+    `delen`: de uitkomst van splits(), als de aanroeper die al heeft.
+    """
+    delen = delen if delen is not None else splits(df, cfg)
     return fit_en_meet(delen["training"], delen["validatie"], cfg)
 
 
-def hertrain(df: pd.DataFrame, cfg: dict) -> tuple[Model, float]:
+def hertrain(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model, float]:
     """Train opnieuw op de hertraining en meet één keer op de test. Alleen om te rapporteren."""
-    delen = splits(df, cfg)
+    delen = delen if delen is not None else splits(df, cfg)
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
@@ -209,15 +212,16 @@ def mae(nachten: pd.DataFrame) -> float:
     return float((nachten["verwacht"] - nachten["echt"]).abs().mean())
 
 
-def valideer(df: pd.DataFrame, cfg: dict) -> dict:
+def valideer(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> dict:
     """Alles wat op de validatie gemeten wordt: de poorten, en de spreidingsfactor per hotel.
 
     auc, mae          van het model, getraind op de training
     mae_vuistregel    van de vuistregel, op dezelfde nachten
     factor            de spreidingsfactor per hotel, voor het advies k
     """
-    delen, g = splits(df, cfg), grenzen(cfg)
-    model, auc = train(df, cfg)
+    delen = delen if delen is not None else splits(df, cfg)
+    g = grenzen(cfg)
+    model, auc = train(df, cfg, delen)
     vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
     meet = (delen["validatie"], g["validatie_start"], g["validatie_einde"], cfg, df)
     nachten = nachten_van(model, *meet)
@@ -289,7 +293,8 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         len(df),
         100 * df[cfg["doel"]].mean(),
     )
-    for naam, deel in splits(df, cfg).items():
+    delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
+    for naam, deel in delen.items():
         aankomst = aankomstdatum(deel)
         logger.info(
             "  %-12s%7d boekingen, aankomst %s tot %s, basiskans %.1f%%",
@@ -303,7 +308,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     soort = cfg["model"]["soort"]
     land = ", met land" if cfg["features"]["gebruik_land"] else ", zonder land"
     logger.info("Model: %s%s", soort, "" if soort == "vuistregel" else land)
-    v = valideer(df, cfg)
+    v = valideer(df, cfg, delen)
     logger.info(
         "Validatie: AUC %.3f, MAE per hotel-nacht %.2f (vuistregel %.2f)",
         v["auc"],
@@ -321,12 +326,12 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         logger.warning("Poorten overgeslagen: alleen voor metingen, nooit publiceren.")
     controleer_poorten(lijst, poorten)
 
-    model, test_auc = hertrain(df, cfg)
+    model, test_auc = hertrain(df, cfg, delen)
     logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
 
     # Softwarepoort: het model dat weggeschreven wordt, op één nacht van de validatie, tegen de
     # grens van de softwaremetriek (les 06 p. 23: de softwaremetriek is de grens)
-    deel, nacht = portefeuille_van_een_nacht(splits(df, cfg)["validatie"], cfg)
+    deel, nacht = portefeuille_van_een_nacht(delen["validatie"], cfg)
     instellingen = {"factor": v["factor"], "capaciteit": cap}
     as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
     # Eén keer melden wat buiten scope valt; tijdens de 33 metingen zwijgt src.scope (poorten.stil)
@@ -348,7 +353,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     manifest["poorten_overgeslagen"] = not poorten
     manifest["poorten"] = als_dicts(lijst)
     # Verdelingen van de hertraining, voor de driftmeting per verzoek (src/monitoring.py)
-    manifest["referentie"] = referentie(splits(df, cfg)["hertraining"])
+    manifest["referentie"] = referentie(delen["hertraining"])
     # Alarmdrempels voor de drift, geijkt op de portefeuilles van de validatie (src/monitoring.py)
     manifest["drift_drempels"] = drift_drempels(
         df,
