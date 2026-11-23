@@ -1,3 +1,5 @@
+> Archief: intern werkplan, niet bijgewerkt na 23-11-2026.
+
 # Audit: wat is onderzocht, op welke versie
 
 Dit document hoort bij de audit van november 2026 (zie de AI-bijlage van het rapport). Het legt
@@ -62,7 +64,7 @@ Een verse `git clone`, een nieuwe omgeving uit `requirements-dev.lock` (met hash
 | robuustheid | `src/folds.py`, `src/robuustheid.py`, `resultaten/audit/` (risico, bootstrap, rolling, complexiteit, weging, features, kalibratie, claims, zekerheid per hotel) |
 | business | `src/business.py`, `docs/business_roi.md`, `docs/shadow_protocol.md`, `docs/metrics.md` |
 | deployment | `Dockerfile`, `compose.yaml`, `infra/`, `.github/workflows/`, `src/publiceer.py`, `src/monitoring.py`, `docs/architectuur.md`, `docs/adr/`, `docs/kosten.md`, `resultaten/serving/`, `resultaten/monitoring/` |
-| bewijs | `docs/bewijsregister.csv` (bron per cijfer), `docs/bewijs_semantisch.csv` (cijfer op zijn plek), `docs/testlogboek.md` |
+| bewijs | `docs/bewijsregister.csv` (bron per cijfer), `docs/bewijs_semantisch.csv` (cijfer op zijn plek), `docs/archief/testlogboek.md` |
 | rapport deel 3 | `rapport/rapport_deel3.md` |
 
 ## Inventaris
@@ -82,19 +84,19 @@ Een verse `git clone`, een nieuwe omgeving uit `requirements-dev.lock` (met hash
 | `tests/` | ja | 125 tests (17-11); nieuw: `test_businessrekening.py`, `test_tijdcontract.py`, `test_bewijsregister.py`, uitbreidingen in `test_nachten.py`, `test_systeem.py` en `test_split.py` |
 | `notebooks/01_exploratie.ipynb` | ja | opnieuw uitgevoerd; tekst bij sectie 9 en 10 bijgewerkt. Op 17-11 bleek één cel te breken sinds het maximum weg is (`max_aandeel: null`); hersteld en opnieuw uitgevoerd |
 | `README.md`, `rapport/rapport.md` | ja | cijfers bijgewerkt, verwijzingen naar `docs/` |
-| deel 1 (projectvoorstel, pdf) | ja, op 17-11 | staat niet in de repository. De repo gebruikt de metrieken uit deel 1: MAE per hotel-nacht, € per volgeboekte nacht, doorverwezen gasten als guardrail; zie ook [besliscontract.md](besliscontract.md) |
+| deel 1 (projectvoorstel, pdf) | ja, op 17-11 | staat niet in de repository. De repo gebruikt de metrieken uit deel 1: MAE per hotel-nacht, € per volgeboekte nacht, doorverwezen gasten als guardrail; zie ook [besliscontract.md](../besliscontract.md) |
 | lesmateriaal | ja, op 17-11 | rechtstreeks gelezen: `OpdractVoorEvaluatieBelangrijk.txt`, `InfoVak.txt`, les 4 (lekkage), 5 (pakket, testen), 6 (serving) en 7 (API's). Op 10-11 nog onrechtstreeks, via het onderzoeksplan |
 
 ## Hoe een cijfer terug te vinden is
 
-[bewijsregister.csv](bewijsregister.csv) geeft voor elk cijfer in README en rapport het bestand
+[bewijsregister.csv](../bewijsregister.csv) geeft voor elk cijfer in README en rapport het bestand
 waaruit het komt, en een status:
 
 | Status | Betekenis |
 |---|---|
 | uitgevoerd en reproduceerbaar | komt uit een script of het notebook in deze repository, op deze commit |
 | alleen beschreven | staat in de tekst, maar geen script maakt het opnieuw |
-| niet uitgevoerd | een keuze die op theorie afviel; staat zo in [verantwoording.md](verantwoording.md) |
+| niet uitgevoerd | een keuze die op theorie afviel; staat zo in [verantwoording.md](../verantwoording.md) |
 
 Na de audit staat geen enkel cijfer in README of rapport meer met status "alleen beschreven".
 

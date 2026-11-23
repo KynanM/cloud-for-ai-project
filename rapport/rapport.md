@@ -146,7 +146,7 @@ zelf gedraaid, net als `python -m src.train`, `python -m src.predict` en `python
 en de cijfers in de README en in dit rapport nagelezen tegen `resultaten/` en de uitvoer van
 `src.train`. Op 17 november is alles opnieuw gedraaid in een nieuwe omgeving met
 `requirements.txt` (125 tests groen) en zijn de cijfers nagelezen tegen
-`docs/bewijsregister.csv` (`docs/audit_scope.md`, "Hercontrole"). Sinds 19 november draait elke
+`docs/bewijsregister.csv` (`docs/archief/audit_scope.md`, "Hercontrole"). Sinds 19 november draait elke
 push op GitHub Actions: ruff, de training met haar poorten en alle tests (281 groen op 20
 november), vanuit een lege omgeving.
 

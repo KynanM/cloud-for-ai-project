@@ -312,8 +312,8 @@ Geen nieuwe metingen, alleen eerlijk rapporteren wat er al ligt.
 
 #### [x] Taak 0.4: Testaantal niet meer hardcoderen (G32)
 
-- **Wat & waarom:** `README.md:41` zegt 110 tests, `rapport/rapport.md:135` en `docs/audit_scope.md` 125.
-- **Betrokken bestanden:** `README.md:41`, `rapport/rapport.md:135`, `docs/audit_scope.md`.
+- **Wat & waarom:** `README.md:41` zegt 110 tests, `rapport/rapport.md:135` en `docs/archief/audit_scope.md` 125.
+- **Betrokken bestanden:** `README.md:41`, `rapport/rapport.md:135`, `docs/archief/audit_scope.md`.
 - **Technische aanpak:** `pytest --collect-only -q | tail -1` draaien; in README het getal
   weghalen ("alle tests groen, ±30 s; aantal: zie CI") of het actuele getal invullen én na 5.8 een
   CI-badge toevoegen.
@@ -1006,9 +1006,9 @@ Wat verder gaat dan het vak (`InfoVak.txt`: geen tunen), staat als **P2**: doen 
 
 - **Wat & waarom:** het rapport erkent dat testcijfers bekend waren toen keuzes veranderden
   (o.a. `max_aandeel: null` op 10-11-2026). De test is geen blinde eindtoets meer.
-- **Betrokken bestanden (nieuw):** `docs/testlogboek.md`; `src/experimenten.py`, `src/evaluate.py`.
+- **Betrokken bestanden (nieuw):** `docs/archief/testlogboek.md`; `src/experimenten.py`, `src/evaluate.py`.
 - **Technische aanpak:**
-  - `docs/testlogboek.md`: chronologie uit `git log --follow -p resultaten/evaluatie.csv configs/default.yaml`:
+  - `docs/archief/testlogboek.md`: chronologie uit `git log --follow -p resultaten/evaluatie.csv configs/default.yaml`:
     elke keer dat de testresultaten wijzigden, en welke configwijziging erna kwam.
   - `Opzet(..., test_toegestaan=False)`: functies die `delen["test"]` lezen, falen tenzij
     `--rapporteer-test`; die vlag zet MLflow-tag `test_gezien=true` en `bevroren_config_hash`.
@@ -1470,7 +1470,7 @@ juiste MLflow-run, elke keuze volgt *Keuze → Opties → Resultaat → Bewijs*,
 #### [x] Taak 6.6: Eindreproductie en audit-scope bijwerken
 
 - **Wat & waarom:** het geheel moet uit een verse clone te herhalen zijn.
-- **Betrokken bestanden:** `docs/audit_scope.md`, `resultaten/audit/omgeving.json`.
+- **Betrokken bestanden:** `docs/archief/audit_scope.md`, `resultaten/audit/omgeving.json`.
 - **Technische aanpak:** verse clone → lockfile-venv → `docker compose up -d mlflow` → volgorde
   `src.audit → src.experimenten → src.evaluate → src.train → src.publiceer → docker compose build →
   benchmarks.workloads → benchmarks.bench → src.figuren → pytest`; `audit_scope.md` uitbreiden met
@@ -1497,7 +1497,7 @@ desktop, **container** = de referentie-infrastructuur (1 vCPU, 1 GiB, 1 thread).
 | **boosting zonder land (ref)** | 4,72 | −1,59 | 0,130 | 0,059 | 0,165 | **70** (container) | **183** (container) | **3,6** | **152** (container) | 0,077 | 480 | 0,43 | 0,00009 lokaal, 0,002 Cloud Run |
 | **SLO / guardrail** | — | — | — | ≤ 0,20 | ≤ 0,20 | — | **≤ 1 000** | **≤ 60** | **≤ 1 024** | ≤ 50 | — | — | — |
 
-Test (alleen gerapporteerd, niet blind; zie `docs/testlogboek.md`):
+Test (alleen gerapporteerd, niet blind; zie `docs/archief/testlogboek.md`):
 
 | Model | MAE test | te_veel City | te_veel Resort | te_veel gepoold | € / volle nacht |
 |---|---|---|---|---|---|
