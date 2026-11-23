@@ -26,7 +26,7 @@ import yaml  # noqa: E402
 from scipy.stats import spearmanr  # noqa: E402
 
 from .config import PROJECT, laad_config  # noqa: E402
-from .data import laad_data  # noqa: E402
+from .data import laad_data, stop_bij_fout  # noqa: E402
 from .experimenten import Opzet, modelvergelijking  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
 from .nachten import met_advies, winst_fysiek  # noqa: E402
@@ -334,6 +334,7 @@ def verband(o: Opzet) -> pd.DataFrame:
 TAKEN = {"scenario": run_scenario, "roi": roi, "verband": verband}
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> None:
     if not argv or any(a not in [*TAKEN, "alles"] for a in argv):
         raise SystemExit(f"python -m src.business {{{','.join([*TAKEN, 'alles'])}}}")

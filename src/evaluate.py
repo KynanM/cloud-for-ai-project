@@ -21,7 +21,7 @@ import pandas as pd
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
 from .config import laad_config
-from .data import bereid_voor, laad_data
+from .data import bereid_voor, laad_data, stop_bij_fout
 from .logboek import zet_logging_op
 from .nachten import (
     alleen_volledig,
@@ -183,6 +183,7 @@ def toon(tabel: pd.DataFrame, periode: str) -> None:
     logger.info("%s\n%s", kop, deel.to_string(index=False, float_format=lambda x: f"{x:.2f}"))
 
 
+@stop_bij_fout()
 def main() -> None:
     cfg = laad_config()
     zet_logging_op(cfg, "evaluate")

@@ -16,7 +16,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .data import aankomstdatum
+from .datums import aankomstdatum
 
 logger = logging.getLogger(__name__)
 

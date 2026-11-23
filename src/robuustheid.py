@@ -36,7 +36,7 @@ from sklearn.frozen import FrozenEstimator  # noqa: E402
 from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score  # noqa: E402
 
 from .config import laad_config  # noqa: E402
-from .data import aankomstdatum, laad_data  # noqa: E402
+from .data import aankomstdatum, laad_data, stop_bij_fout  # noqa: E402
 from .evaluate import met, zekerheden_winstcurve  # noqa: E402
 from .experimenten import GEKOZEN, Opzet, beide, bootstrap, modelvergelijking, variant  # noqa: E402
 from .folds import folds  # noqa: E402
@@ -1049,6 +1049,7 @@ TAKEN = {
 }
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> None:
     if not argv or any(a not in [*TAKEN, "alles"] for a in argv):
         raise SystemExit(f"python -m src.robuustheid {{{','.join([*TAKEN, 'alles'])}}}")

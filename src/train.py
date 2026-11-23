@@ -31,7 +31,8 @@ from sklearn.preprocessing import (
 
 from .baseline import Vuistregel, maak_vuistregel
 from .config import PROJECT, invoerkolommen, laad_config
-from .data import aankomstdatum, bereid_voor, laad_data
+from .data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
+from .folds import embargo_einde  # één formule voor de split en de rolling-origin-folds
 from .kenmerken import als_tekst, land_als_groep
 from .logboek import zet_logging_op
 from .manifest import bestand_hash as manifest_hash
@@ -153,8 +154,6 @@ def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
     2 december beslis je voor 1 januari. Een no-show ken je pas de dag na de aankomst, vandaar
     de extra dag. Zo eindigt de training op 30-11-2016 en de hertraining op 28-02-2017.
     """
-    from .folds import embargo_einde  # één formule voor de split en de rolling-origin-folds
-
     s = cfg["split"]
     g = {sleutel: pd.Timestamp(s[sleutel]) for sleutel in s}
     g["training_einde"] = embargo_einde(g["validatie_start"], cfg)
@@ -431,6 +430,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     }
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description="Train model.soort en schrijf het weg.")
     parser.add_argument("--config", default=PROJECT / "configs" / "default.yaml")
