@@ -140,6 +140,7 @@ configs/default.yaml   paden, horizon, opschoning, features, split, vuistregel, 
                        risicogrens, poorten, model. Geen code
 configs/benchmark.yaml de softwaremetriek en haar grenzen, vastgelegd vóór de eerste meting
 configs/experimenten/  hypothese en beslisregel per experiment, vastgelegd vóór het draaien
+configs/README.md      welke config bij welk commando hoort
 
 benchmarks/            workloads, de softwaremetriek, software-experimenten, foutgedrag,
                        containermetingen, loadtest, batchjob, kosten, replay, CI-poort
