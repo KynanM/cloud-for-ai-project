@@ -66,54 +66,70 @@ def per_hotel(metriek, y: np.ndarray, p: np.ndarray, hotels: np.ndarray, h: str)
     return metriek(y[hotels == h], p[hotels == h])
 
 
+# Per periode: waarop geleerd en waarop gemeten wordt
+PERIODES = [("validatie", "training", "validatie"), ("test", "hertraining", "test")]
+
+
+def per_groep(meet: pd.DataFrame, y: np.ndarray, p: np.ndarray, periode: str, model: str) -> list:
+    """Voorspeld tegenover echt voor Portugese boekingen en de rest: de controle op het land."""
+    prt = (meet["country"] == "PRT").to_numpy()
+    return [
+        {
+            "periode": periode,
+            "model": model,
+            "groep": groep,
+            "boekingen": int(masker.sum()),
+            "voorspeld": p[masker].sum(),
+            "echt": int(y[masker].sum()),
+            "voorspeld_echt": p[masker].sum() / y[masker].sum(),
+        }
+        for groep, masker in [("PRT", prt), ("rest", ~prt)]
+    ]
+
+
+def evalueer_variant(
+    df: pd.DataFrame, delen: dict, c: dict, cap: dict, bezet: pd.DataFrame, model_naam: str
+) -> tuple[list, list, dict]:
+    """Eén variant op de validatie en de test; de spreidingsfactor komt van de validatie.
+
+    Geeft de beoordelingen, de controle per groep en wat de grafieken nodig hebben.
+    """
+    g = grenzen(c)
+    rijen, groepen, uitkomst = [], [], {}
+    for periode, leer, meet in PERIODES:
+        model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
+        p = voorspel(model, delen[meet], c)
+        begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
+        nachten = volledige_nachten(delen[meet], p, begin, einde, c, df)
+        if periode == "validatie":
+            factor = spreidingsfactor(nachten)
+        y = delen[meet][c["doel"]].to_numpy()
+        tabel = beoordeel(nachten, factor, cap, bezet, c)
+        tabel["factor"] = tabel["hotel"].map(factor)
+        # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
+        # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
+        hotels = delen[meet]["hotel"].to_numpy()
+        tabel["auc"] = [per_hotel(roc_auc_score, y, p, hotels, h) for h in tabel["hotel"]]
+        tabel["brier"] = [per_hotel(brier_score_loss, y, p, hotels, h) for h in tabel["hotel"]]
+        rijen.append(tabel.assign(periode=periode, model=model_naam))
+        groepen += per_groep(delen[meet], y, p, periode, model_naam)
+        uitkomst[periode] = {"y": y, "p": p, "nachten": nachten}
+    uitkomst["factor"] = factor
+    return rijen, groepen, uitkomst
+
+
 def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
     """Alle varianten, beide periodes. Geeft de tabellen en wat de grafieken nodig hebben."""
     delen = splits(df, cfg)
-    g = grenzen(cfg)
     bezet = bezetting(ruw)
-    cap = capaciteit(bezet, g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
-
+    cap = capaciteit(bezet, grenzen(cfg)["training_einde"], cfg["advies"]["capaciteit_percentiel"])
     rijen, groepen, per_variant = [], [], {}
     for soort, land in VARIANTEN:
-        c = met(cfg, soort, land)
-        uitkomst = {}
-        for periode, leer, meet in [
-            ("validatie", "training", "validatie"),
-            ("test", "hertraining", "test"),
-        ]:
-            model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
-            p = voorspel(model, delen[meet], c)
-            begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
-            nachten = volledige_nachten(delen[meet], p, begin, einde, c, df)
-            if periode == "validatie":
-                factor = spreidingsfactor(nachten)
-            y = delen[meet][c["doel"]].to_numpy()
-            tabel = beoordeel(nachten, factor, cap, bezet, c)
-            tabel["factor"] = tabel["hotel"].map(factor)
-            # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
-            # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
-            hotels = delen[meet]["hotel"].to_numpy()
-            tabel["auc"] = [per_hotel(roc_auc_score, y, p, hotels, h) for h in tabel["hotel"]]
-            tabel["brier"] = [per_hotel(brier_score_loss, y, p, hotels, h) for h in tabel["hotel"]]
-            rijen.append(tabel.assign(periode=periode, model=naam(soort, land)))
-
-            prt = (delen[meet]["country"] == "PRT").to_numpy()
-            for groep, masker in [("PRT", prt), ("rest", ~prt)]:
-                groepen.append(
-                    {
-                        "periode": periode,
-                        "model": naam(soort, land),
-                        "groep": groep,
-                        "boekingen": int(masker.sum()),
-                        "voorspeld": p[masker].sum(),
-                        "echt": int(y[masker].sum()),
-                        "voorspeld_echt": p[masker].sum() / y[masker].sum(),
-                    }
-                )
-            uitkomst[periode] = {"y": y, "p": p, "nachten": nachten}
-        uitkomst["factor"] = factor
-        per_variant[(soort, land)] = uitkomst
-
+        r, gr, per_variant[(soort, land)] = evalueer_variant(
+            df, delen, met(cfg, soort, land), cap, bezet, naam(soort, land)
+        )
+        rijen += r
+        groepen += gr
     volgorde = ["periode", "model", "hotel"]
     tabel = pd.concat(rijen, ignore_index=True)
     tabel = tabel[volgorde + [k for k in tabel.columns if k not in volgorde]]

@@ -82,6 +82,7 @@ def contractmasker(
 
 
 def binnen_opschoning(df: pd.DataFrame, cfg: dict) -> pd.Series:
+    """True voor elke boeking die door de opschoning komt; data.schoon_op() gebruikt dit."""
     return ~opschoningsmasker(df, cfg).any(axis=1)
 
 
@@ -93,21 +94,13 @@ def eerste_reden(masker: pd.DataFrame) -> pd.Series:
     return pd.Series(eerste, index=masker.index)
 
 
-def controleer_scope(
-    df: pd.DataFrame, cfg: dict, nacht, as_of=None, aangenomen: bool = False
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Splits de invoer in (binnen scope, uitgesloten met reden). Faalt met BuitenScopeError als
-    het verzoek als geheel niet klopt.
+def beslismoment(cfg: dict, nacht: pd.Timestamp, as_of, aangenomen: bool) -> pd.Timestamp:
+    """Het beslismoment van het verzoek, getoetst aan contract A.
 
-    `as_of` leeg: dan is het beslismoment `nacht − horizon_dagen` (contract A), met een
-    waarschuwing.
-    Beleid (`inferentie.buiten_scope`): `sluit_uit` geeft de uitgesloten boekingen terug,
-    `weiger` laat het hele verzoek falen zodra er één buiten scope valt.
+    Leeg: `nacht − horizon_dagen`, met een waarschuwing. Faalt met BuitenScopeError als het niet
+    precies `horizon_dagen` vóór de adviesnacht ligt.
     """
     horizon = cfg["label"]["horizon_dagen"]
-    if len(df) == 0:
-        raise BuitenScopeError("Geen boekingen in het verzoek.", "leeg")
-    nacht = pd.Timestamp(nacht)
     if as_of is None or aangenomen:
         as_of = nacht - pd.Timedelta(days=horizon) if as_of is None else as_of
         logger.warning("Geen beslismoment (as_of) meegegeven: aangenomen %s", f"{as_of:%Y-%m-%d}")
@@ -119,15 +112,22 @@ def controleer_scope(
             f" niet {as_of:%Y-%m-%d}.",
             "as_of_niet_contract_a",
         )
+    return as_of
 
-    masker = pd.concat([opschoningsmasker(df, cfg), contractmasker(df, cfg, nacht, as_of)], axis=1)
-    reden = eerste_reden(masker[REDENEN])
+
+def pas_beleid_toe(
+    df: pd.DataFrame, reden: pd.Series, cfg: dict
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Splits op de reden: (binnen scope, uitgesloten met rij en reden).
+
+    Beleid (`inferentie.buiten_scope`): `sluit_uit` geeft de uitgesloten boekingen terug,
+    `weiger` laat het hele verzoek falen zodra er één buiten scope valt.
+    """
     buiten = reden != ""
     uitgesloten = pd.DataFrame(
         {"rij": np.flatnonzero(buiten.to_numpy()), "reden": reden[buiten].to_numpy()}
     )
     binnen = df[~buiten]
-
     if buiten.any():
         tellingen = reden[buiten].value_counts().to_dict()
         logger.warning("%d boeking(en) buiten scope: %s", int(buiten.sum()), tellingen)
@@ -136,12 +136,16 @@ def controleer_scope(
                 f"{int(buiten.sum())} boeking(en) vallen buiten het toepassingsdomein: {tellingen}",
                 "buiten_scope",
             )
+    return binnen, uitgesloten
+
+
+def controleer_portefeuille(binnen: pd.DataFrame, nacht: pd.Timestamp) -> None:
+    """Faalt als er na de uitsluitingen niets overblijft, of niemand in de adviesnacht verblijft."""
     if binnen.empty:
         raise BuitenScopeError(
             "Geen enkele boeking valt binnen het toepassingsdomein van het model.",
             "alles_buiten_scope",
         )
-
     aankomst = aankomstdatum(binnen)
     vertrek = aankomst + pd.to_timedelta(
         binnen["stays_in_weekend_nights"] + binnen["stays_in_week_nights"], unit="D"
@@ -152,4 +156,22 @@ def controleer_scope(
             " om een advies voor te geven.",
             "geen_portefeuille",
         )
+
+
+def controleer_scope(
+    df: pd.DataFrame, cfg: dict, nacht, as_of=None, aangenomen: bool = False
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Splits de invoer in (binnen scope, uitgesloten met reden). Faalt met BuitenScopeError als
+    het verzoek als geheel niet klopt.
+
+    `as_of` leeg: dan is het beslismoment `nacht − horizon_dagen` (contract A), met een
+    waarschuwing. Het beleid voor boekingen buiten scope: zie pas_beleid_toe().
+    """
+    if len(df) == 0:
+        raise BuitenScopeError("Geen boekingen in het verzoek.", "leeg")
+    nacht = pd.Timestamp(nacht)
+    as_of = beslismoment(cfg, nacht, as_of, aangenomen)
+    masker = pd.concat([opschoningsmasker(df, cfg), contractmasker(df, cfg, nacht, as_of)], axis=1)
+    binnen, uitgesloten = pas_beleid_toe(df, eerste_reden(masker[REDENEN]), cfg)
+    controleer_portefeuille(binnen, nacht)
     return binnen, uitgesloten

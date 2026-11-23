@@ -233,6 +233,56 @@ def winst_fysiek(k, echt, geboekt, cap, adr, r: float, w: float, verkoopkans=1.0
     return adr * (r * gevuld - w * doorverwezen)
 
 
+def samenvatting(groep: pd.DataFrame, gevoeligheid: list) -> pd.Series:
+    """Eén rij van de beoordeling: fout, risico en euro's over de nachten van `groep`."""
+    vol = groep[groep["vol"]]
+    te_veel = groep["echt"] < groep["k"]
+    tekort = np.maximum(groep["k"] - groep["echt"], 0)
+    uit = {
+        "nachten": len(groep),
+        "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
+        "bias": (groep["verwacht"] - groep["echt"]).mean(),
+        "voorspeld_echt": groep["verwacht"].sum() / groep["echt"].sum(),
+        "te_veel": (groep["echt"] < groep["k"]).mean(),
+        "gem_k": groep["k"].mean(),
+        "nul_advies": (groep["k"] == 0).mean(),
+        # Drie noemers voor het risico: alle nachten (te_veel), alleen de volgeboekte, alleen
+        # de nachten waarop er overboekt wordt (k > 0). En hoeveel kamers te veel.
+        "te_veel_vol": te_veel[groep["vol"]].mean() if groep["vol"].any() else np.nan,
+        "nachten_k_pos": int((groep["k"] > 0).sum()),
+        "te_veel_k_pos": te_veel[groep["k"] > 0].mean() if (groep["k"] > 0).any() else np.nan,
+        "tekort_gem": tekort.mean(),
+        "tekort_p95": tekort.quantile(0.95),
+        "tekort_max": tekort.max(),
+        "max_advies": ((groep["k"] == groep["maximum"]) & (groep["maximum"] > 0)).mean(),
+        "volle_nachten": len(vol),
+        "euro_per_volle_nacht": vol["euro"].mean(),
+        "doorverwezen": vol["doorverwezen"].mean(),
+    }
+    for variant in gevoeligheid:
+        kolom = f"euro_r{variant['r']}_w{variant['w']}"
+        uit[kolom] = vol[kolom].mean()
+    return pd.Series(uit)
+
+
+def nachten_met_euros(
+    nachten: pd.DataFrame, factor: dict, cap: dict, bezet: pd.DataFrame, cfg: dict, zekerheid
+) -> pd.DataFrame:
+    """Per hotel-nacht: advies k, volgeboekt of niet, de euro's (ook bij de andere r en w uit
+    `bedragen.gevoeligheid`) en de doorverwezen gasten."""
+    a, b = cfg["advies"], cfg["bedragen"]
+    n = met_advies(nachten, factor, cap, cfg, zekerheid)
+    n = n.merge(bezet, on=["hotel", "nacht"], how="left").fillna({"bezet": 0})
+    n["vol"] = n["bezet"] >= a["volgeboekt_vanaf"] * n["hotel"].map(cap)
+    n["euro"] = winst(n["k"], n["echt"], n["adr"], b["r"], b["w"])
+    for variant in b["gevoeligheid"]:
+        n[f"euro_r{variant['r']}_w{variant['w']}"] = winst(
+            n["k"], n["echt"], n["adr"], variant["r"], variant["w"]
+        )
+    n["doorverwezen"] = np.maximum(n["k"] - n["echt"], 0)
+    return n
+
+
 def beoordeel(
     nachten: pd.DataFrame,
     factor: dict[str, float],
@@ -258,49 +308,9 @@ def beoordeel(
     euro_per_volle_nacht europroxy per volgeboekte nacht, met r en w uit de config
     doorverwezen         doorverwezen gasten per volgeboekte nacht
     """
-    a, b = cfg["advies"], cfg["bedragen"]
-    n = met_advies(nachten, factor, cap, cfg, zekerheid)
-    n = n.merge(bezet, on=["hotel", "nacht"], how="left").fillna({"bezet": 0})
-    n["vol"] = n["bezet"] >= a["volgeboekt_vanaf"] * n["hotel"].map(cap)
-    n["euro"] = winst(n["k"], n["echt"], n["adr"], b["r"], b["w"])
-    for variant in b["gevoeligheid"]:
-        n[f"euro_r{variant['r']}_w{variant['w']}"] = winst(
-            n["k"], n["echt"], n["adr"], variant["r"], variant["w"]
-        )
-    n["doorverwezen"] = np.maximum(n["k"] - n["echt"], 0)
-
-    def samenvatting(groep: pd.DataFrame) -> pd.Series:
-        """Eén rij van de beoordeling: fout, risico en euro's over de nachten van `groep`."""
-        vol = groep[groep["vol"]]
-        te_veel = groep["echt"] < groep["k"]
-        tekort = np.maximum(groep["k"] - groep["echt"], 0)
-        uit = {
-            "nachten": len(groep),
-            "mae": (groep["verwacht"] - groep["echt"]).abs().mean(),
-            "bias": (groep["verwacht"] - groep["echt"]).mean(),
-            "voorspeld_echt": groep["verwacht"].sum() / groep["echt"].sum(),
-            "te_veel": (groep["echt"] < groep["k"]).mean(),
-            "gem_k": groep["k"].mean(),
-            "nul_advies": (groep["k"] == 0).mean(),
-            # Drie noemers voor het risico: alle nachten (te_veel), alleen de volgeboekte, alleen
-            # de nachten waarop er overboekt wordt (k > 0). En hoeveel kamers te veel.
-            "te_veel_vol": te_veel[groep["vol"]].mean() if groep["vol"].any() else np.nan,
-            "nachten_k_pos": int((groep["k"] > 0).sum()),
-            "te_veel_k_pos": te_veel[groep["k"] > 0].mean() if (groep["k"] > 0).any() else np.nan,
-            "tekort_gem": tekort.mean(),
-            "tekort_p95": tekort.quantile(0.95),
-            "tekort_max": tekort.max(),
-            "max_advies": ((groep["k"] == groep["maximum"]) & (groep["maximum"] > 0)).mean(),
-            "volle_nachten": len(vol),
-            "euro_per_volle_nacht": vol["euro"].mean(),
-            "doorverwezen": vol["doorverwezen"].mean(),
-        }
-        for variant in b["gevoeligheid"]:
-            kolom = f"euro_r{variant['r']}_w{variant['w']}"
-            uit[kolom] = vol[kolom].mean()
-        return pd.Series(uit)
-
-    per_hotel = {hotel: samenvatting(groep) for hotel, groep in n.groupby("hotel")}
-    per_hotel["beide"] = samenvatting(n)
+    n = nachten_met_euros(nachten, factor, cap, bezet, cfg, zekerheid)
+    gevoeligheid = cfg["bedragen"]["gevoeligheid"]
+    per_hotel = {hotel: samenvatting(groep, gevoeligheid) for hotel, groep in n.groupby("hotel")}
+    per_hotel["beide"] = samenvatting(n, gevoeligheid)
     tabel = pd.DataFrame(per_hotel).T.rename_axis("hotel").reset_index()
     return (tabel, n) if detail else tabel
