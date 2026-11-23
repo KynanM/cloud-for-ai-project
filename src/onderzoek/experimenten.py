@@ -1,6 +1,6 @@
 """Het bewijs achter elke keuze: vergelijkingen, foutenanalyse en gevoeligheid.
 
-python -m src.experimenten
+python -m src.onderzoek.experimenten
 
 Alles gebruikt dezelfde split, dezelfde nachten (zie `evaluatie.min_dekking`), dezelfde
 capaciteit en dezelfde beslisregel als src.evaluate. Keuzes vallen op de validatie. De test
@@ -947,7 +947,7 @@ def modelvergelijking_en_diagnose(o: Opzet, uit: Path) -> dict:
 
 @stop_bij_fout()
 def main() -> None:
-    """python -m src.experimenten: de vergelijking, de experimenten (R9) en de analyses erna."""
+    """python -m src.onderzoek.experimenten: de vergelijking, de experimenten (R9), de analyses."""
     cfg = laad_config()
     zet_logging_op(cfg, "experimenten")
     uit = cfg["resultaten"] / "audit"

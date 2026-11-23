@@ -30,7 +30,7 @@ MAANDEN = [
 ]
 
 # De toegelaten waarden per categorische kolom. Eén plek: de schema's hieronder en de API
-# (src/api.py, Boeking) gebruiken allebei deze lijsten.
+# (src/serving/api.py, Boeking) gebruiken allebei deze lijsten.
 HOTELS = ["City Hotel", "Resort Hotel"]
 MAALTIJDEN = ["BB", "HB", "FB", "SC", "Undefined"]
 SEGMENTEN = [

@@ -9,7 +9,7 @@ gecommit vóór het experiment draait; een run zonder beslisregel start niet.
         log_tabel(tabel, "resultaat.csv")
 
 De trackingserver: MLFLOW_TRACKING_URI, of standaard een sqlite-bestand in de projectmap
-(mlflow.db, niet gecommit). `python -m src.tracking exporteer` schrijft alle runs naar
+(mlflow.db, niet gecommit). `python -m src.serving.tracking exporteer` schrijft alle runs naar
 resultaten/runs.csv, zodat het bewijs ook zonder MLflow in de repository leesbaar is.
 """
 
@@ -194,4 +194,4 @@ if __name__ == "__main__":
         zet_logging_op(laad_config(), "tracking")
         logger.info("%d runs naar %s", len(exporteer()), EXPORT)
     else:
-        raise SystemExit("python -m src.tracking exporteer")
+        raise SystemExit("python -m src.serving.tracking exporteer")

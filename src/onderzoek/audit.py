@@ -1,6 +1,6 @@
 """Controles op de data en het besliscontract, vóór er een model aan te pas komt.
 
-python -m src.audit
+python -m src.onderzoek.audit
 
 Schrijft naar `<resultaten>/audit/`:
 
@@ -180,7 +180,7 @@ def dekkingstabel(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 @stop_bij_fout()
 def main() -> None:
-    """python -m src.audit: filterwaterval, contract A tegenover B en de dekking per nacht."""
+    """python -m src.onderzoek.audit: filterwaterval, contract A tegenover B, dekking per nacht."""
     cfg = laad_config()
     zet_logging_op(cfg, "audit")
     uit = cfg["resultaten"] / "audit"

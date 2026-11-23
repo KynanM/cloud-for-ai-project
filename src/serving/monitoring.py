@@ -1,7 +1,9 @@
 """Monitoring (taak 5.7): invoerdrift per verzoek, en het risico zodra de annulaties bekend zijn.
 
-python -m src.monitoring labels --nachten resultaten/business/replay.csv  # te veel, MAE per 4 weken
-python -m src.monitoring controleer                                       # laatste 24 u, alerts
+python -m src.serving.monitoring labels --nachten resultaten/business/replay.csv
+    te veel en MAE per vier weken, zodra de annulaties bekend zijn
+python -m src.serving.monitoring controleer
+    de laatste 24 uur van de API-log, met alarmen
 
 `labels` leest een csv met per hotel-nacht `hotel`, `nacht`, `k`, `verwacht` en `echt` (de replay
 van benchmarks/replay.py, of in productie het advieslog plus de latere export) en schrijft
@@ -11,8 +13,8 @@ invoer komt er exact hetzelfde uit.
 Drie soorten signalen:
 
 - service: elk verzoek logt één JSON-regel (latency, status, aantal boekingen, uitgesloten per
-  reden, aandeel onbekende categorieën) in logs/api.log (src/api.py; `logs_formaat: json` in de
-  config, of OVERBOEKING_LOGFORMAAT=json)
+  reden, aandeel onbekende categorieën) in logs/api.log (src/serving/api.py; `logs_formaat:
+  json` in de config, of OVERBOEKING_LOGFORMAAT=json)
 - invoerdrift: per verzoek de PSI tegen de verdelingen van de training (in het manifest). Vangt
   wat het schema niet ziet: adr in dollar of per verblijf, een segment dat plots verdwijnt
 - model en beleid: zodra de nachten voorbij zijn, het aandeel nachten met te veel kamers per hotel
@@ -253,7 +255,7 @@ def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[di
 
 
 def main(argv: list[str]) -> None:
-    """python -m src.monitoring labels|controleer: risico achteraf, of de logs controleren."""
+    """python -m src.serving.monitoring labels|controleer: risico achteraf, of de logs nakijken."""
     parser = argparse.ArgumentParser(
         description="Monitoring: labels achteraf, of de logs controleren."
     )

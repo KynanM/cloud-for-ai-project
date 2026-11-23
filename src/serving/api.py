@@ -1,6 +1,6 @@
 """Het model achter een endpoint (deel 3). Batch: één verzoek met alle boekingen van een nacht.
 
-uvicorn src.api:app --host 0.0.0.0 --port 7860
+uvicorn src.serving.api:app --host 0.0.0.0 --port 7860
 docker run -p 7860:7860 overboeking
 
 POST /advies   alle actieve boekingen van één adviesnacht → advies k per hotel
@@ -111,7 +111,7 @@ toestand = Toestand()
 
 def laad(config_pad=None) -> None:
     """Config, manifest, model en advies laden. OVERBOEKING_MODELMAP wijst naar het gepubliceerde
-    model (models/actief/, `python -m src.publiceer`); zonder: de paden uit de config."""
+    model (models/actief/, `python -m src.serving.publiceer`); zonder: de paden uit de config."""
     pad = config_pad or os.environ.get("OVERBOEKING_CONFIG", PROJECT / "configs" / "default.yaml")
     cfg = laad_config(pad)  # met OVERBOEKING_MODELMAP: het gepubliceerde model
     zet_logging_op(cfg, "api")
@@ -142,7 +142,7 @@ app = FastAPI(
 
 
 def log_verzoek(pad: str, status: int, latency_ms: float, **velden) -> None:
-    """Eén gestructureerde regel per verzoek: de servicemetrieken voor src.monitoring."""
+    """Eén gestructureerde regel per verzoek: de servicemetrieken voor src.serving.monitoring."""
     logger.info(
         "verzoek %s %d %.1f ms",
         pad,
