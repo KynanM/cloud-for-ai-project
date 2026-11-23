@@ -115,6 +115,9 @@ Om deel 2 te begrijpen, lees je eerst deze bestanden, in deze volgorde:
 | `src/nachten.py` | van kansen per boeking naar het advies k per hotel-nacht |
 | `configs/default.yaml` | alle instellingen: features, split, model, advies. Geen code |
 
+Welke modules in `src/` bij deel 2 horen, en welke bij het onderzoek of bij deel 3:
+[docs/architectuur.md](docs/architectuur.md#alle-bestanden-één-zin-elk).
+
 Verder lezen:
 
 | Ik wil ... | Document |
