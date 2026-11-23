@@ -9,6 +9,7 @@ import json
 import logging
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 
 import joblib
@@ -46,7 +47,7 @@ from .nachten import (
     spreidingsfactor,
 )
 from .poorten import als_dicts, beleidspoorten, ml_poorten, softwarepoorten
-from .predict import voorspel
+from .predict import voer_job_uit, voorspel
 from .scope import controleer_scope
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
@@ -75,6 +76,60 @@ def voorbewerking(cfg: dict, numeriek, encoder) -> ColumnTransformer:
     return ColumnTransformer(stappen)
 
 
+def logreg(cfg: dict) -> Pipeline:
+    """Logistische regressie, met invullen en schalen van de getallen en one-hot voor de rest."""
+    numeriek = Pipeline(
+        [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
+    )
+    encoder = OneHotEncoder(handle_unknown="ignore")
+    model = LogisticRegression(**cfg["model"]["logreg"])
+    return Pipeline([("voorbewerking", voorbewerking(cfg, numeriek, encoder)), ("model", model)])
+
+
+def boosting(cfg: dict) -> Pipeline:
+    """HistGradientBoostingClassifier, met de categorieën als categorieën.
+
+    Bomen hoeven niet geschaald te worden, en kunnen zelf met lege waarden om. Een categorie die
+    het model nooit zag, wordt leeg.
+    """
+    encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
+    aantal_categorisch = len(cfg["features"]["categorisch"]) + cfg["features"]["gebruik_land"]
+    categorisch = [False] * len(cfg["features"]["numeriek"]) + [True] * aantal_categorisch
+    model = HistGradientBoostingClassifier(
+        **cfg["model"]["boosting"],
+        categorical_features=categorisch,
+        # Geen vroege stop: die houdt een willekeurig stuk van de training apart.
+        early_stopping=False,
+        random_state=cfg["model"]["seed"],
+    )
+    return Pipeline(
+        [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
+    )
+
+
+def randomforest(cfg: dict) -> Pipeline:
+    """Alleen voor de complexiteitsladder (taak 3.7). Zelfde voorbewerking als boosting.
+
+    scikit-learn-bossen kunnen sinds 1.4 met lege waarden om.
+    """
+    encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
+    model = RandomForestClassifier(
+        **cfg["model"]["randomforest"], random_state=cfg["model"]["seed"], n_jobs=1
+    )
+    return Pipeline(
+        [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
+    )
+
+
+# Elke waarde van `model.soort`, met de functie die het model bouwt
+SOORTEN = {
+    "vuistregel": maak_vuistregel,
+    "logreg": logreg,
+    "boosting": boosting,
+    "randomforest": randomforest,
+}
+
+
 def bouw_pijplijn(cfg: dict) -> Model:
     """Het model uit `model.soort`. Alles wat iets leert uit de data zit ín de pijplijn.
 
@@ -83,50 +138,11 @@ def bouw_pijplijn(cfg: dict) -> Model:
     boosting    HistGradientBoostingClassifier, met de categorieën als categorieën
     """
     soort = cfg["model"]["soort"]
-    if soort == "vuistregel":
-        return maak_vuistregel(cfg)
-
-    if soort == "logreg":
-        numeriek = Pipeline(
-            [("invullen", SimpleImputer(strategy="median")), ("schalen", StandardScaler())]
+    if soort not in SOORTEN:
+        raise ValueError(
+            f"Onbekend model.soort {soort!r}: kies vuistregel, logreg, boosting of randomforest"
         )
-        encoder = OneHotEncoder(handle_unknown="ignore")
-        model = LogisticRegression(**cfg["model"]["logreg"])
-        return Pipeline(
-            [("voorbewerking", voorbewerking(cfg, numeriek, encoder)), ("model", model)]
-        )
-
-    if soort == "boosting":
-        # Bomen hoeven niet geschaald te worden, en kunnen zelf met lege waarden om.
-        # Een categorie die het model nooit zag, wordt leeg.
-        encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
-        aantal_categorisch = len(cfg["features"]["categorisch"]) + cfg["features"]["gebruik_land"]
-        categorisch = [False] * len(cfg["features"]["numeriek"]) + [True] * aantal_categorisch
-        model = HistGradientBoostingClassifier(
-            **cfg["model"]["boosting"],
-            categorical_features=categorisch,
-            # Geen vroege stop: die houdt een willekeurig stuk van de training apart.
-            early_stopping=False,
-            random_state=cfg["model"]["seed"],
-        )
-        return Pipeline(
-            [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
-        )
-
-    if soort == "randomforest":
-        # Alleen voor de complexiteitsladder (taak 3.7). Zelfde voorbewerking als boosting;
-        # scikit-learn-bossen kunnen sinds 1.4 met lege waarden om.
-        encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=np.nan)
-        model = RandomForestClassifier(
-            **cfg["model"]["randomforest"], random_state=cfg["model"]["seed"], n_jobs=1
-        )
-        return Pipeline(
-            [("voorbewerking", voorbewerking(cfg, "passthrough", encoder)), ("model", model)]
-        )
-
-    raise ValueError(
-        f"Onbekend model.soort {soort!r}: kies vuistregel, logreg, boosting of randomforest"
-    )
+    return SOORTEN[soort](cfg)
 
 
 def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
@@ -270,29 +286,13 @@ def controleer_poorten(lijst: list, poorten: bool) -> None:
         raise SystemExit(melding)
 
 
-def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
-    """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
-
-    Poorten (src/poorten.py), allemaal op de validatie: ML (AUC minstens `minimum_auc`, MAE per
-    hotel-nacht lager dan die van de vuistregel, voorspeld/echt per hotel), beleid (per hotel
-    hoogstens `advies.risicogrens` nachten met te veel kamers) en software (p95-latency van een
-    adviesjob binnen de grens, modelgrootte). Haalt het model er één niet, dan stopt het met
-    SystemExit en wordt er niets weggeschreven.
-
-    Weggeschreven: het model, opnieuw getraind op de hertraining, en in `advies_pad` wat het
-    advies k nodig heeft: de spreidingsfactor (validatie) en de capaciteit (training).
-
-    `poorten=False` slaat de poorten over, alleen om een model te kunnen meten dat ze niet haalt
-    (de vuistregel in de benchmarks). Het manifest zegt dan `poorten_overgeslagen: true`, en zo'n
-    model wordt nooit gepubliceerd.
-    """
-    df = bereid_voor(ruw, cfg)
+def log_delen(df: pd.DataFrame, delen: dict, cfg: dict) -> None:
+    """Omvang, periode en basiskans van elk deel in de log, zodat een verschoven split opvalt."""
     logger.info(
         "%d boekingen actief op het beslismoment, basiskans %.1f%%",
         len(df),
         100 * df[cfg["doel"]].mean(),
     )
-    delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
     for naam, deel in delen.items():
         aankomst = aankomstdatum(deel)
         logger.info(
@@ -304,6 +304,14 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
             100 * deel[cfg["doel"]].mean(),
         )
 
+
+def keur_op_validatie(
+    df: pd.DataFrame, ruw: pd.DataFrame, delen: dict, cfg: dict, poorten: bool
+) -> tuple[dict, dict, pd.DataFrame, list]:
+    """Meet op de validatie en stop bij een gefaalde ML- of beleidspoort, vóór het hertrainen.
+
+    Geeft de metingen, de capaciteit per hotel, de beoordeling per hotel en de poorten terug.
+    """
     soort = cfg["model"]["soort"]
     land = ", met land" if cfg["features"]["gebruik_land"] else ", zonder land"
     logger.info("Model: %s%s", soort, "" if soort == "vuistregel" else land)
@@ -314,40 +322,41 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         v["mae"],
         v["mae_vuistregel"],
     )
-    # Poorten op de validatie: ML (AUC, MAE, ijking per hotel) en beleid (risico per hotel).
-    # Eerst die, want hertrainen heeft geen zin als ze falen. Elke poort wordt gelogd.
-    g = grenzen(cfg)
     bezet = bezetting(ruw)
-    cap = capaciteit(bezet, g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
+    cap = capaciteit(bezet, grenzen(cfg)["training_einde"], cfg["advies"]["capaciteit_percentiel"])
     per_hotel = beoordeel(v["nachten"], v["factor"], cap, bezet, cfg)
     lijst = ml_poorten(v, per_hotel, cfg) + beleidspoorten(per_hotel, cfg)
     if not poorten:
         logger.warning("Poorten overgeslagen: alleen voor metingen, nooit publiceren.")
     controleer_poorten(lijst, poorten)
+    return v, cap, per_hotel, lijst
 
-    model, test_auc = hertrain(df, cfg, delen)
-    logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
 
-    # Softwarepoort: het model dat weggeschreven wordt, op één nacht van de validatie, tegen de
-    # grens van de softwaremetriek (les 06 p. 23: de softwaremetriek is de grens)
+def meet_software(model: Model, v: dict, cap: dict, delen: dict, cfg: dict, poorten: bool) -> list:
+    """De softwarepoort (deel 3): latency van een adviesjob en grootte van het model.
+
+    Het model dat weggeschreven wordt, op één nacht van de validatie, tegen de grens van de
+    softwaremetriek (les 06 p. 23: de softwaremetriek is de grens).
+    """
     deel, nacht = portefeuille_van_een_nacht(delen["validatie"], cfg)
     instellingen = {"factor": v["factor"], "capaciteit": cap}
     as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
     # Eén keer melden wat buiten scope valt; tijdens de 33 metingen zwijgt src.scope (poorten.stil)
     controleer_scope(deel, cfg, nacht, as_of=as_of)
-
-    def een_job():
-        from .predict import voer_job_uit
-
-        voer_job_uit(deel, model, instellingen, cfg, nacht, as_of=as_of)
-
+    een_job = partial(voer_job_uit, deel, model, instellingen, cfg, nacht, as_of=as_of)
     with tempfile.TemporaryDirectory() as tmp:
         tijdelijk = Path(tmp) / "model.joblib"
         joblib.dump(model, tijdelijk, compress=3)  # zoals het weggeschreven wordt
         software = softwarepoorten(een_job, tijdelijk, cfg)
     controleer_poorten(software, poorten)
-    lijst += software
+    return software
 
+
+def stel_manifest_op(
+    df: pd.DataFrame, ruw: pd.DataFrame, delen: dict, lijst: list, cfg: dict, poorten: bool
+) -> dict:
+    """Het manifest van de run: config, data, poorten, en de referentie voor de driftmeting."""
+    g = grenzen(cfg)
     manifest = maak_manifest(cfg, ruw, g)
     manifest["poorten_overgeslagen"] = not poorten
     manifest["poorten"] = als_dicts(lijst)
@@ -360,13 +369,22 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
         g["validatie_start"],
         g["validatie_einde"],
     )
-    advies = {
-        "run_id": manifest["run_id"],
-        "model": soort,
+    return manifest
+
+
+def adviesinstellingen(run_id: str, v: dict, cap: dict, cfg: dict) -> dict:
+    """Wat het advies k naast het model nodig heeft: de spreidingsfactor en de capaciteit."""
+    return {
+        "run_id": run_id,
+        "model": cfg["model"]["soort"],
         "gebruik_land": cfg["features"]["gebruik_land"],
         "factor": v["factor"],
         "capaciteit": cap,
     }
+
+
+def schrijf_weg(model: Model, manifest: dict, advies: dict, cfg: dict) -> None:
+    """Model, advies en manifest naar de paden uit de config; het manifest bindt ze met hashes."""
     cfg["model"]["pad"].parent.mkdir(parents=True, exist_ok=True)
     # compress=3: 254 -> 79 KB, laden +6 % (resultaten/software/artefact.csv, taak 1.8)
     joblib.dump(model, cfg["model"]["pad"], compress=3)
@@ -381,6 +399,29 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     logger.info(
         "Manifest (run %s) weggeschreven naar %s", manifest["run_id"], cfg["model"]["manifest_pad"]
     )
+
+
+def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
+    """Van de ruwe export naar een weggeschreven model en advies, als het door de poorten komt.
+
+    Haalt het model één poort niet (ML, beleid of software, zie src/poorten.py), dan stopt het met
+    SystemExit en wordt er niets weggeschreven. Weggeschreven: het model, opnieuw getraind op de
+    hertraining, en wat het advies k nodig heeft (spreidingsfactor en capaciteit per hotel).
+
+    `poorten=False` slaat de poorten over, alleen om een model te meten dat ze niet haalt (de
+    vuistregel in de benchmarks); het manifest zegt dan `poorten_overgeslagen: true`.
+    """
+    df = bereid_voor(ruw, cfg)
+    delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
+    log_delen(df, delen, cfg)
+    v, cap, per_hotel, lijst = keur_op_validatie(df, ruw, delen, cfg, poorten)
+
+    model, test_auc = hertrain(df, cfg, delen)
+    logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
+    lijst += meet_software(model, v, cap, delen, cfg, poorten)
+
+    manifest = stel_manifest_op(df, ruw, delen, lijst, cfg, poorten)
+    schrijf_weg(model, manifest, adviesinstellingen(manifest["run_id"], v, cap, cfg), cfg)
     return {
         **{k: w for k, w in v.items() if k != "nachten"},
         "test_auc": test_auc,
