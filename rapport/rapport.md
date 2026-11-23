@@ -2,6 +2,8 @@
 
 Kynan Melsens · Cloud for AI · 2026-2027 · repo: https://github.com/KynanM/cloud-for-ai-project
 
+De ingediende versie is de PDF; deze tekst is de bron ervan.
+
 ## 1. Probleem en metriek
 
 Een hotel beslist 30 dagen vóór de aankomst hoeveel kamers het extra mag verkopen. Het model
@@ -52,16 +54,13 @@ origin) is boosting wel **niet aantoonbaar beter dan logreg**: 7,10 tegenover 7,
 per nacht, interval −0,31 tot +0,58; logreg haalt daar zelfs meer euro's (302 tegenover 266 per
 volle nacht). Boosting blijft, omdat het op het recentste kwartaal wel aantoonbaar beter is
 (verschil 1,06, interval 0,45 tot 1,68) en het hotel een model krijgt dat op de recentste data
-getraind is. Gewogen klassen en elke maand hertrainen zijn getest en afgewezen (verantwoording,
-sectie 10).
+getraind is.
 
-**Het maximum van 5 % per nacht verborg de waarde van het model, en is weggehaald.** Met dat
-maximum haalden de vuistregel en boosting op de test 638 € en 633 € per volgeboekte nacht: in het
-stadshotel raakte het advies op 98 % van de nachten het maximum, dus besliste het maximum en niet
-het model. Zonder maximum haalt boosting 480 € tegenover 328 € (validatie) en 715 € tegenover
-540 € (test). De vuistregel adviseert dan op 31 % van de testnachten te veel
-kamers, boven de risicogrens van 20 %; boosting op 16 % gepoold, maar City alleen op 22 %. De prijs: 0,54
-doorverwezen gasten per volle nacht in plaats van 0,09.
+**Het maximum van 5 % per nacht is weggehaald**: in het stadshotel raakte het advies op 98 % van
+de nachten dat maximum, dus besliste het maximum en niet het model. Zonder maximum haalt boosting
+480 € tegenover 328 € voor de vuistregel (validatie) en 715 € tegenover 540 € (test). De vuistregel
+adviseert dan op 31 % van de testnachten te veel kamers, boven de risicogrens van 20 %, boosting op
+16 % (City alleen op 22 %), tegen 0,54 doorverwezen gasten per volle nacht in plaats van 0,09.
 
 ## 5. Data leakage
 
@@ -81,11 +80,10 @@ en de vuistregel werden aangepast; die keuzes vielen op de validatie.
 ## 6. Grenzen
 
 - Het label hangt aan de aankomst, niet aan elke nacht (verschil: 1,0 à 1,6 annulaties per nacht).
-- De euro's zijn een proxy (`docs/business_aannames.md`), en de capaciteit is geschat.
+  De euro's zijn een proxy (`docs/business_aannames.md`), en de capaciteit is geschat.
 - 0,80 is nominaal: gemeten adviseert het model op 11 % (validatie) en 16 % (test) te veel.
   Per hotel en maand gaat het soms ver boven de risicogrens: Resort in maart 2017 (39 %), City in
   juni en juli 2017 (30 en 45 %).
-- Grootste resterende fout: een seizoensbias (City −8,3 per nacht in januari, +6,4 in juni).
 
 ---
 
