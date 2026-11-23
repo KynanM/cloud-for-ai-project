@@ -1,5 +1,6 @@
 # Alleen voor de vergelijking in taak 5.2: één stage, het volledige Python-image, alle
 # afhankelijkheden (ook die voor ontwikkelen). Niet gebruiken om te deployen.
+# Bouwen vanuit de projectmap: docker build -f benchmarks/Dockerfile.enkel -t overboeking:enkel .
 FROM python:3.13.14
 WORKDIR /app
 COPY requirements-dev.lock .

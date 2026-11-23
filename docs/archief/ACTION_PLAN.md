@@ -1137,7 +1137,7 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
 
 - **Wat & waarom:** zonder container geen vaste infrastructuur voor de metingen en geen deployment.
   Patroon uit les 8 / `Labo8/telko/Dockerfile`.
-- **Betrokken bestanden (nieuw):** `Dockerfile`, `Dockerfile.enkel` (alleen voor de vergelijking), `.dockerignore`, `resultaten/software/container.csv`.
+- **Betrokken bestanden (nieuw):** `Dockerfile`, `benchmarks/Dockerfile.enkel` (alleen voor de vergelijking), `.dockerignore`, `resultaten/software/container.csv`.
 - **Technische aanpak:**
   ```dockerfile
   FROM python:3.13.14-slim AS bouw
@@ -1160,7 +1160,7 @@ monitoring, CI en een kostenraming, plus de verplichte publieke URL (5.10).
   ```
   Poort 7860 is de poort van de Hugging Face Space (5.10): lokaal en publiek draait hetzelfde image. Het model komt uit de
   MLflow-export (5.3), niet uit een live MLflow-server.
-  Vergelijking: `Dockerfile.enkel` (`FROM python:3.13`, één stage, alles incl. dev) tegenover multi-stage slim.
+  Vergelijking: `benchmarks/Dockerfile.enkel` (`FROM python:3.13`, één stage, alles incl. dev) tegenover multi-stage slim.
 - **Experimentstructuur:** baseline = één stage; alternatief = multi-stage slim. Software:
   imagegrootte (`docker image inspect -f '{{.Size}}'`), buildtijd, koude start (1.4), p95 `http`.
   ML/business: identiek (uitvoer-sha256).

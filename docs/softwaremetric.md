@@ -173,7 +173,7 @@ uit de cgroup van de container.
 | Image | Grootte | p50 | **p95** | Koude start (p50, max van 20) | Piekgeheugen | CPU per advies |
 |---|---|---|---|---|---|---|
 | **multi-stage, slank** (`Dockerfile`) | 670 MB | 70 ms | **183 ms** | 3,6 s, max 3,9 s | 152 MB | 0,07 CPU-s |
-| één stage, alles (`Dockerfile.enkel`) | 2 776 MB | 83 ms | 96 ms | 3,2 s, max 3,4 s | 173 MB | 0,08 CPU-s |
+| één stage, alles (`benchmarks/Dockerfile.enkel`) | 2 776 MB | 83 ms | 96 ms | 3,2 s, max 3,4 s | 173 MB | 0,08 CPU-s |
 
 | Grens | Gemeten | |
 |---|---|---|
