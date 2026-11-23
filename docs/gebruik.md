@@ -22,6 +22,10 @@ python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-15 --as-of 2017-
 Het CSV-bestand bevat de boekingen die op het beslismoment nog actief zijn, met de kolommen van de
 export (zie [inputcontract.md](inputcontract.md)). Een geldig voorbeeld: `data/nieuwe_boekingen.csv`.
 
+Staat de omgevingsvariabele `OVERBOEKING_MODELMAP`, dan laadt ook de opdrachtregel model, advies en
+manifest uit die map in plaats van uit `models/`; de eerste logregel zegt dan welke map. Uitzetten:
+`Remove-Item Env:OVERBOEKING_MODELMAP` (PowerShell) of `unset OVERBOEKING_MODELMAP` (bash).
+
 ## Wat betekenen de woorden?
 
 | Woord | Betekenis |
