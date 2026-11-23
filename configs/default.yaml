@@ -12,6 +12,11 @@ resultaten: resultaten/
 # Logbestanden: elke opdracht schrijft naar <logs>/<opdracht>.log en naar de console.
 # Niet gecommit. Zie src/logboek.py.
 logs: logs/
+# tekst: één leesbare regel per gebeurtenis. json: één object per regel, voor src.monitoring.
+# De omgevingsvariabele OVERBOEKING_LOGFORMAAT gaat voor (het image zet json).
+logs_formaat: tekst
+# Het logbestand roteert elke nacht; zoveel dagen blijven bewaard.
+logs_retentie_dagen: 30
 
 # Het label wordt afgeleid, het staat niet als kolom in de csv. Zie maak_label() in src/data.py.
 doel: annuleert_na_beslismoment
