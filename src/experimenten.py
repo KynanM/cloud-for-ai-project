@@ -33,6 +33,7 @@ hertraining_maand.csv  dezelfde vergelijking per hotel en maand: verdwijnt de se
 import copy
 import logging
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -124,6 +125,7 @@ class Opzet:
 
 
 def boekingsdiagnostiek(y: np.ndarray, p: np.ndarray) -> dict:
+    """Diagnostiek per boeking (geen ML-metriek van deel 1): AUC, Brier, log-loss en gemiddelden."""
     return {
         "auc": roc_auc_score(y, p),
         "brier": brier_score_loss(y, p),
@@ -134,6 +136,7 @@ def boekingsdiagnostiek(y: np.ndarray, p: np.ndarray) -> dict:
 
 
 def beide(tabel: pd.DataFrame) -> pd.Series:
+    """De rij "beide" (beide hotels samen) uit een beoordeling per hotel."""
     return tabel[tabel["hotel"] == "beide"].iloc[0]
 
 
@@ -190,6 +193,8 @@ def verliezen(n: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 
 def verliestabel(bewaard: dict, o: Opzet) -> pd.DataFrame:
+    """Waar de euro's verloren gaan tegenover perfect advies: door het maximum, door voorzicht
+    (te weinig kamers) of door doorverwezen gasten, per volle nacht."""
     rijen = []
     for soort, land in VARIANTEN:
         if land:
@@ -215,6 +220,7 @@ def verliestabel(bewaard: dict, o: Opzet) -> pd.DataFrame:
 
 
 def nachtdiagnose(bewaard: dict, o: Opzet) -> pd.DataFrame:
+    """Elke hotel-nacht van het gekozen model, met advies, uitkomst en euro's: voor de analyses."""
     rijen = []
     for periode, _, _ in RG:
         b = bewaard[(*GEKOZEN, periode)]
@@ -259,6 +265,7 @@ def segment_nacht(diag: pd.DataFrame, o: Opzet) -> pd.DataFrame:
 
 
 def segmenten(deel: pd.DataFrame) -> dict[str, pd.Series]:
+    """De groepen waarin de fout per boeking bekeken wordt: hotel, segment, lead time, enz."""
     nachten = deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]
     return {
         "hotel": deel["hotel"],
@@ -339,6 +346,7 @@ def willekeurige_split(o: Opzet) -> pd.DataFrame:
 
 
 def variant(cfg: dict, **wijzig) -> dict:
+    """Een kopie van de config met wijzigingen; `a__b=w` zet cfg["a"]["b"] op w."""
     c = copy.deepcopy(cfg)
     for pad, waarde in wijzig.items():
         doel = c
@@ -349,32 +357,28 @@ def variant(cfg: dict, **wijzig) -> dict:
     return c
 
 
-def experimenten(o: Opzet) -> pd.DataFrame:
-    """Elke variant beantwoordt één vraag, tegenover een vaste referentie, op de validatie.
-
-    Een variant vervangt de referentie alleen als ze aantoonbaar beter is: de bovengrens van
-    het 90 %-bootstrapinterval van het verschil in absolute fout per nacht ligt onder 0.
-    Dezelfde regel als voor de zekerheid (zie `drempel()`).
-    """
-    basis = met(o.cfg, *GEKOZEN)
-    num = basis["features"]["numeriek"]
-    proeven = [
-        ("referentie", "boosting zonder land", basis),
-        (
-            "trainingsvenster",
-            "boosting, alleen de laatste 12 maanden",
-            {**basis, "_venster": 12},
-        ),
+def venster_proeven(o: Opzet, basis: dict) -> list[tuple[str, str, dict]]:
+    """Hoeveel historiek: het model op 12 maanden, de vuistregel met en zonder venster."""
+    vuistregel = met(o.cfg, "vuistregel", False)
+    return [
+        ("trainingsvenster", "boosting, alleen de laatste 12 maanden", {**basis, "_venster": 12}),
         (
             "baseline-venster",
             "vuistregel, venster 12 maanden",
-            variant(met(o.cfg, "vuistregel", False), vuistregel__venster_maanden=12),
+            variant(vuistregel, vuistregel__venster_maanden=12),
         ),
         (
             "baseline-venster",
             "vuistregel, alle historiek",
-            variant(met(o.cfg, "vuistregel", False), vuistregel__venster_maanden=None),
+            variant(vuistregel, vuistregel__venster_maanden=None),
         ),
+    ]
+
+
+def feature_proeven(basis: dict) -> list[tuple[str, str, dict]]:
+    """Eén feature erbij (het weeknummer) of eraf (`adr`)."""
+    num = basis["features"]["numeriek"]
+    return [
         (
             "feature: weeknummer",
             "boosting + arrival_date_week_number",
@@ -385,73 +389,93 @@ def experimenten(o: Opzet) -> pd.DataFrame:
             "boosting zonder adr",
             variant(basis, features__numeriek=[k for k in num if k != "adr"]),
         ),
-        # Eén ronde, gestart omdat de AUC op de training (0,85) ver boven die op de validatie
-        # lag (0,69), verder dan bij de vuistregel (0,65 tegenover 0,56). De eerste instelling
-        # had 200 iteraties; 100 iteraties was aantoonbaar beter en is overgenomen. Geen
-        # tweede ronde: anders wordt het een zoektocht op de validatie.
+    ]
+
+
+def model_proeven(basis: dict) -> list[tuple[str, str, dict]]:
+    """Regularisatie en weging van boosting.
+
+    Eén ronde regularisatie, gestart omdat de AUC op de training (0,85) ver boven die op de
+    validatie lag (0,69), verder dan bij de vuistregel (0,65 tegenover 0,56). De eerste instelling
+    had 200 iteraties; 100 iteraties was aantoonbaar beter en is overgenomen. Geen tweede ronde:
+    anders wordt het een zoektocht op de validatie.
+    """
+    boosting = basis["model"]["boosting"]
+    klein = {**boosting, "max_iter": 200, "max_leaf_nodes": 7, "min_samples_leaf": 300}
+    return [
         (
             "regularisatie",
             "boosting, 200 iteraties (eerste instelling)",
-            variant(basis, model__boosting={**basis["model"]["boosting"], "max_iter": 200}),
+            variant(basis, model__boosting={**boosting, "max_iter": 200}),
         ),
         (
             "regularisatie",
             "boosting, 200 iteraties, 7 bladeren, minstens 300 per blad",
-            variant(
-                basis,
-                model__boosting={
-                    **basis["model"]["boosting"],
-                    "max_iter": 200,
-                    "max_leaf_nodes": 7,
-                    "min_samples_leaf": 300,
-                },
-            ),
+            variant(basis, model__boosting=klein),
         ),
         (
             "weging",
             "boosting, class_weight balanced",
-            variant(
-                basis, model__boosting={**basis["model"]["boosting"], "class_weight": "balanced"}
-            ),
+            variant(basis, model__boosting={**boosting, "class_weight": "balanced"}),
         ),
+    ]
+
+
+def meet_proef(
+    o: Opzet, vraag: str, omschrijving: str, c: dict, referentie: pd.Series | None
+) -> tuple[dict, pd.Series]:
+    """Eén variant op de validatie, met het 90 %-interval van het verschil met de referentie.
+
+    De eerste variant is de referentie zelf. Geeft de rij en de (eventueel nieuwe) referentie.
+    """
+    venster = c.pop("_venster", None) if "_venster" in c else None
+    r = o.draai(c, "validatie", "training", "validatie", venster_maanden=venster)
+    fout = r["nachten"].set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
+    if referentie is None:
+        referentie = fout
+    # Per nacht: |fout variant| − |fout referentie|. Negatief: de variant doet het beter.
+    laag, hoog = bootstrap((fout - referentie).dropna(), o.cfg["model"]["seed"])
+    factor = spreidingsfactor(r["nachten"])
+    t = beide(beoordeel(r["nachten"], factor, o.cap, o.bezet, c))
+    diagnose = boekingsdiagnostiek(r["y"], r["p"])
+    rij = {
+        "vraag": vraag,
+        "variant": omschrijving,
+        **{k: t[k] for k in ("mae", "bias", "voorspeld_echt", "te_veel", "gem_k")},
+        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+        "doorverwezen": t["doorverwezen"],
+        "auc": diagnose["auc"],
+        "brier": diagnose["brier"],
+        "train_auc": r["train_auc"],
+        "mae_verschil": t["mae"] - referentie.mean(),
+        "interval_laag": laag,
+        "interval_hoog": hoog,
+        "aantoonbaar_beter": hoog < 0,
+        "factor_city": factor.get("City Hotel"),
+        "factor_resort": factor.get("Resort Hotel"),
+    }
+    logger.info("  %-22s %-38s MAE %.2f", vraag, omschrijving, t["mae"])
+    return rij, referentie
+
+
+def experimenten(o: Opzet) -> pd.DataFrame:
+    """Elke variant beantwoordt één vraag, tegenover een vaste referentie, op de validatie.
+
+    Een variant vervangt de referentie alleen als ze aantoonbaar beter is: de bovengrens van
+    het 90 %-bootstrapinterval van het verschil in absolute fout per nacht ligt onder 0.
+    Dezelfde regel als voor de zekerheid (zie `drempel()`).
+    """
+    basis = met(o.cfg, *GEKOZEN)
+    proeven = [
+        ("referentie", "boosting zonder land", basis),
+        *venster_proeven(o, basis),
+        *feature_proeven(basis),
+        *model_proeven(basis),
     ]
     rijen, referentie = [], None
     for vraag, omschrijving, c in proeven:
-        venster = c.pop("_venster", None) if "_venster" in c else None
-        r = o.draai(c, "validatie", "training", "validatie", venster_maanden=venster)
-        fout = r["nachten"].set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
-        if referentie is None:
-            referentie = fout
-        # Per nacht: |fout variant| − |fout referentie|. Negatief: de variant doet het beter.
-        laag, hoog = bootstrap((fout - referentie).dropna(), o.cfg["model"]["seed"])
-        factor = spreidingsfactor(r["nachten"])
-        t = beide(beoordeel(r["nachten"], factor, o.cap, o.bezet, c))
-        rijen.append(
-            {
-                "vraag": vraag,
-                "variant": omschrijving,
-                "mae": t["mae"],
-                "bias": t["bias"],
-                "voorspeld_echt": t["voorspeld_echt"],
-                "te_veel": t["te_veel"],
-                "gem_k": t["gem_k"],
-                "euro_per_volle_nacht": t["euro_per_volle_nacht"],
-                "doorverwezen": t["doorverwezen"],
-                **{
-                    k: v
-                    for k, v in boekingsdiagnostiek(r["y"], r["p"]).items()
-                    if k in ("auc", "brier")
-                },
-                "train_auc": r["train_auc"],
-                "mae_verschil": t["mae"] - referentie.mean(),
-                "interval_laag": laag,
-                "interval_hoog": hoog,
-                "aantoonbaar_beter": hoog < 0,
-                "factor_city": factor.get("City Hotel"),
-                "factor_resort": factor.get("Resort Hotel"),
-            }
-        )
-        logger.info("  %-22s %-38s MAE %.2f", vraag, omschrijving, t["mae"])
+        rij, referentie = meet_proef(o, vraag, omschrijving, c, referentie)
+        rijen.append(rij)
     return pd.DataFrame(rijen)
 
 
@@ -737,6 +761,7 @@ def hertraingrens(maand_start: pd.Timestamp, cfg: dict) -> pd.Timestamp:
 
 
 def maandstarts(start: pd.Timestamp, einde: pd.Timestamp) -> list[pd.Timestamp]:
+    """De eerste dag van elke maand tussen `start` en `einde`."""
     return list(pd.date_range(pd.Timestamp(start), pd.Timestamp(einde), freq="MS"))
 
 
@@ -760,6 +785,41 @@ def voorspel_per_maand(o: Opzet, c: dict, periode: str) -> tuple[np.ndarray, lis
     if np.isnan(p).any():
         raise ValueError(f"{periode}: niet elke boeking kreeg een kans")
     return p, modellen
+
+
+def hertraining_rijen(
+    periode: str,
+    variant_naam: str,
+    tabel: pd.DataFrame,
+    factor: dict,
+    auc: float,
+    verschil,
+    interval,
+) -> list[dict]:
+    """De rijen van één variant in één periode, per hotel en voor beide samen."""
+    is_variant = variant_naam != "vast model (referentie)"
+    laag, hoog = interval
+    return [
+        {
+            "periode": periode,
+            "variant": variant_naam,
+            "hotel": t["hotel"],
+            "nachten": t["nachten"],
+            "mae": t["mae"],
+            "bias": t["bias"],
+            "voorspeld_echt": t["voorspeld_echt"],
+            "te_veel": t["te_veel"],
+            "gem_k": t["gem_k"],
+            "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+            "doorverwezen": t["doorverwezen"],
+            "auc": auc,
+            "factor": factor.get(t["hotel"], np.nan),
+            "mae_verschil": verschil.mean() if is_variant else 0.0,
+            "interval_laag": laag,
+            "interval_hoog": hoog,
+        }
+        for _, t in tabel.iterrows()
+    ]
 
 
 def hertraining(bewaard: dict, o: Opzet, per_maand: dict) -> pd.DataFrame:
@@ -790,28 +850,11 @@ def hertraining(bewaard: dict, o: Opzet, per_maand: dict) -> pd.DataFrame:
         ]:
             tabel = beoordeel(n, factor, o.cap, o.bezet, c)
             is_variant = variant_naam != "vast model (referentie)"
-            laag, hoog = bootstrap(verschil, seed) if is_variant else (0.0, 0.0)
-            for _, t in tabel.iterrows():
-                rijen.append(
-                    {
-                        "periode": periode,
-                        "variant": variant_naam,
-                        "hotel": t["hotel"],
-                        "nachten": t["nachten"],
-                        "mae": t["mae"],
-                        "bias": t["bias"],
-                        "voorspeld_echt": t["voorspeld_echt"],
-                        "te_veel": t["te_veel"],
-                        "gem_k": t["gem_k"],
-                        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
-                        "doorverwezen": t["doorverwezen"],
-                        "auc": roc_auc_score(ref["y"], y_p),
-                        "factor": factor.get(t["hotel"], np.nan),
-                        "mae_verschil": verschil.mean() if is_variant else 0.0,
-                        "interval_laag": laag,
-                        "interval_hoog": hoog,
-                    }
-                )
+            interval = bootstrap(verschil, seed) if is_variant else (0.0, 0.0)
+            auc = roc_auc_score(ref["y"], y_p)
+            rijen += hertraining_rijen(
+                periode, variant_naam, tabel, factor, auc, verschil, interval
+            )
     uit = pd.DataFrame(rijen)
     uit["binnen_risicogrens"] = uit["te_veel"] <= o.cfg["advies"]["risicogrens"]
     uit["aantoonbaar_beter"] = (uit["interval_hoog"] < 0) & uit["binnen_risicogrens"]
@@ -866,8 +909,45 @@ def hertraining_per_maand(bewaard: dict, per_maand: dict) -> pd.DataFrame:
     return pd.DataFrame(rijen)
 
 
+def schrijf(tabel: pd.DataFrame, uit: Path, bestand: str) -> None:
+    """Schrijf een tabel naar de auditmap en toon ze in de log."""
+    tabel.to_csv(uit / bestand, index=False, float_format="%.4f")
+    logger.info("%s\n%s", bestand, tabel.to_string(index=False, float_format=lambda x: f"{x:.3f}"))
+
+
+# Analyses op de modelvergelijking: elk krijgt (bewaard, o) en geeft één tabel
+ANALYSES = {
+    "drempel.csv": drempel,
+    "spreiding.csv": spreiding,
+    "robuustheid.csv": robuustheid,
+    "scenario_optimum.csv": scenario_optimum,
+    "maximum.csv": maximum,
+    "zonder_rem.csv": zonder_rem,
+}
+
+
+def modelvergelijking_en_diagnose(o: Opzet, uit: Path) -> dict:
+    """De modelvergelijking en de analyses per nacht, segment en split. Geeft `bewaard` terug."""
+    vergelijking, bewaard = modelvergelijking(o)
+    schrijf(
+        vergelijking[vergelijking["hotel"] == "beide"].drop(columns="hotel"),
+        uit,
+        "modelvergelijking.csv",
+    )
+    diag = nachtdiagnose(bewaard, o)
+    diag.to_csv(uit / "nachtdiagnose.csv", index=False, float_format="%.4f")
+    schrijf(verliestabel(bewaard, o), uit, "verlies.csv")
+    schrijf(segment_nacht(diag, o), uit, "segment_nacht.csv")
+    segment_boeking(bewaard, o).to_csv(
+        uit / "segment_boeking.csv", index=False, float_format="%.4f"
+    )
+    schrijf(willekeurige_split(o), uit, "split.csv")
+    return bewaard
+
+
 @stop_bij_fout()
 def main() -> None:
+    """python -m src.experimenten: de vergelijking, de experimenten (R9) en de analyses erna."""
     cfg = laad_config()
     zet_logging_op(cfg, "experimenten")
     uit = cfg["resultaten"] / "audit"
@@ -881,39 +961,16 @@ def main() -> None:
             f"{aankomstdatum(o.delen[periode]).min():%d-%m-%Y}",
             f"{aankomstdatum(o.delen[periode]).max():%d-%m-%Y}",
         )
-
-    def schrijf(tabel: pd.DataFrame, bestand: str) -> None:
-        tabel.to_csv(uit / bestand, index=False, float_format="%.4f")
-        logger.info(
-            "%s\n%s", bestand, tabel.to_string(index=False, float_format=lambda x: f"{x:.3f}")
-        )
-
-    vergelijking, bewaard = modelvergelijking(o)
-    schrijf(
-        vergelijking[vergelijking["hotel"] == "beide"].drop(columns="hotel"),
-        "modelvergelijking.csv",
-    )
-    diag = nachtdiagnose(bewaard, o)
-    diag.to_csv(uit / "nachtdiagnose.csv", index=False, float_format="%.4f")
-    schrijf(verliestabel(bewaard, o), "verlies.csv")
-    schrijf(segment_nacht(diag, o), "segment_nacht.csv")
-    segment_boeking(bewaard, o).to_csv(
-        uit / "segment_boeking.csv", index=False, float_format="%.4f"
-    )
-    schrijf(willekeurige_split(o), "split.csv")
+    bewaard = modelvergelijking_en_diagnose(o, uit)
     logger.info("Experimenten (validatie)")
-    schrijf(experimenten(o), "experimenten.csv")
-    schrijf(drempel(bewaard, o), "drempel.csv")
-    schrijf(spreiding(bewaard, o), "spreiding.csv")
-    schrijf(robuustheid(bewaard, o), "robuustheid.csv")
-    schrijf(scenario_optimum(bewaard, o), "scenario_optimum.csv")
-    schrijf(maximum(bewaard, o), "maximum.csv")
-    schrijf(zonder_rem(bewaard, o), "zonder_rem.csv")
-    schrijf(dekkingseffect(laad_data(cfg["data"]["pad"]), cfg), "dekking_effect.csv")
+    schrijf(experimenten(o), uit, "experimenten.csv")
+    for bestand, analyse in ANALYSES.items():
+        schrijf(analyse(bewaard, o), uit, bestand)
+    schrijf(dekkingseffect(laad_data(cfg["data"]["pad"]), cfg), uit, "dekking_effect.csv")
     logger.info("Elke maand hertrainen")
     per_maand = maandmodellen(o)
-    schrijf(hertraining(bewaard, o, per_maand), "hertraining.csv")
-    schrijf(hertraining_per_maand(bewaard, per_maand), "hertraining_maand.csv")
+    schrijf(hertraining(bewaard, o, per_maand), uit, "hertraining.csv")
+    schrijf(hertraining_per_maand(bewaard, per_maand), uit, "hertraining_maand.csv")
     logger.info("Weggeschreven naar %s", uit)
 
 
