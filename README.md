@@ -40,7 +40,8 @@ en [docs/model.md](docs/model.md).
 ## Wat heb je nodig?
 
 - Git
-- Python 3.13 (de exacte versie staat in `.python-version`)
+- Python 3.13 (de exacte versie staat in `.python-version`). Geen Python 3.13? Met `uv`:
+  `uv python install 3.13`, of de download van python.org
 
 Geen Docker, geen account, geen API-sleutel: de trainingsdata staat al in `data/`.
 
@@ -73,7 +74,9 @@ python3.13 -m venv .venv
 
 Wat de drie stappen doen:
 
-1. **Installeren**: precies de versies uit de lockfile, gecontroleerd met hashes.
+1. **Installeren**: precies de versies uit de lockfile, gecontroleerd met hashes. De dev-lock
+   bevat ook wat deel 3 en de tests nodig hebben (MLflow, FastAPI); `requirements.lock` is
+   alleen de runtime.
 2. **Trainen** (±10 s): leert het model en schrijft het alleen weg als het alle kwaliteits- en
    snelheidspoorten haalt.
 3. **Voorspellen**: het advies voor de nacht van 15 augustus 2017, beslist op 16 juli (30 dagen
