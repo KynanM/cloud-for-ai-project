@@ -34,10 +34,12 @@ LABELS = ["reservation_status", "reservation_status_date", "is_canceled"]
 
 
 def laad_bench_config(pad: str | Path = PROJECT / "configs" / "benchmark.yaml") -> dict:
+    """Lees configs/benchmark.yaml."""
     return yaml.safe_load(Path(pad).read_text(encoding="utf-8"))
 
 
 def sha256(pad: Path) -> str:
+    """De SHA-256 van een bestand, zodat een meting naar haar invoer verwijst."""
     return hashlib.sha256(pad.read_bytes()).hexdigest()
 
 
@@ -57,6 +59,7 @@ def portefeuillegrootte(df: pd.DataFrame, cfg: dict) -> pd.Series:
 
 
 def zonder_label(deel: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """De boekingen zonder label en afloop, zoals bij een echt verzoek."""
     weg = [k for k in [*LABELS, cfg["doel"]] if k in deel.columns]
     return deel.drop(columns=weg).reset_index(drop=True)
 
@@ -79,15 +82,45 @@ def verschuif_naar(deel: pd.DataFrame, nacht: pd.Timestamp, rng) -> pd.DataFrame
     return uit
 
 
+def trek_workload(naam: str, spec: dict, bron, verblijf, mediaan: int, nacht, bench: dict):
+    """De boekingen van één workload: een steekproef uit de test, verschoven naar de adviesnacht.
+
+    Elke workload heeft een eigen generator: een workload toevoegen verandert de andere niet.
+    """
+    n = mediaan if spec["n"] == "mediaan" else int(spec["n"])
+    masker = pd.Series(True, index=bron.index)
+    if "nachten_max" in spec:
+        masker &= verblijf <= spec["nachten_max"]
+    if "nachten_min" in spec:
+        masker &= verblijf >= spec["nachten_min"]
+    pool = bron[masker]
+    eigen = np.random.default_rng([bench["seed"], sum(map(ord, naam))])
+    gekozen = eigen.choice(len(pool), size=n, replace=n > len(pool))
+    return verschuif_naar(pool.iloc[gekozen].reset_index(drop=True), nacht, eigen)
+
+
+def beschrijf(pad: Path, deel: pd.DataFrame, werknacht) -> dict:
+    """Wat in workloads.json over één workload staat: bestand, nacht, omvang, hotels en hash."""
+    nachten = deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]
+    return {
+        "bestand": str(pad.relative_to(PROJECT)).replace("\\", "/"),
+        "nacht": f"{werknacht:%Y-%m-%d}",
+        "n_boekingen": int(len(deel)),
+        "n_boeking_nachten": int(nachten.sum()),
+        "gem_verblijf": round(float(nachten.mean()), 2),
+        "hotels": deel["hotel"].value_counts().to_dict(),
+        "sha256": sha256(pad),
+    }
+
+
 def maak(alleen: list[str] | None = None) -> dict:
+    """Maak de workloads uit configs/benchmark.yaml (of de genoemde) en geef het overzicht."""
     cfg = laad_config()
     bench = laad_bench_config()
     nacht = pd.Timestamp(bench["nacht"])
     df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)
-    test = splits(df, cfg)["test"]
-    bron = zonder_label(test, cfg)
+    bron = zonder_label(splits(df, cfg)["test"], cfg)
     verblijf = bron["stays_in_weekend_nights"] + bron["stays_in_week_nights"]
-
     grootte = portefeuillegrootte(df, cfg)
     mediaan = int(grootte.median())
     MAP.mkdir(parents=True, exist_ok=True)
@@ -103,7 +136,6 @@ def maak(alleen: list[str] | None = None) -> dict:
         },
         "workloads": {},
     }
-
     for naam, spec in bench["workloads"].items():
         if alleen and naam not in alleen:
             continue
@@ -111,38 +143,17 @@ def maak(alleen: list[str] | None = None) -> dict:
             deel = laad_data(cfg["data"]["voorbeeld"], valideer_met=None)
             werknacht = aankomstdatum(deel).min()
         else:
-            n = mediaan if spec["n"] == "mediaan" else int(spec["n"])
-            masker = pd.Series(True, index=bron.index)
-            if "nachten_max" in spec:
-                masker &= verblijf <= spec["nachten_max"]
-            if "nachten_min" in spec:
-                masker &= verblijf >= spec["nachten_min"]
-            pool = bron[masker]
-            # Eigen generator per workload: een workload toevoegen verandert de andere niet
-            eigen = np.random.default_rng([bench["seed"], sum(map(ord, naam))])
-            gekozen = eigen.choice(len(pool), size=n, replace=n > len(pool))
-            deel = verschuif_naar(pool.iloc[gekozen].reset_index(drop=True), nacht, eigen)
+            deel = trek_workload(naam, spec, bron, verblijf, mediaan, nacht, bench)
             werknacht = nacht
         pad = MAP / f"{naam}.csv"
         deel.to_csv(pad, index=False)
-        overzicht["workloads"][naam] = {
-            "bestand": str(pad.relative_to(PROJECT)).replace("\\", "/"),
-            "nacht": f"{werknacht:%Y-%m-%d}",
-            "n_boekingen": int(len(deel)),
-            "n_boeking_nachten": int(
-                (deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]).sum()
-            ),
-            "gem_verblijf": round(
-                float((deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"]).mean()), 2
-            ),
-            "hotels": deel["hotel"].value_counts().to_dict(),
-            "sha256": sha256(pad),
-        }
+        overzicht["workloads"][naam] = beschrijf(pad, deel, werknacht)
     return overzicht
 
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
+    """python -m benchmarks.workloads: maak de workloads en schrijf workloads.json."""
     parser = argparse.ArgumentParser(description="Maak de workloads voor de softwaremetriek.")
     parser.add_argument("--alleen", help="komma-gescheiden namen, bv. smoke,normaal")
     args = parser.parse_args(argv)

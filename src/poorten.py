@@ -37,16 +37,19 @@ class Poort:
     geslaagd: bool
 
     def tekst(self) -> str:
+        """De poort in één regel voor de log, bv. '[ok] ml: AUC = 0.6954 (≥ 0.6)'."""
         teken = "ok" if self.geslaagd else "GEFAALD"
         grens = f"{self.richting} {self.grens}"
         return f"[{teken}] {self.soort}: {self.naam} = {self.waarde:.4g} ({grens})"
 
 
 def als_dicts(poorten: list[Poort]) -> list[dict]:
+    """De poorten als dicts, voor het manifest."""
     return [asdict(p) for p in poorten]
 
 
 def ml_poorten(v: dict, per_hotel: pd.DataFrame, cfg: dict) -> list[Poort]:
+    """AUC, MAE tegenover de vuistregel en voorspeld/echt per hotel, op de validatie."""
     minimum = cfg["model"]["minimum_auc"]
     laag, hoog = cfg["poorten"]["ijking_per_hotel"]
     uit = [
@@ -76,6 +79,7 @@ def ml_poorten(v: dict, per_hotel: pd.DataFrame, cfg: dict) -> list[Poort]:
 
 
 def beleidspoorten(per_hotel: pd.DataFrame, cfg: dict) -> list[Poort]:
+    """Per hotel hoogstens `advies.risicogrens` nachten met te veel kamers."""
     grens = cfg["advies"]["risicogrens"]
     return [
         Poort(
@@ -91,6 +95,7 @@ def beleidspoorten(per_hotel: pd.DataFrame, cfg: dict) -> list[Poort]:
 
 
 def slo_p95_ms() -> float:
+    """De grens voor de p95-latency uit configs/benchmark.yaml (normale workload)."""
     bench = yaml.safe_load((PROJECT / "configs" / "benchmark.yaml").read_text(encoding="utf-8"))
     return float(bench["slo"]["normaal"]["p95_latency_ms"])
 

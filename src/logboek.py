@@ -27,6 +27,7 @@ FORMAAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 class JsonFormaat(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        """Eén logregel als één JSON-object, met de extra velden van de aanroeper."""
         regel = {
             "tijd": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
             "niveau": record.levelname,

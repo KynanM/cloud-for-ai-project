@@ -127,6 +127,7 @@ def laad(config_pad=None) -> None:
 
 @asynccontextmanager
 async def levensduur(app: FastAPI):
+    """Laad model, advies en manifest één keer bij het opstarten van de API."""
     laad()
     yield
 
@@ -172,6 +173,7 @@ def onbekend_aandeel(df: pd.DataFrame) -> float:
 
 
 def als_df(boekingen: list[Boeking]) -> pd.DataFrame:
+    """De boekingen uit het verzoek als DataFrame, met de types van de export."""
     df = pd.DataFrame([b.model_dump() for b in boekingen])
     df["country"] = df["country"].astype("str").where(df["country"].notna(), None)
     return df.astype({"children": float, "agent": float, "adr": float})
@@ -179,6 +181,7 @@ def als_df(boekingen: list[Boeking]) -> pd.DataFrame:
 
 @app.exception_handler(RequestValidationError)
 async def ongeldig_verzoek(request: Request, fout: RequestValidationError):
+    """422 met per veld wat er mis is, als het verzoek de vorm niet heeft."""
     velden = [
         {"veld": ".".join(str(d) for d in f["loc"] if d != "body"), "melding": f["msg"]}
         for f in fout.errors()
@@ -189,6 +192,7 @@ async def ongeldig_verzoek(request: Request, fout: RequestValidationError):
 
 @app.exception_handler(OngeldigeDataError)
 async def ongeldige_data(request: Request, fout: OngeldigeDataError):
+    """422 met de schemafouten, als de boekingen het schema niet halen."""
     log_verzoek(request.url.path, 422, 0.0, fout="schema", velden_fout=fout.fouten[:5])
     return JSONResponse(
         status_code=422,
@@ -198,6 +202,7 @@ async def ongeldige_data(request: Request, fout: OngeldigeDataError):
 
 @app.exception_handler(BuitenScopeError)
 async def buiten_scope(request: Request, fout: BuitenScopeError):
+    """422 met de reden, als het verzoek buiten het contract valt."""
     log_verzoek(request.url.path, 422, 0.0, fout="buiten scope", reden=fout.reden)
     return JSONResponse(
         status_code=422, content={"fout": "buiten scope", "reden": fout.reden, "melding": str(fout)}
@@ -206,6 +211,7 @@ async def buiten_scope(request: Request, fout: BuitenScopeError):
 
 @app.exception_handler(Exception)
 async def onverwacht(request: Request, fout: Exception):
+    """500 zonder stacktrace naar buiten; de fout staat wel in de log."""
     logger.exception("500 op %s", request.url.path)
     log_verzoek(request.url.path, 500, 0.0, fout=type(fout).__name__)
     return JSONResponse(
@@ -216,6 +222,7 @@ async def onverwacht(request: Request, fout: Exception):
 
 @app.get("/health")
 def health() -> dict:
+    """Welk model draait: run, commit, model en zekerheid."""
     m = toestand.manifest
     return {
         "status": "ok",

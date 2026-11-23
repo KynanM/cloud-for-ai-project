@@ -59,6 +59,7 @@ UIT = PROJECT / "resultaten" / "software"
 
 
 def tijden(functie, opwarmen: int, gemeten: int) -> np.ndarray:
+    """Draai `functie` om op te warmen, en meet daarna `gemeten` keer (ms)."""
     for _ in range(opwarmen):
         functie()
     uit = np.empty(gemeten)
@@ -70,6 +71,7 @@ def tijden(functie, opwarmen: int, gemeten: int) -> np.ndarray:
 
 
 def stats(x: np.ndarray) -> dict:
+    """p50, p95 met interval en max van een reeks tijden."""
     laag, hoog = bootstrap_p95(x)
     return {
         "n": len(x),
@@ -91,15 +93,18 @@ def verschil_p50(basis: np.ndarray, variant: np.ndarray, seed: int = 42) -> tupl
 
 
 def onderdelen(soort: str = "boosting"):
+    """Config, model en adviesinstellingen van het benchmarkmodel."""
     cfg = laad_config(bench_config(soort))
     return cfg, laad_model(cfg["model"]["pad"]), laad_advies(cfg["model"]["advies_pad"])
 
 
 def lees(wl: dict) -> tuple[pd.DataFrame, pd.Timestamp]:
+    """De boekingen en de adviesnacht van een workload."""
     return pd.read_csv(PROJECT / wl["bestand"]), pd.Timestamp(wl["nacht"])
 
 
 def schrijf(tabel: pd.DataFrame, naam: str) -> Path:
+    """Schrijf een tabel naar resultaten/software/ en toon ze."""
     UIT.mkdir(parents=True, exist_ok=True)
     pad = UIT / naam
     tabel.to_csv(pad, index=False, float_format="%.4f")
@@ -119,12 +124,14 @@ def oud_pad(df, model, instellingen, cfg, nacht):
 
 
 def nieuw_pad(df, model, instellingen, cfg, nacht):
+    """De route van na E1: één keer voorspellen, dan het advies uit de kansen."""
     df = valideer(df, schema.INVOER)
     kansen = voorspel(model, df, cfg)
     return adviseer_uit_kansen(kansen, instellingen, df, cfg, nacht)
 
 
 def e1() -> pd.DataFrame:
+    """E1: kost twee keer voorspellen (vóór commit fb0c6e9) meetbaar tijd?"""
     exp = laad_experiment("e1_dubbele_inference")
     cfg, model, instellingen = onderdelen()
     h = exp["herhalingen"]
@@ -173,6 +180,7 @@ def e1() -> pd.DataFrame:
 
 
 def geheugenpiek_mb(functie) -> float:
+    """De geheugenpiek van één aanroep van `functie`, in MB (tracemalloc)."""
     tracemalloc.start()
     tracemalloc.reset_peak()
     functie()
@@ -182,6 +190,7 @@ def geheugenpiek_mb(functie) -> float:
 
 
 def kopie_job(df, model, instellingen, cfg, nacht):
+    """Eén adviesjob op een kopie van de boekingen, met as_of volgens contract A."""
     as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
     return voer_job_uit(df.copy(), model, instellingen, cfg, nacht, as_of=as_of)
 

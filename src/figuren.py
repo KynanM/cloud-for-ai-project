@@ -16,6 +16,7 @@ src.robuustheid (risico per maand, rolling origin, complexiteit, bootstrap, ijki
 en src.business (scenario's, ROI, MAE tegenover euro's).
 """
 
+import json
 import logging
 from pathlib import Path
 
@@ -42,6 +43,7 @@ INKT, INKT_ZACHT, RASTER = "#1f1f1e", "#5f5e58", "#e4e3df"
 
 
 def bron(ax, tekst: str) -> None:
+    """Zet de bron van de cijfers onder een grafiek."""
     ax.annotate(f"bron: {tekst}", (0, -0.2), xycoords="axes fraction", fontsize=7, color="#666")
 
 
@@ -57,6 +59,7 @@ def opmaak(ax) -> None:
 
 
 def teken_winstcurve(curve: pd.DataFrame, zekerheid: float, pad) -> None:
+    """Euro's per volle nacht tegenover de zekerheid, validatie en test naast elkaar."""
     fig, assen = plt.subplots(1, 2, figsize=(10, 4), sharey=False)
     for ax, periode in zip(assen, ["validatie", "test"], strict=True):
         deel = curve[curve["periode"] == periode]
@@ -93,6 +96,7 @@ def teken_winstcurve(curve: pd.DataFrame, zekerheid: float, pad) -> None:
 
 
 def teken_ijking(uitkomst: dict, pad) -> None:
+    """Voorspeld tegenover echt aantal annulaties per hotel-nacht, per model."""
     fig, ax = plt.subplots(figsize=(5.5, 5))
     ax.plot([0, 0.6], [0, 0.6], color=INKT_ZACHT, linewidth=1, linestyle="--")
     ax.text(0.45, 0.47, "perfect geijkt", color=INKT_ZACHT, fontsize=9, rotation=40)
@@ -318,6 +322,7 @@ def teken_verband(tabel: pd.DataFrame, rho: float, pad: Path):
 
 
 def software_fases() -> Path:
+    """Waar de tijd naartoe gaat: mediane tijd per fase van de kern, per workload."""
     ruw = pd.read_csv(RES / "software" / "raw_runs.csv", low_memory=False)
     kern = ruw[(ruw["sessie"] == "fase1") & (ruw["doel"] == "kern")]
     fases = ["schema", "scope", "voorspellen", "aggregeren", "advies", "advies_valideren"]
@@ -342,10 +347,9 @@ def software_fases() -> Path:
 
 
 def software_schaal() -> Path:
+    """Latency tegenover het aantal boeking-nachten, voor de kern en een vers proces."""
     s = pd.read_csv(RES / "software" / "summary.csv")
     s = s[s["sessie"] == "fase1"]
-    import json
-
     wl = json.loads((RES / "software" / "workloads.json").read_text(encoding="utf-8"))["workloads"]
     s = s.assign(nachten=s["workload"].map(lambda w: wl[w]["n_boeking_nachten"]))
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
@@ -369,6 +373,7 @@ def software_schaal() -> Path:
 
 
 def modus() -> Path:
+    """Batch, online en model laden per verzoek naast elkaar (les 07 p. 8)."""
     m = pd.read_csv(RES / "software" / "modus.csv")
     fig, ax = plt.subplots(figsize=(8, 3.5))
     ax.barh(m["variant"], m["p50_ms"], color=["#2f855a", "#b7791f", "#c53030"])
@@ -395,6 +400,7 @@ def modus() -> Path:
 
 
 def serving_belasting() -> Path:
+    """p95 tegenover de aangeboden belasting, met 1, 2 en 4 containers."""
     b = pd.read_csv(RES / "serving" / "belasting.csv")
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
     for variant, g in b.groupby("variant"):
@@ -421,6 +427,7 @@ def serving_belasting() -> Path:
 
 
 def sizing_pareto() -> Path:
+    """CPU per advies tegenover p95, per infrastructuur: welke is genoeg."""
     s = pd.read_csv(RES / "serving" / "sizing.csv")
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for _, r in s.iterrows():
