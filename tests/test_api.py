@@ -16,6 +16,9 @@ from src import schema
 from src.data import laad_data
 from src.predict import laad_advies, laad_model, voer_job_uit
 
+# Elke test hier laadt de API en start een proces: buiten de snelle set (pytest -m "not traag")
+pytestmark = pytest.mark.traag
+
 NACHT = "2017-08-15"
 AS_OF = "2017-07-16"
 
