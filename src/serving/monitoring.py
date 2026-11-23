@@ -1,4 +1,4 @@
-"""Monitoring (taak 5.7): invoerdrift per verzoek, en het risico zodra de annulaties bekend zijn.
+"""Monitoring: invoerdrift per verzoek, en het risico zodra de annulaties bekend zijn.
 
 python -m src.serving.monitoring labels --nachten resultaten/business/replay.csv
     te veel en MAE per vier weken, zodra de annulaties bekend zijn

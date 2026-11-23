@@ -9,7 +9,7 @@ Twee formaten (`logs_formaat` in de config, of de omgevingsvariabele OVERBOEKING
 - tekst: één leesbare regel per gebeurtenis (standaard op de opdrachtregel)
 - json: één JSON-object per regel, met tijd, niveau, module, bericht en de velden die de code
   meegeeft (`logger.info("verzoek", extra={"velden": {...}})`). Zo kan src.serving.monitoring
-  de logs lezen zonder tekst te ontleden (taak 5.7)
+  de logs lezen zonder tekst te ontleden
 
 Het logbestand roteert elke nacht en bewaart 30 dagen (`logs_retentie_dagen`).
 """

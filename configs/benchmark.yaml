@@ -59,7 +59,7 @@ workloads:
   schaal_10k: { n: 10000 }
   schaal_100k: { n: 100000 }
 
-# CI-poort (taak 5.8): rumoerige gedeelde runners, dus relatief én absoluut.
+# CI-poort (benchmarks.gate): rumoerige gedeelde runners, dus relatief én absoluut.
 ci:
   relatieve_marge: 1.5 # p95 ≤ referentie × 1,5
   runs: 30

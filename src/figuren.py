@@ -1,4 +1,4 @@
-"""De figuren voor de softwaremetriek en de deployment (taak 6.5), uit de CSV's in resultaten/.
+"""De figuren voor de softwaremetriek en de deployment, uit de CSV's in resultaten/.
 
 python -m src.figuren
 
