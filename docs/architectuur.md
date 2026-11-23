@@ -68,41 +68,71 @@ Ze lijken misschien overbodig, maar elk vangt een ander probleem:
 
 ## Alle bestanden, één zin elk
 
+`src/` telt 24 modules, in drie groepen. Bestanden verplaatsen doet niemand: een opgeslagen model
+verwijst naar `src.kenmerken`, en de groepen zijn een leeswijzer.
+
+### Kern (deel 2)
+
+De weg van deel 2: inlezen, controleren, trainen, evalueren en voorspellen.
+
+```text
+src/
+  config.py            leest de config
+  data.py              inlezen, valideren met leesbare fouten, opschonen, label afleiden
+  schema.py            hoe invoer, trainingsdata en advies eruitzien (Pandera), met de categorieën
+  kenmerken.py         bewerkingen ín de pijplijn (stabiel modulepad, zie hierboven)
+  baseline.py          de vuistregel van de revenue manager
+  train.py             split, model bouwen, trainen, poorten, wegschrijven
+  folds.py             het embargo van de split; train.py gebruikt dezelfde formule als rolling origin
+  nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de euro's
+  evaluate.py          alle modellen naast elkaar, per hotel-nacht
+  figuren.py           alle grafieken; evaluate.py tekent ermee, net als het onderzoek
+  predict.py           model laden, manifest controleren, voer_job_uit(), de opdrachtregel
+  scope.py             het toepassingsdomein; data.schoon_op() en predict.py delen die grens
+  logboek.py           logging naar het scherm en naar logs/<opdracht>.log, voor elke opdracht
+  poorten.py           de releasepoorten: ML, beleid per hotel, software; train.py stopt erop
+```
+
+### Onderzoek en verantwoording (extra, geen eis van deel 2)
+
+```text
+src/
+  audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
+  experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
+  robuustheid.py       risico per hotel en maand, blokbootstrap, rolling origin, complexiteit
+  business.py          businessstress, ROI-raming, verband tussen MAE en euro's
+```
+
+### Serving en opereren (deel 3)
+
+```text
+src/
+  api.py               POST /advies, POST /kansen, GET /health (FastAPI)
+  manifest.py          model, advies, config en data aan één run binden
+  meting.py            tijd per fase en geheugenpiek van een adviesjob
+  monitoring.py        drift per verzoek, risico na de nacht, alarmen
+  publiceer.py         MLflow-registry, alias kampioen, export naar models/actief/
+  tracking.py          experimenten in MLflow, met verplichte beslisregel
+```
+
+`train.py` en `predict.py` roepen `manifest`, `meting` en `monitoring` al aan (het manifest, de
+tijd per fase, de driftreferentie). Dat bereidt deel 3 voor; wie deel 2 leest, hoeft ze niet te
+openen.
+
+De onderzoeksmodules gaan verder dan wat de opdracht van deel 2 vraagt ("een ML-oplossing in een
+gestructureerde repo, met data-exploratie en minstens twee modellen"), en `InfoVak.txt` zegt dat
+modellen kiezen, architecturen vergelijken en hyperparameters tunen niet het werk van dit vak is.
+Ze staan er als verantwoording van de keuzes (bootstrap, rolling origin, complexiteitsladder,
+kalibratie); om deel 2 te beoordelen zijn ze niet nodig. Met deze indeling telt de kern 2 320
+regels code en de rest 3 667; de audit, met negen kernmodules, kwam op ongeveer 1 op 3.
+
+### De rest van de repo
+
 ```text
 configs/default.yaml   paden, horizon, opschoning, features, split, vuistregel, advies,
                        risicogrens, poorten, model. Geen code
 configs/benchmark.yaml de softwaremetriek en haar grenzen, vastgelegd vóór de eerste meting
 configs/experimenten/  hypothese en beslisregel per experiment, vastgelegd vóór het draaien
-
-src/  -- de adviesweg
-  predict.py           model laden, manifest controleren, voer_job_uit(), de opdrachtregel
-  api.py               POST /advies, POST /kansen, GET /health (FastAPI)
-  schema.py            hoe invoer, trainingsdata en advies eruitzien (Pandera), met de categorieën
-  data.py              inlezen, valideren met leesbare fouten, opschonen, label afleiden
-  scope.py             het toepassingsdomein: één grens voor training en voorspellen
-  nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de euro's
-  manifest.py          model, advies, config en data aan één run binden
-  meting.py            tijd per fase en geheugenpiek van een adviesjob
-  monitoring.py        drift per verzoek, risico na de nacht, alarmen
-  logboek.py           logging naar het scherm en naar logs/<opdracht>.log
-  config.py            leest de config
-
-src/  -- de trainingsweg
-  train.py             split, model bouwen, trainen, poorten, wegschrijven
-  baseline.py          de vuistregel van de revenue manager
-  kenmerken.py         bewerkingen ín de pijplijn (stabiel modulepad, zie hierboven)
-  poorten.py           de releasepoorten: ML, beleid per hotel, software
-  folds.py             rolling origin met hetzelfde embargo als de split
-  publiceer.py         MLflow-registry, alias kampioen, export naar models/actief/
-  tracking.py          experimenten in MLflow, met verplichte beslisregel
-
-src/  -- het onderzoek (niet nodig voor een advies)
-  evaluate.py          alle modellen naast elkaar, per hotel-nacht
-  figuren.py           alle grafieken: evaluatie en softwaremetriek
-  audit.py             filterwaterval, besliscontract A tegenover B, dekking per nacht
-  experimenten.py      vergelijkingen, verliesrekening, segmenten, drempel, gevoeligheid
-  robuustheid.py       risico per hotel en maand, blokbootstrap, rolling origin, complexiteit
-  business.py          businessstress, ROI-raming, verband tussen MAE en euro's
 
 benchmarks/            workloads, de softwaremetriek, software-experimenten, foutgedrag,
                        containermetingen, loadtest, batchjob, kosten, replay, CI-poort
