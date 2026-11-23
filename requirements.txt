@@ -4,3 +4,5 @@
 -r requirements-api.txt
 # src.evaluate tekent zijn grafieken met src.figuren
 matplotlib==3.11.2
+# De tests van deel 2: pytest -m "not deel3"
+pytest==9.2.0
