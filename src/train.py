@@ -193,13 +193,13 @@ def train(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model
 
     `delen`: de uitkomst van splits(), als de aanroeper die al heeft.
     """
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     return fit_en_meet(delen["training"], delen["validatie"], cfg)
 
 
 def hertrain(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model, float]:
     """Train opnieuw op de hertraining en meet één keer op de test. Alleen om te rapporteren."""
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     return fit_en_meet(delen["hertraining"], delen["test"], cfg)
 
 
@@ -237,7 +237,7 @@ def valideer(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> dict:
     mae_vuistregel    van de vuistregel, op dezelfde nachten
     factor            de spreidingsfactor per hotel, voor het advies k
     """
-    delen = delen if delen is not None else splits(df, cfg)
+    delen = delen or splits(df, cfg)
     g = grenzen(cfg)
     model, auc = train(df, cfg, delen)
     vuistregel = maak_vuistregel(cfg).fit(*kenmerken_en_label(delen["training"], cfg))
