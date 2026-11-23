@@ -95,6 +95,7 @@ def test_ongeldige_invoer_geeft_een_nette_fout(onderdelen, cfg):
     assert "voldoet niet aan het schema" in str(fout.value)
 
 
+@pytest.mark.traag
 def test_opdrachtregel_schrijft_advies_en_metingen(tmp_path, cfg):
     if not cfg["model"]["pad"].exists():
         pytest.skip("geen getraind model in models/")
@@ -136,6 +137,7 @@ def test_de_aggregatie_loopt_via_per_nacht_enkel(onderdelen, cfg, monkeypatch):
     assert spion.call_count == 1
 
 
+@pytest.mark.traag
 @pytest.mark.parametrize(
     "maak_kapot",
     [

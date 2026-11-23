@@ -72,8 +72,9 @@ Het image (`Dockerfile`): Python 3.13 slim, alleen de runtime-pakketten, niet al
 `models/actief/`. Ongeveer 670 MB. Het image zet `OVERBOEKING_MODELMAP=models/actief`, JSON-logs en
 één rekenthread. Het heeft geen MLflow en geen internet nodig.
 
-`Dockerfile.enkel` is een bewuste vergelijking (één stap, alle pakketten, ±2,8 GB) voor
-[softwaremetric.md](softwaremetric.md); niet gebruiken om uit te rollen.
+`benchmarks/Dockerfile.enkel` is een bewuste vergelijking (één stap, alle pakketten, ±2,8 GB) voor
+[softwaremetric.md](softwaremetric.md); niet gebruiken om uit te rollen. Bouwen vanuit de
+projectmap: `docker build -f benchmarks/Dockerfile.enkel -t overboeking:enkel .`
 
 ## Compose: API, MLflow, batchjob, schalen
 
@@ -126,7 +127,7 @@ In GitHub nodig (*Settings → Secrets and variables → Actions*):
 Zonder `HF_SPACE` slaat de workflow de deploy over en blijft groen. Met `HF_SPACE` maar zonder
 `HF_TOKEN` faalt ze.
 
-**Open punten** (`RESTPLAN.md` taak 1.4):
+**Open punten** ([`archief/RESTPLAN.md`](archief/RESTPLAN.md) taak 1.4):
 
 - de workflow traint opnieuw, terwijl beslist is dat de Space het MLflow-kampioenmodel draait;
 - bij een start na de CI checkt de workflow de laatste commit van `main` uit, niet per se de commit

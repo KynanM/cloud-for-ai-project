@@ -20,12 +20,28 @@ is geen garantie dat er nooit een gast doorverwezen moet worden.
 Q1 2017); de vuistregel van de revenue manager **6,36**. Het advies k mikt erop dat er in
 hoogstens 20 % van de nachten minder kamers vrijkomen dan k. **Per hotel niet overal:**
 City Hotel zit op de test op 22 % nachten met te veel kamers (validatie 6 %), Resort op 10 %
-(validatie 16 %). Eén advies duurt in de container **183 ms** (p95).
+(validatie 16 %).
+
+## Resultaten (deel 2)
+
+Drie modellen, met dezelfde split in de tijd en dezelfde metriek: de fout op het aantal
+annulaties per hotel-nacht (MAE, lager is beter).
+
+| Model | MAE validatie | MAE test |
+|---|---|---|
+| vuistregel (baseline) | 6,36 | 6,87 |
+| logistische regressie | 5,77 | 5,35 |
+| **gradient boosting** | **4,72** | **5,11** |
+
+Gekozen: gradient boosting zonder het land, omdat het de laagste MAE op de validatie heeft en de
+test die volgorde bevestigt. Uitleg en alle cijfers: [rapport/rapport.md](rapport/rapport.md)
+en [docs/model.md](docs/model.md).
 
 ## Wat heb je nodig?
 
 - Git
-- Python 3.13 (de exacte versie staat in `.python-version`)
+- Python 3.13 (de exacte versie staat in `.python-version`). Geen Python 3.13? Met `uv`:
+  `uv python install 3.13`, of de download van python.org
 
 Geen Docker, geen account, geen API-sleutel: de trainingsdata staat al in `data/`.
 
@@ -58,7 +74,9 @@ python3.13 -m venv .venv
 
 Wat de drie stappen doen:
 
-1. **Installeren**: precies de versies uit de lockfile, gecontroleerd met hashes.
+1. **Installeren**: precies de versies uit de lockfile, gecontroleerd met hashes. De dev-lock
+   bevat ook wat deel 3 en de tests nodig hebben (MLflow, FastAPI); `requirements.lock` is
+   alleen de runtime.
 2. **Trainen** (±10 s): leert het model en schrijft het alleen weg als het alle kwaliteits- en
    snelheidspoorten haalt.
 3. **Voorspellen**: het advies voor de nacht van 15 augustus 2017, beslist op 16 juli (30 dagen
@@ -85,30 +103,26 @@ hebben over (*skipped*):
 .venv/bin/python -m pytest
 ```
 
-## De API openen
-
-Hetzelfde advies via HTTP. Op Windows met `.\.venv\Scripts\python.exe`:
-
-```bash
-.venv/bin/python -m uvicorn src.api:app --port 7860
-```
-
-Open daarna <http://127.0.0.1:7860/docs> om een verzoek te proberen, of
-<http://127.0.0.1:7860/health> om te zien welk model draait. Het programma blijft draaien in de
-terminal; `Ctrl+C` stopt het.
+Voor een snelle controle (±10 s, zonder training, MLflow, API en opdrachtregel):
+`.venv/bin/python -m pytest -m "not traag"`. Zonder `-m` draait alles.
 
 ## Waar staat wat?
 
-Om de code te begrijpen, lees je eerst deze zes bestanden:
+Om deel 2 te begrijpen, lees je eerst deze bestanden, in deze volgorde:
 
 | Bestand | Wat |
 |---|---|
-| `src/predict.py` | `voer_job_uit()`: de adviesjob, gedeeld door de opdrachtregel en de API |
-| `src/api.py` | de webservice: `POST /advies`, `POST /kansen`, `GET /health` |
-| `src/scope.py` | welke boekingen het model mag beoordelen, en waarom andere niet |
+| `notebooks/01_exploratie.ipynb` | de data verkennen: wat zit erin, wat is stuk, wat wordt het label |
+| `src/data.py` | de export inlezen, opschonen en het label op het beslismoment bepalen |
+| `src/schema.py` | de controle van de invoer met Pandera: kolommen, types en grenzen |
+| `src/train.py` | de split in de tijd, de modellen, de poorten, en het model wegschrijven |
+| `src/evaluate.py` | de drie modellen naast elkaar op de validatie en de test |
+| `src/predict.py` | `voer_job_uit()`: van een CSV met boekingen naar het advies k |
 | `src/nachten.py` | van kansen per boeking naar het advies k per hotel-nacht |
-| `src/train.py` | trainen, de poorten, en model, advies en manifest wegschrijven |
 | `configs/default.yaml` | alle instellingen: features, split, model, advies. Geen code |
+
+Welke modules in `src/` bij deel 2 horen, en welke bij het onderzoek of bij deel 3:
+[docs/architectuur.md](docs/architectuur.md#alle-bestanden-één-zin-elk).
 
 Verder lezen:
 
@@ -122,6 +136,23 @@ Verder lezen:
 | elke keuze met haar opties en cijfers | [docs/verantwoording.md](docs/verantwoording.md) |
 | de rapporten | [rapport/rapport.md](rapport/rapport.md) (deel 2), [rapport/rapport_deel3.md](rapport/rapport_deel3.md) (deel 3) |
 
+## Deel 3 (in uitvoering)
+
+Deel 3 zet het model achter een webservice (`src/api.py`) in een container.
+Eén advies duurt in de container **183 ms** (p95).
+
+### De API openen
+
+Hetzelfde advies via HTTP. Op Windows met `.\.venv\Scripts\python.exe`:
+
+```bash
+.venv/bin/python -m uvicorn src.api:app --port 7860
+```
+
+Open daarna <http://127.0.0.1:7860/docs> om een verzoek te proberen, of
+<http://127.0.0.1:7860/health> om te zien welk model draait. Het programma blijft draaien in de
+terminal; `Ctrl+C` stopt het.
+
 ## Belangrijkste beperkingen
 
 - **De euro's zijn een proxy.** Ze kloppen als de nacht op het beslismoment precies volgeboekt is
@@ -132,3 +163,13 @@ Verder lezen:
   monitoring ([docs/gebruik.md](docs/gebruik.md#monitoring)).
 
 De volledige lijst: [docs/model.md](docs/model.md#grenzen).
+
+## Data en licentie
+
+- **Dataset:** *Hotel booking demand* (Antonio, Almeida & Nunes, 2019, *Data in Brief* 22,
+  <https://doi.org/10.1016/j.dib.2018.11.126>), via
+  [Kaggle](https://www.kaggle.com/datasets/jessemostipak/hotel-booking-demand). Licentie op
+  Kaggle: Attribution 4.0 International (CC BY 4.0). Staat in `data/hotel_bookings.csv`.
+- **Code:** geschreven voor het vak Cloud for AI (VIVES, 2026-2027); er is geen aparte licentie
+  voor de code.
+- **Contact:** Kynan Melsens, kynan.melsens@student.vives.be

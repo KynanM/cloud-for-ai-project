@@ -14,7 +14,9 @@ Elke poort wordt gemeten en gelogd, ook als een eerdere al faalt: zo staat in he
 de log waarom een model niet weggeschreven werd.
 """
 
+import logging
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -93,15 +95,35 @@ def slo_p95_ms() -> float:
     return float(bench["slo"]["normaal"]["p95_latency_ms"])
 
 
+@contextmanager
+def stil(naam: str, niveau: int = logging.ERROR):
+    """Tijdens een meting: geen herhaalde waarschuwingen van `naam`, wel fouten.
+
+    Dezelfde job 33 keer draaien geeft 33 keer dezelfde WARNING; dat verbergt een echte. De
+    werklast blijft gelijk: alleen wat gelogd wordt, verandert.
+    """
+    logger = logging.getLogger(naam)
+    vorig = logger.level
+    logger.setLevel(niveau)
+    try:
+        yield
+    finally:
+        logger.setLevel(vorig)
+
+
 def softwarepoorten(meet_job, model_pad: Path, cfg: dict, herhalingen: int = 30) -> list[Poort]:
-    """`meet_job()` voert één adviesjob uit op een portefeuille van één nacht."""
-    for _ in range(3):
-        meet_job()
+    """`meet_job()` voert één adviesjob uit op een portefeuille van één nacht.
+
+    Wat de job over de scope meldt, meldt de aanroeper één keer vóór de meting (src/train.py).
+    """
     tijden = []
-    for _ in range(herhalingen):
-        start = time.perf_counter()
-        meet_job()
-        tijden.append((time.perf_counter() - start) * 1000)
+    with stil("src.scope"):
+        for _ in range(3):
+            meet_job()
+        for _ in range(herhalingen):
+            start = time.perf_counter()
+            meet_job()
+            tijden.append((time.perf_counter() - start) * 1000)
     p95 = float(np.percentile(tijden, 95))
     grens = slo_p95_ms()
     mb = Path(model_pad).stat().st_size / 2**20
