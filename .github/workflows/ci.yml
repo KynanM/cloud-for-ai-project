@@ -10,8 +10,8 @@ jobs:
     env:
       MLFLOW_TRACKING_URI: file:./mlruns
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version-file: .python-version
       - run: pip install --require-hashes -r requirements-dev.lock
@@ -20,7 +20,7 @@ jobs:
       - run: pytest -q
       - run: python -m benchmarks.workloads --alleen smoke,normaal
       - run: python -m benchmarks.gate
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: resultaten
@@ -32,8 +32,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version-file: .python-version
       - run: pip install --require-hashes -r requirements-dev.lock
