@@ -75,7 +75,7 @@ split:
   test_start: 2017-04-01
   test_einde: 2017-08-31
 
-# Rolling origin (src/folds.py, taak 3.6): vier meetblokken vóór de test, elk geleerd op alles
+# Rolling origin (src/folds.py): vier meetblokken vóór de test, elk geleerd op alles
 # vóór het embargo van dat blok (dezelfde formule als de split). Alleen om de modelkeuze over
 # seizoenen heen te toetsen; de split hierboven blijft de evaluatie.
 rolling:
@@ -166,7 +166,7 @@ model:
   # elkaar horen. Zie src/serving/manifest.py.
   manifest_pad: models/manifest.json
   # joblib-compressie van het modelbestand: 254 -> 79 KB, laden +6 %
-  # (resultaten/software/artefact.csv, taak 1.8).
+  # (resultaten/software/artefact.csv).
   compress: 3
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42

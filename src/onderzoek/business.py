@@ -1,8 +1,8 @@
 """Fase 4: de businessmetriek onder andere aannames, en wat er netto overblijft.
 
-python -m src.onderzoek.business scenario   # taak 4.1: 108 scenario's met winst_fysiek()
-python -m src.onderzoek.business roi        # taak 4.2: netto waarde per maand, terugverdientijd
-python -m src.onderzoek.business verband    # taak 4.4: gaat een lagere MAE samen met meer euro's?
+python -m src.onderzoek.business scenario   # 108 scenario's met winst_fysiek()
+python -m src.onderzoek.business roi        # netto waarde per maand, terugverdientijd
+python -m src.onderzoek.business verband    # gaat een lagere MAE samen met meer euro's?
 
 De europroxy (`winst()`) klopt alleen als de nacht op het beslismoment precies volgeboekt is en
 elke extra kamer verkocht wordt (docs/business_aannames.md). Hier worden die aannames gevarieerd

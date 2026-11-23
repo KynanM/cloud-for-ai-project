@@ -105,7 +105,7 @@ def boosting(cfg: dict) -> Pipeline:
 
 
 def randomforest(cfg: dict) -> Pipeline:
-    """Alleen voor de complexiteitsladder (taak 3.7). Zelfde voorbewerking als boosting.
+    """Alleen voor de complexiteitsladder (src.onderzoek.robuustheid). Voorbewerking als boosting.
 
     scikit-learn-bossen kunnen sinds 1.4 met lege waarden om.
     """

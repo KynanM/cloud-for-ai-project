@@ -2,14 +2,14 @@
 
 python -m src.onderzoek.robuustheid <taak>, met als taak:
 
-risico          taak 3.4: te veel per hotel × maand, met intervallen
-bootstrap       taak 3.5: blokbootstrap tegenover losse nachten
-rolling         taak 3.6: rolling origin met embargo
-complexiteit    taak 3.7: complexiteitsladder tegen de latencygrens
-weging          taak 3.8: weging met en zonder herijking
-features        taak 3.9: conservatieve featureset
-kalibratie      taak 3.10: ijking per bin, met aantallen en intervallen
-claims          taak 3.12: contract A/B en duplicaten in de split
+risico          te veel per hotel × maand, met intervallen: gepoold verbergt uitschieters
+bootstrap       blokbootstrap tegenover losse nachten: opeenvolgende nachten hangen samen
+rolling         rolling origin met embargo: houdt de modelkeuze stand over seizoenen?
+complexiteit    complexiteitsladder tegen de latencygrens: is een groter model het waard?
+weging          weging met en zonder herijking: helpt meer gewicht voor annulaties?
+features        conservatieve featureset: zonder elke kolom die mogelijk later ingevuld wordt
+kalibratie      ijking per bin, met aantallen en intervallen: kloppen de kansen zelf?
+claims          contract A/B en duplicaten in de split: de cijfers achter twee claims in de tekst
 alles           alle taken hierboven
 
 Elk experiment heeft een vooraf vastgelegde beschrijving in configs/experimenten/ en een
