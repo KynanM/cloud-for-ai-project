@@ -24,7 +24,7 @@ from sklearn.pipeline import Pipeline
 
 from . import schema
 from .config import PROJECT, invoerkolommen, laad_config
-from .data import OngeldigeDataError, aankomstdatum, laad_data, valideer
+from .data import OngeldigeDataError, aankomstdatum, laad_data, stop_bij_fout, valideer
 from .kenmerken import als_tekst
 from .logboek import zet_logging_op
 from .manifest import controleer
@@ -168,6 +168,7 @@ def voer_job_uit(
     return Job(tabel, kansen, uitgesloten, pd.Timestamp(as_of))
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> None:
     meting = Meting()
     parser = argparse.ArgumentParser(description="Voorspel annulaties en geef het advies k.")

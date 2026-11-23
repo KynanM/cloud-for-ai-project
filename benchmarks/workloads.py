@@ -24,7 +24,7 @@ import pandas as pd
 import yaml
 
 from src.config import PROJECT, laad_config
-from src.data import aankomstdatum, bereid_voor, laad_data
+from src.data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from src.nachten import alleen_volledig, dekking, per_nacht
 from src.train import grenzen, splits
 
@@ -141,6 +141,7 @@ def maak(alleen: list[str] | None = None) -> dict:
     return overzicht
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description="Maak de workloads voor de softwaremetriek.")
     parser.add_argument("--alleen", help="komma-gescheiden namen, bv. smoke,normaal")

@@ -39,7 +39,7 @@ import pandas as pd  # noqa: E402
 from benchmarks.bench import bench_config, bootstrap_p95, workloads  # noqa: E402
 from src import predict, schema  # noqa: E402
 from src.config import laad_config  # noqa: E402
-from src.data import bereid_voor, laad_data, valideer  # noqa: E402
+from src.data import bereid_voor, laad_data, stop_bij_fout, valideer  # noqa: E402
 from src.nachten import per_nacht, per_nacht_enkel  # noqa: E402
 from src.predict import (  # noqa: E402
     adviseer,
@@ -540,5 +540,6 @@ EXPERIMENTEN = {"e1": e1, "e9": e9, "modus": modus, "artefact": artefact, "model
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] not in EXPERIMENTEN:
         raise SystemExit(f"python -m benchmarks.experimenten_software {{{','.join(EXPERIMENTEN)}}}")
-    EXPERIMENTEN[sys.argv[1]]()
+    with stop_bij_fout():
+        EXPERIMENTEN[sys.argv[1]]()
     print(json.dumps({"klaar": sys.argv[1]}))

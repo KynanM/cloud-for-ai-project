@@ -19,12 +19,13 @@ import pandas as pd
 
 from src import schema
 from src.config import PROJECT, laad_config
-from src.data import aankomstdatum, bereid_voor, laad_data
+from src.data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from src.train import grenzen
 
 UIT = PROJECT / "resultaten" / "serving" / "batchjob.csv"
 
 
+@stop_bij_fout()
 def main(argv: list[str]) -> pd.DataFrame:
     parser = argparse.ArgumentParser(description="De batchjob via docker compose.")
     parser.add_argument("--nachten", type=int, default=10)

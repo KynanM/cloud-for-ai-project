@@ -39,7 +39,7 @@ import pandas as pd
 from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
 
 from .config import laad_config
-from .data import aankomstdatum, bereid_voor, laad_data
+from .data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from .evaluate import VARIANTEN, met, naam, zekerheden_winstcurve
 from .logboek import zet_logging_op
 from .nachten import (
@@ -866,6 +866,7 @@ def hertraining_per_maand(bewaard: dict, per_maand: dict) -> pd.DataFrame:
     return pd.DataFrame(rijen)
 
 
+@stop_bij_fout()
 def main() -> None:
     cfg = laad_config()
     zet_logging_op(cfg, "experimenten")

@@ -23,12 +23,13 @@ from fastapi.testclient import TestClient
 from src import schema
 from src.api import app
 from src.config import PROJECT, laad_config
-from src.data import aankomstdatum, bereid_voor, laad_data
+from src.data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from src.train import grenzen
 
 UIT = PROJECT / "resultaten" / "business" / "replay.csv"
 
 
+@stop_bij_fout()
 def main() -> pd.DataFrame:
     cfg = laad_config()
     df = bereid_voor(laad_data(cfg["data"]["pad"]), cfg)

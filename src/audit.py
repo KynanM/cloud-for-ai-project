@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from .config import laad_config
-from .data import aankomstdatum, laad_data, maak_label, schoon_op
+from .data import aankomstdatum, laad_data, maak_label, schoon_op, stop_bij_fout
 from .logboek import zet_logging_op
 from .manifest import commit, versies
 from .nachten import dekking
@@ -177,6 +177,7 @@ def dekkingstabel(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return uit[["periode", "hotel", "nacht", "dekking", "meegeteld"]]
 
 
+@stop_bij_fout()
 def main() -> None:
     cfg = laad_config()
     zet_logging_op(cfg, "audit")
