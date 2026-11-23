@@ -1,8 +1,8 @@
 """Een getraind model registreren en publiceren: MLflow-registry, alias `kampioen`, export.
 
-python -m src.publiceer                 # registreer models/ en publiceer als het de poorten haalde
-python -m src.publiceer --versie 3      # rollback: zet de alias terug naar versie 3 en exporteer
-python -m src.publiceer --lijst         # alle versies, met hun poorten
+python -m src.serving.publiceer              # registreer models/, publiceer als de poorten slagen
+python -m src.serving.publiceer --versie 3   # rollback: alias terug naar versie 3, en exporteer
+python -m src.serving.publiceer --lijst      # alle versies, met hun poorten
 
 `src.train` schrijft model, advies en manifest naar models/. Publiceren betekent:
 

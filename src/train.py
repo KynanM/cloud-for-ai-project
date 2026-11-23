@@ -357,8 +357,8 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     vuistregel in de benchmarks); het manifest zegt dan `poorten_overgeslagen: true`.
 
     Deel 2: keur_op_validatie, hertrain en schrijf_weg. Deel 3 (les 06 en 10) voorbereid in
-    src/vrijgave.py: de softwarepoort en het manifest met driftreferentie en -drempels. Die stap
-    blijft in de training, want de CI, de publicatie, de API en de driftmeting steunen erop.
+    src/serving/vrijgave.py: de softwarepoort en het manifest met driftreferentie en -drempels.
+    Die stap blijft in de training: de CI, de publicatie, de API en de driftmeting steunen erop.
     """
     df = bereid_voor(ruw, cfg)
     delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
@@ -367,7 +367,7 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
 
     model, test_auc = hertrain(df, cfg, delen)
     logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
-    # Deel 3: softwarepoort en manifest (src/vrijgave.py); train keurt de poorten zelf
+    # Deel 3: softwarepoort en manifest (src/serving/vrijgave.py); train keurt de poorten zelf
     gemeten = {"delen": delen, "g": grenzen(cfg), "v": v, "cap": cap, "lijst": lijst}
     gemeten["poorten"] = poorten
     manifest, lijst = bereid_serving_voor(model, df, ruw, gemeten, cfg, controleer_poorten)

@@ -11,9 +11,10 @@ serving_belasting.png   p95 tegenover de aangeboden belasting, 1, 2 en 4 contain
 sizing_pareto.png       CPU per advies tegenover p95, per infrastructuur
 
 Daarnaast de tekenfuncties voor src.evaluate (teken_winstcurve, teken_ijking): evaluate rekent,
-deze module tekent. De andere figuren maken de opdrachten die ook de cijfers maken:
-src.robuustheid (risico per maand, rolling origin, complexiteit, bootstrap, ijking met intervallen)
-en src.business (scenario's, ROI, MAE tegenover euro's).
+deze module tekent. Ook de figuren van het onderzoek staan hier; ze worden getekend door de
+opdrachten die de cijfers maken: src.onderzoek.robuustheid (risico per maand, rolling origin,
+complexiteit, bootstrap, ijking met intervallen) en src.onderzoek.business (scenario's, ROI, MAE
+tegenover euro's).
 """
 
 import json
@@ -120,7 +121,7 @@ def teken_ijking(uitkomst: dict, pad) -> None:
     plt.close(fig)
 
 
-# --------------------------------------------------------------------- figuren van src.robuustheid
+# ------------------------------------------------------------ figuren van src.onderzoek.robuustheid
 
 
 def teken_risico(tabel: pd.DataFrame, grens: float, pad: Path):
@@ -263,7 +264,7 @@ def teken_kalibratie(tabel: pd.DataFrame, pad: Path):
     return fig
 
 
-# ----------------------------------------------------------------------- figuren van src.business
+# --------------------------------------------------------------- figuren van src.onderzoek.business
 
 
 def teken_scenario(tabel: pd.DataFrame, w_waarden: list, pad: Path):

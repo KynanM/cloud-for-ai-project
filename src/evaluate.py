@@ -231,7 +231,7 @@ def main() -> None:
     tabel.round(4).to_csv(uit / "evaluatie.csv", index=False)
     groepen.round(4).to_csv(uit / "groepen.csv", index=False)
     curve.round(4).to_csv(uit / "winstcurve.csv", index=False)
-    # Pas hier: wie alleen VARIANTEN of met() nodig heeft (src.experimenten), laadt geen Matplotlib.
+    # Pas hier: wie alleen VARIANTEN of met() nodig heeft (het onderzoek), laadt geen Matplotlib.
     from .figuren import teken_ijking, teken_winstcurve
 
     teken_winstcurve(curve, zekerheid, uit / "winstcurve.png")

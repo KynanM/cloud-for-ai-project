@@ -1,17 +1,20 @@
 """Fase 3: hoe stevig zijn de conclusies? Risico per hotel, afhankelijke nachten, tijdsblokken.
 
-python -m src.robuustheid risico          # taak 3.4: te veel per hotel × maand, met intervallen
-python -m src.robuustheid bootstrap       # taak 3.5: blokbootstrap tegenover losse nachten
-python -m src.robuustheid rolling         # taak 3.6: rolling origin met embargo
-python -m src.robuustheid complexiteit    # taak 3.7: complexiteitsladder tegen de latencygrens
-python -m src.robuustheid weging          # taak 3.8: weging met en zonder herijking
-python -m src.robuustheid features        # taak 3.9: conservatieve featureset
-python -m src.robuustheid kalibratie      # taak 3.10: ijking per bin, met aantallen en intervallen
-python -m src.robuustheid claims          # taak 3.12: contract A/B en duplicaten in de split
-python -m src.robuustheid alles
+python -m src.onderzoek.robuustheid <taak>, met als taak:
+
+risico          taak 3.4: te veel per hotel × maand, met intervallen
+bootstrap       taak 3.5: blokbootstrap tegenover losse nachten
+rolling         taak 3.6: rolling origin met embargo
+complexiteit    taak 3.7: complexiteitsladder tegen de latencygrens
+weging          taak 3.8: weging met en zonder herijking
+features        taak 3.9: conservatieve featureset
+kalibratie      taak 3.10: ijking per bin, met aantallen en intervallen
+claims          taak 3.12: contract A/B en duplicaten in de split
+alles           alle taken hierboven
 
 Elk experiment heeft een vooraf vastgelegde beschrijving in configs/experimenten/ en een
-MLflow-run per variant (src/tracking.py). Uitvoer in resultaten/audit/ en resultaten/figuren/.
+MLflow-run per variant (src/serving/tracking.py). Uitvoer in resultaten/audit/ en
+resultaten/figuren/.
 
 Gekozen wordt op de validatie of op de rolling-origin-folds, nooit op de test. De test komt
 alleen voor in `risico` (diagnose, gemarkeerd) en daarvoor is `test_toegestaan` nodig.
@@ -57,7 +60,13 @@ from ..nachten import (  # noqa: E402
 )
 from ..poorten import slo_p95_ms  # noqa: E402
 from ..predict import voer_job_uit  # noqa: E402
-from ..serving.tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
+from ..serving.tracking import (  # noqa: E402
+    experimentrun,
+    laad_experiment,
+    log_figuur,
+    log_metrics,
+    log_tabel,
+)
 from ..train import bouw_pijplijn, kenmerken_en_label, volledige_nachten  # noqa: E402
 from .audit import boeking_nachten  # noqa: E402
 from .experimenten import GEKOZEN, Opzet, beide, bootstrap, modelvergelijking, variant  # noqa: E402
@@ -989,9 +998,9 @@ TAKEN = {
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
-    """python -m src.robuustheid <taak|alles>: de gekozen robuustheidsexperimenten."""
+    """python -m src.onderzoek.robuustheid <taak|alles>: de gekozen robuustheidsexperimenten."""
     if not argv or any(a not in [*TAKEN, "alles"] for a in argv):
-        raise SystemExit(f"python -m src.robuustheid {{{','.join([*TAKEN, 'alles'])}}}")
+        raise SystemExit(f"python -m src.onderzoek.robuustheid {{{','.join([*TAKEN, 'alles'])}}}")
     cfg = laad_config()
     zet_logging_op(cfg, "robuustheid")
     taken = list(TAKEN) if "alles" in argv else argv

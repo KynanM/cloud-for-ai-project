@@ -1,8 +1,8 @@
 """Fase 4: de businessmetriek onder andere aannames, en wat er netto overblijft.
 
-python -m src.business scenario     # taak 4.1: 108 scenario's met winst_fysiek()
-python -m src.business roi          # taak 4.2: netto waarde per maand, terugverdientijd
-python -m src.business verband      # taak 4.4: hangt een lagere MAE samen met meer euro's?
+python -m src.onderzoek.business scenario   # taak 4.1: 108 scenario's met winst_fysiek()
+python -m src.onderzoek.business roi        # taak 4.2: netto waarde per maand, terugverdientijd
+python -m src.onderzoek.business verband    # taak 4.4: gaat een lagere MAE samen met meer euro's?
 
 De europroxy (`winst()`) klopt alleen als de nacht op het beslismoment precies volgeboekt is en
 elke extra kamer verkocht wordt (docs/business_aannames.md). Hier worden die aannames gevarieerd
@@ -30,7 +30,13 @@ from ..data import laad_data, stop_bij_fout  # noqa: E402
 from ..figuren import teken_scenario, teken_tornado, teken_verband  # noqa: E402
 from ..logboek import zet_logging_op  # noqa: E402
 from ..nachten import met_advies, winst_fysiek  # noqa: E402
-from ..serving.tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
+from ..serving.tracking import (  # noqa: E402
+    experimentrun,
+    laad_experiment,
+    log_figuur,
+    log_metrics,
+    log_tabel,
+)
 from .experimenten import Opzet, modelvergelijking  # noqa: E402
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
@@ -325,9 +331,9 @@ TAKEN = {"scenario": run_scenario, "roi": roi, "verband": verband}
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
-    """python -m src.business <taak|alles>: businessstress, ROI en het verband MAE–euro's."""
+    """python -m src.onderzoek.business <taak|alles>: businessstress, ROI, verband MAE–euro's."""
     if not argv or any(a not in [*TAKEN, "alles"] for a in argv):
-        raise SystemExit(f"python -m src.business {{{','.join([*TAKEN, 'alles'])}}}")
+        raise SystemExit(f"python -m src.onderzoek.business {{{','.join([*TAKEN, 'alles'])}}}")
     cfg = laad_config()
     zet_logging_op(cfg, "business")
     taken = list(TAKEN) if "alles" in argv else argv

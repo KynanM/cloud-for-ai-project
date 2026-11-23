@@ -2,12 +2,12 @@
 
 - de softwarepoort: latency van een adviesjob en grootte van het model (les 06 p. 23: de
   softwaremetriek is de grens)
-- het manifest, met de referentieverdelingen en de driftdrempels die src.monitoring per verzoek
-  gebruikt (les 10)
+- het manifest, met de referentieverdelingen en de driftdrempels die src.serving.monitoring per
+  verzoek gebruikt (les 10)
 
 src.train roept bereid_serving_voor() aan en schrijft daarna weg. Zo hangt de trainingscode van
-deel 2 niet af van src.predict of src.monitoring. Weglaten kan niet: de CI, src.publiceer, de API
-en src.monitoring steunen op het manifest en de driftdrempels.
+deel 2 niet af van src.predict of src.serving.monitoring. Weglaten kan niet: de CI,
+src.serving.publiceer, de API en de monitoring steunen op het manifest en de driftdrempels.
 """
 
 from __future__ import annotations
@@ -70,9 +70,9 @@ def stel_manifest_op(
     manifest = maak_manifest(cfg, ruw, g)
     manifest["poorten_overgeslagen"] = not poorten
     manifest["poorten"] = als_dicts(lijst)
-    # Verdelingen van de hertraining, voor de driftmeting per verzoek (src/monitoring.py)
+    # Verdelingen van de hertraining, voor de driftmeting per verzoek (src/serving/monitoring.py)
     manifest["referentie"] = referentie(delen["hertraining"])
-    # Alarmdrempels voor de drift, geijkt op de portefeuilles van de validatie (src/monitoring.py)
+    # Alarmdrempels voor de drift, geijkt op de validatieportefeuilles (src/serving/monitoring.py)
     manifest["drift_drempels"] = drift_drempels(
         df,
         manifest["referentie"],

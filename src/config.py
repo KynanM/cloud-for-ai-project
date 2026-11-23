@@ -16,8 +16,8 @@ def laad_config(pad: str | Path = PROJECT / "configs" / "default.yaml") -> dict:
     cfg["model"]["pad"] = PROJECT / cfg["model"]["pad"]
     cfg["model"]["advies_pad"] = PROJECT / cfg["model"]["advies_pad"]
     cfg["model"]["manifest_pad"] = PROJECT / cfg["model"]["manifest_pad"]
-    # Het gepubliceerde model (python -m src.publiceer, het image): OVERBOEKING_MODELMAP wijst
-    # naar de map met model, advies en manifest. Geldt voor de API én de opdrachtregel.
+    # Het gepubliceerde model (python -m src.serving.publiceer, het image): OVERBOEKING_MODELMAP
+    # wijst naar de map met model, advies en manifest. Geldt voor de API én de opdrachtregel.
     modelmap = os.environ.get("OVERBOEKING_MODELMAP")
     if modelmap:
         map_ = Path(modelmap) if Path(modelmap).is_absolute() else PROJECT / modelmap
