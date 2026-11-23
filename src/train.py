@@ -46,6 +46,7 @@ from .nachten import (
     spreidingsfactor,
 )
 from .poorten import als_dicts, beleidspoorten, ml_poorten, softwarepoorten
+from .predict import voorspel
 from .scope import controleer_scope
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
@@ -170,10 +171,8 @@ def kenmerken_en_label(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.
 
 
 def fit_en_meet(train_deel: pd.DataFrame, meet_deel: pd.DataFrame, cfg: dict):
-    X_train, y_train = kenmerken_en_label(train_deel, cfg)
-    X_meet, y_meet = kenmerken_en_label(meet_deel, cfg)
-    pijplijn = bouw_pijplijn(cfg).fit(X_train, y_train)
-    return pijplijn, roc_auc_score(y_meet, pijplijn.predict_proba(X_meet)[:, 1])
+    pijplijn = bouw_pijplijn(cfg).fit(*kenmerken_en_label(train_deel, cfg))
+    return pijplijn, roc_auc_score(meet_deel[cfg["doel"]], voorspel(pijplijn, meet_deel, cfg))
 
 
 def train(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> tuple[Model, float]:
@@ -200,7 +199,7 @@ def nachten_van(
     onvolledig is: gasten die vóór `begin` aankwamen en dan nog blijven. Zie
     `evaluatie.min_dekking` in de config en `dekking()` in src/nachten.py.
     """
-    kansen = model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
+    kansen = voorspel(model, deel, cfg)
     nachten = per_nacht(deel, kansen, cfg, begin, einde)
     if alle is None:
         return nachten

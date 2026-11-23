@@ -51,6 +51,7 @@ from .nachten import (
     per_nacht,
     spreidingsfactor,
 )
+from .predict import voorspel
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
@@ -101,9 +102,9 @@ class Opzet:
         start = time.perf_counter()
         model = bouw_pijplijn(c).fit(X, y)
         leertijd = time.perf_counter() - start
-        Xm, ym = kenmerken_en_label(self.delen[meet], c)
+        ym = self.delen[meet][c["doel"]]
         start = time.perf_counter()
-        p = model.predict_proba(Xm)[:, 1]
+        p = voorspel(model, self.delen[meet], c)
         voorspeltijd = time.perf_counter() - start
         nachten = alleen_volledig(
             per_nacht(
@@ -113,12 +114,12 @@ class Opzet:
             c["evaluatie"]["min_dekking"],
         )
         return {
-            "train_auc": roc_auc_score(y, model.predict_proba(X)[:, 1]),
+            "train_auc": roc_auc_score(y, voorspel(model, train_deel, c)),
             "p": p,
             "y": ym.to_numpy(),
             "nachten": nachten,
             "leertijd_s": leertijd,
-            "voorspeltijd_ms_per_1000": 1000 * voorspeltijd / len(Xm) * 1000,
+            "voorspeltijd_ms_per_1000": 1000 * voorspeltijd / len(ym) * 1000,
         }
 
 
@@ -324,12 +325,11 @@ def willekeurige_split(o: Opzet) -> pd.DataFrame:
             ("in de tijd", o.delen["training"], o.delen["validatie"]),
         ]:
             model = bouw_pijplijn(c).fit(*kenmerken_en_label(a, c))
-            X, y = kenmerken_en_label(b, c)
             rijen.append(
                 {
                     "model": soort,
                     "split": split,
-                    "auc": roc_auc_score(y, model.predict_proba(X)[:, 1]),
+                    "auc": roc_auc_score(b[c["doel"]], voorspel(model, b, c)),
                 }
             )
     return pd.DataFrame(rijen)
@@ -755,8 +755,7 @@ def voorspel_per_maand(o: Opzet, c: dict, periode: str) -> tuple[np.ndarray, lis
         model = bouw_pijplijn(c).fit(*kenmerken_en_label(leer, c))
         in_maand = (aankomst_meet >= maand) & (aankomst_meet < maand + pd.offsets.MonthBegin(1))
         if in_maand.any():
-            X, _ = kenmerken_en_label(meet[in_maand], c)
-            p[in_maand.to_numpy()] = model.predict_proba(X)[:, 1]
+            p[in_maand.to_numpy()] = voorspel(model, meet[in_maand], c)
         modellen.append({"maand": f"{maand:%Y-%m}", "leer_tot": grens, "boekingen": len(leer)})
     if np.isnan(p).any():
         raise ValueError(f"{periode}: niet elke boeking kreeg een kans")
