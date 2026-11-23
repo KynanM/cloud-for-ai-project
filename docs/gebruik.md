@@ -27,7 +27,7 @@ export (zie [inputcontract.md](inputcontract.md)). Een geldig voorbeeld: `data/n
 | Woord | Betekenis |
 |---|---|
 | **nacht** | de nacht waarvoor het hotel beslist hoeveel kamers het extra verkoopt |
-| **as_of** (beslismoment) | wanneer het hotel beslist: 30 dagen vóór de nacht (contract A, [besliscontract.md](besliscontract.md)) |
+| **as_of** (beslismoment) | wanneer het hotel beslist: 30 dagen vóór de aankomst (contract A, [besliscontract.md](besliscontract.md)). Voor één adviesnacht is dat nacht − 30 dagen |
 | **kans** | per boeking: de kans dat ze nog geannuleerd wordt of een no-show wordt |
 | **verwacht** | per hotel-nacht: de som van die kansen, het verwachte aantal vrijgekomen kamers |
 | **k** | zoveel kamers mag het hotel extra verkopen. Gekozen zodat er met 80 % zekerheid minstens k kamers vrijkomen |
