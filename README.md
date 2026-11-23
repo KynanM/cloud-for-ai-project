@@ -20,7 +20,22 @@ is geen garantie dat er nooit een gast doorverwezen moet worden.
 Q1 2017); de vuistregel van de revenue manager **6,36**. Het advies k mikt erop dat er in
 hoogstens 20 % van de nachten minder kamers vrijkomen dan k. **Per hotel niet overal:**
 City Hotel zit op de test op 22 % nachten met te veel kamers (validatie 6 %), Resort op 10 %
-(validatie 16 %). Eén advies duurt in de container **183 ms** (p95).
+(validatie 16 %).
+
+## Resultaten (deel 2)
+
+Drie modellen, met dezelfde split in de tijd en dezelfde metriek: de fout op het aantal
+annulaties per hotel-nacht (MAE, lager is beter).
+
+| Model | MAE validatie | MAE test |
+|---|---|---|
+| vuistregel (baseline) | 6,36 | 6,87 |
+| logistische regressie | 5,77 | 5,35 |
+| **gradient boosting** | **4,72** | **5,11** |
+
+Gekozen: gradient boosting zonder het land, omdat het de laagste MAE op de validatie heeft en de
+test die volgorde bevestigt. Uitleg en alle cijfers: [rapport/rapport.md](rapport/rapport.md)
+en [docs/model.md](docs/model.md).
 
 ## Wat heb je nodig?
 
@@ -85,29 +100,19 @@ hebben over (*skipped*):
 .venv/bin/python -m pytest
 ```
 
-## De API openen
-
-Hetzelfde advies via HTTP. Op Windows met `.\.venv\Scripts\python.exe`:
-
-```bash
-.venv/bin/python -m uvicorn src.api:app --port 7860
-```
-
-Open daarna <http://127.0.0.1:7860/docs> om een verzoek te proberen, of
-<http://127.0.0.1:7860/health> om te zien welk model draait. Het programma blijft draaien in de
-terminal; `Ctrl+C` stopt het.
-
 ## Waar staat wat?
 
-Om de code te begrijpen, lees je eerst deze zes bestanden:
+Om deel 2 te begrijpen, lees je eerst deze bestanden, in deze volgorde:
 
 | Bestand | Wat |
 |---|---|
-| `src/predict.py` | `voer_job_uit()`: de adviesjob, gedeeld door de opdrachtregel en de API |
-| `src/api.py` | de webservice: `POST /advies`, `POST /kansen`, `GET /health` |
-| `src/scope.py` | welke boekingen het model mag beoordelen, en waarom andere niet |
+| `notebooks/01_exploratie.ipynb` | de data verkennen: wat zit erin, wat is stuk, wat wordt het label |
+| `src/data.py` | de export inlezen, opschonen en het label op het beslismoment bepalen |
+| `src/schema.py` | de controle van de invoer met Pandera: kolommen, types en grenzen |
+| `src/train.py` | de split in de tijd, de modellen, de poorten, en het model wegschrijven |
+| `src/evaluate.py` | de drie modellen naast elkaar op de validatie en de test |
+| `src/predict.py` | `voer_job_uit()`: van een CSV met boekingen naar het advies k |
 | `src/nachten.py` | van kansen per boeking naar het advies k per hotel-nacht |
-| `src/train.py` | trainen, de poorten, en model, advies en manifest wegschrijven |
 | `configs/default.yaml` | alle instellingen: features, split, model, advies. Geen code |
 
 Verder lezen:
@@ -121,6 +126,23 @@ Verder lezen:
 | begrijpen waarom het model zo werkt, met alle resultaten | [docs/model.md](docs/model.md) |
 | elke keuze met haar opties en cijfers | [docs/verantwoording.md](docs/verantwoording.md) |
 | de rapporten | [rapport/rapport.md](rapport/rapport.md) (deel 2), [rapport/rapport_deel3.md](rapport/rapport_deel3.md) (deel 3) |
+
+## Deel 3 (in uitvoering)
+
+Deel 3 zet het model achter een webservice (`src/api.py`) in een container.
+Eén advies duurt in de container **183 ms** (p95).
+
+### De API openen
+
+Hetzelfde advies via HTTP. Op Windows met `.\.venv\Scripts\python.exe`:
+
+```bash
+.venv/bin/python -m uvicorn src.api:app --port 7860
+```
+
+Open daarna <http://127.0.0.1:7860/docs> om een verzoek te proberen, of
+<http://127.0.0.1:7860/health> om te zien welk model draait. Het programma blijft draaien in de
+terminal; `Ctrl+C` stopt het.
 
 ## Belangrijkste beperkingen
 
