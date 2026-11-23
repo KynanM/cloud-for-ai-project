@@ -1,3 +1,5 @@
+> Archief: intern werkplan, niet bijgewerkt na 23-11-2026.
+
 # Testlogboek: wanneer de testcijfers bekend waren, en wat er daarna veranderde
 
 De test (aankomst april tot augustus 2017) hoort één keer gemeten te worden, met alles vast. Dat

@@ -1,3 +1,5 @@
+> Archief: intern werkplan, niet bijgewerkt na 23-11-2026.
+
 # Vereenvoudigingsplan: van onderzoeksrapport naar uitvoerbare werkpakketten
 
 Opgesteld op 22-11-2026, op basis van het onderzoeksrapport *Vereenvoudiging en begrijpelijke
@@ -200,7 +202,7 @@ in de CI `file:./mlruns` (`ci.yml:11`), in compose een aparte server met eigen v
 noemde er twee. → W7.1.
 
 **N5. Taaknummers in de code wijzen naar `ACTION_PLAN.md`.** 24 verwijzingen als "taak 5.7" in
-`src/` en `benchmarks/`, plus `docs/archief/RESTPLAN.md` en `docs/audit_scope.md`. Wie `ACTION_PLAN.md`
+`src/` en `benchmarks/`, plus `docs/archief/RESTPLAN.md` en `docs/archief/audit_scope.md`. Wie `ACTION_PLAN.md`
 verplaatst, moet die verwijzingen vindbaar houden. → W6.1.
 
 **N6. De voorbeeldopdracht in de README werkt ook zonder `--nacht` en `--as-of`,** maar dan met een
@@ -328,7 +330,7 @@ Geen gedrag verandert, dus het voorbeeldadvies blijft City 3, Resort 0.
 
 - Taken 1.1 en 2.3 (badge): "geïmplementeerd in `99c810b`; bewijs (groene run zonder `HF_SPACE`)
   nog toe te voegen".
-- Taak 3.2 (E9 op smoke): afhankelijkheid "na W5 van `docs/vereenvoudigingsplan.md`" toevoegen,
+- Taak 3.2 (E9 op smoke): afhankelijkheid "na W5 van `docs/archief/vereenvoudigingsplan.md`" toevoegen,
   anders levert de herhaling twee identieke kernroutes op.
 - Taak 1.4: N3 (checkout op de geteste commit) en W7.2 als deel van de DoD toevoegen.
 - Een verwijzing naar dit plan bovenaan.
@@ -629,7 +631,7 @@ aangeroepen. Dezelfde controle als test in `tests/`, zodat een volgende ombouw v
 ### W6.1: `ACTION_PLAN.md` archiveren (na deel 3)
 
 - Verplaatsen met `git mv ACTION_PLAN.md docs/archief/ACTION_PLAN.md`, zodat de geschiedenis volgt.
-- Verwijzingen aanpassen in `docs/archief/RESTPLAN.md` en `docs/audit_scope.md`.
+- Verwijzingen aanpassen in `docs/archief/RESTPLAN.md` en `docs/archief/audit_scope.md`.
 - De 24 "taak X.Y"-verwijzingen in de code blijven staan; bovenaan `docs/archief/ACTION_PLAN.md`
   één zin dat die nummers daarnaar verwijzen.
 - Na deel 3 ook `docs/archief/RESTPLAN.md` naar het archief; tot dan blijft het de enige actuele takenlijst.

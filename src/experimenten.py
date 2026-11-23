@@ -64,7 +64,7 @@ class Opzet:
 
     def __init__(self, ruw: pd.DataFrame, cfg: dict, test_toegestaan: bool = False):
         """`test_toegestaan`: alleen voor wat als "alleen rapporteren" gemerkt is. Een experiment
-        dat kiest, mag de test niet zien (docs/testlogboek.md)."""
+        dat kiest, mag de test niet zien (docs/archief/testlogboek.md)."""
         self.test_toegestaan = test_toegestaan
         self.cfg = cfg
         self.df = bereid_voor(ruw, cfg)

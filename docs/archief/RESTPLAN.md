@@ -5,7 +5,7 @@
 Opgesteld op 20-11-2026, na de merge van PR #4 (`fec0778` op `main`). Vervolgt `docs/archief/ACTION_PLAN.md`;
 dat plan blijft het archief van wat gedaan is.
 
-**Bijgewerkt op 22-11-2026** met de vereenvoudiging uit `docs/vereenvoudigingsplan.md` (branch
+**Bijgewerkt op 22-11-2026** met de vereenvoudiging uit `docs/archief/vereenvoudigingsplan.md` (branch
 `claude/wonderful-darwin-1z0dfp`). Gevolgen voor dit plan:
 
 - Taak 1.1 (deploy niet rood zonder `HF_SPACE`) en de badge uit taak 2.3 staan al in de code
@@ -230,7 +230,7 @@ de modellen, de keuze en data leakage + de AI-appendix. De repo is publiek.
 ### Taak 2.4: Indienen [S]
 
 - **Wat:** de publieke URL, de repo-URL en de PDF.
-- **Aanpak:** noteer de commit-SHA van de ingediende versie op pagina 1 en in `docs/audit_scope.md`, en zet een git-tag `deel3-ingediend`.
+- **Aanpak:** noteer de commit-SHA van de ingediende versie op pagina 1 en in `docs/archief/audit_scope.md`, en zet een git-tag `deel3-ingediend`.
 - **DoD:**
   - [ ] Ingediend; de SHA en de tag staan vast
 
@@ -274,7 +274,7 @@ Opgegaan in fase A (taken A1–A2).
 - **Wat & waarom:** de verse clone gaf byte-identieke tabellen, maar op dezelfde Windows-machine. De CI draait Linux. Eerder verschilde `logreg met land` licht tussen machines.
 - **Aanpak:** een job in `ci.yml` (alleen bij `workflow_dispatch`) die `src.evaluate` draait en `resultaten/evaluatie.csv` vergelijkt met de gecommitte versie, met een tolerantie van 1e-6.
 - **DoD:**
-  - [ ] Het verschil Linux tegenover Windows is gemeten: geen verschil, of een gedocumenteerde afwijking in `docs/audit_scope.md`
+  - [ ] Het verschil Linux tegenover Windows is gemeten: geen verschil, of een gedocumenteerde afwijking in `docs/archief/audit_scope.md`
 
 ### Taak 3.6: Een robuuste referentie voor de gate in de CI [C]
 
