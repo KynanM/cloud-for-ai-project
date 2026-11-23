@@ -56,7 +56,7 @@ activeren: elke opdracht roept rechtstreeks de Python uit `.venv` aan.
 git clone https://github.com/KynanM/cloud-for-ai-project.git
 cd cloud-for-ai-project
 py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements-dev.lock
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m src.train
 .\.venv\Scripts\python.exe -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-15 --as-of 2017-07-16 --uitvoer advies.csv
 ```
@@ -67,16 +67,17 @@ py -3.13 -m venv .venv
 git clone https://github.com/KynanM/cloud-for-ai-project.git
 cd cloud-for-ai-project
 python3.13 -m venv .venv
-.venv/bin/python -m pip install --require-hashes -r requirements-dev.lock
+.venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m src.train
 .venv/bin/python -m src.predict data/nieuwe_boekingen.csv --nacht 2017-08-15 --as-of 2017-07-16 --uitvoer advies.csv
 ```
 
 Wat de drie stappen doen:
 
-1. **Installeren**: precies de versies uit de lockfile, gecontroleerd met hashes. De dev-lock
-   bevat ook wat deel 3 en de tests nodig hebben (MLflow, FastAPI); `requirements.lock` is
-   alleen de runtime.
+1. **Installeren**: wat deel 2 nodig heeft, met vaste versies: trainen, evalueren, voorspellen
+   en de tests van deel 2. Voor alles, ook deel 3 (MLflow, de API-tests) en het notebook, en exact
+   met hashes zoals de CI: `pip install --require-hashes -r requirements-dev.lock`
+   (meer in [docs/ontwikkelen.md](docs/ontwikkelen.md)).
 2. **Trainen** (±10 s): leert het model en schrijft het alleen weg als het alle kwaliteits- en
    snelheidspoorten haalt.
 3. **Voorspellen**: het advies voor de nacht van 15 augustus 2017, beslist op 16 juli (30 dagen
@@ -100,11 +101,12 @@ De tests draai je **na** het trainen. Zonder getraind model slaan de tests die e
 hebben over (*skipped*):
 
 ```bash
-.venv/bin/python -m pytest
+.venv/bin/python -m pytest -m "not deel3"
 ```
 
-Voor een snelle controle (±10 s, zonder training, MLflow, API en opdrachtregel):
-`.venv/bin/python -m pytest -m "not traag"`. Zonder `-m` draait alles.
+Dat zijn de tests van deel 2. De tests van deel 3 (API, MLflow, monitoring) hebben de dev-lock
+nodig; daarmee draait `pytest` zonder `-m` alles. Voor een snelle controle (±10 s, zonder
+training, MLflow, API en opdrachtregel): `pytest -m "not traag"`.
 
 ## Waar staat wat?
 

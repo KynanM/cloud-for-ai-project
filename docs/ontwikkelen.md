@@ -10,10 +10,10 @@ python -m pip install --require-hashes -r requirements-dev.lock
 
 | Bestand | Wat | Wie gebruikt het |
 |---|---|---|
-| `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib) | de lector: `pip install -r requirements.txt` |
+| `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib, pytest) | de lector: `pip install -r requirements.txt` |
 | `requirements-api.txt` | de webservice: wat `src.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
 | `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
-| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, pytest, ruff, het notebook | ontwikkelen |
+| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, het notebook | ontwikkelen |
 | `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
 
 Matplotlib staat niet in het image: met Matplotlib groeit het van 670 naar 794 MB, en de API
