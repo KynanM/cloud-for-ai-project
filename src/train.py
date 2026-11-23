@@ -416,6 +416,10 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
 
     `poorten=False` slaat de poorten over, alleen om een model te meten dat ze niet haalt (de
     vuistregel in de benchmarks); het manifest zegt dan `poorten_overgeslagen: true`.
+
+    Deel 2: keur_op_validatie, hertrain en schrijf_weg. Deel 3 (les 06 en 10) voorbereid:
+    meet_software (de softwarepoort) en stel_manifest_op (manifest, driftreferentie en
+    -drempels). Die blijven hier, want CI, src.publiceer, de API en src.monitoring steunen erop.
     """
     df = bereid_voor(ruw, cfg)
     delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
