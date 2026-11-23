@@ -169,8 +169,9 @@ model:
   logreg:
     max_iter: 1000
     # Met de standaard (1e-4) stopt de solver vóór het optimum, en hangt het resultaat af van
-    # de machine (MAE op de test 5,135 tegenover 5,113 voor logreg met land). Met 1e-6 ligt de
-    # oplossing vast: 1e-8 verschilt minder dan 0,001 in MAE. Niet afgesteld op de score.
+    # de machine (MAE op de test 5,135 tegenover 5,113 voor logreg met land). Met 1e-6 is de
+    # oplossing stabiel: tussen machines verschilt de MAE minder dan 0,001, afgerond in de tabellen
+    # niets; 1e-8 verschilt minder dan 0,001 in MAE. Niet afgesteld op de score.
     tol: 1.0e-6
   boosting:
     # Eerst 200. 100 is op de validatie aantoonbaar beter (MAE per nacht, bootstrap): zie

@@ -139,7 +139,8 @@ training en op de validatie "geen teken van overfit" was, zonder die op de train
 is het 0,756. Bij de hercontrole van 17 november bleek dat de audit nog cijfers van 200 iteraties
 had laten staan en dat het notebook brak sinds het maximum weg was; dat bewaakt nu
 `tests/test_bewijsregister.py`. Logistische regressie gaf op een andere machine iets andere cijfers,
-omdat de solver vóór het optimum stopte; met `tol: 1.0e-6` ligt het resultaat vast. Bij het
+omdat de solver vóór het optimum stopte; met `tol: 1.0e-6` is de oplossing stabiel: tussen
+machines verschilt de MAE minder dan 0,001, afgerond in de tabellen niets. Bij het
 actieplan zette de AI één tijd in de tekst die niet gemeten was (15,2 in plaats van 8,0 ms), en
 vinkte ze twee taken af die niet volledig waren; het eerste zag de AI zelf bij het nalezen, het
 tweede kwam boven bij een controle die ik vroeg. Alle fouten
