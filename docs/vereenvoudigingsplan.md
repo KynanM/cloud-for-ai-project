@@ -23,7 +23,7 @@ die meteen de vereenvoudigde code beschrijft.
 | W1.1 monitoringopdracht en `labels` zonder `--nachten` | **gedaan** | test; de opdracht reproduceert het gecommitte bestand |
 | W1.1 README-installatie | **gedaan** (in W3.1) | snelstart letterlijk uitgevoerd in een verse clone, Linux |
 | W1.2 verouderde uitleg | **gedaan** | config, publiceer, monitoring, architectuur, poorten |
-| W1.3 `RESTPLAN.md` | **gedaan** | blok "Bijgewerkt op 22-11-2026" bovenaan |
+| W1.3 `docs/archief/RESTPLAN.md` | **gedaan** | blok "Bijgewerkt op 22-11-2026" bovenaan |
 | W2 bewijstests | **gedaan** | mutatietest, zie hieronder |
 | W3.1–W3.5 documentatie | **gedaan** | README 133 regels; `gebruik.md`, `ontwikkelen.md`, `deployment.md`, `model.md`; geen kapotte links |
 | W4.1 één foutoverzicht | **gedaan** | eerst een test die de melding letterlijk vastlegt |
@@ -34,9 +34,9 @@ die meteen de vereenvoudigde code beschrijft.
 | W5 E9 | **gedaan** | de oude patch werd 0 keer gebruikt; nu een teller per variant en een test |
 | W6.1 `ACTION_PLAN.md` archiveren | **gedaan** | `docs/archief/ACTION_PLAN.md`, verwijzingen bijgewerkt |
 | W6.2 inline comments | doorlopend | |
-| W6.3 dependencies | wacht op `RESTPLAN.md` 3.1 | `pytest-benchmark` is daar gepland |
+| W6.3 dependencies | wacht op `docs/archief/RESTPLAN.md` 3.1 | `pytest-benchmark` is daar gepland |
 | W7.1 MLflow-paden | **gedaan** (in `deployment.md`) | |
-| W7.2, W7.3 publiceren en `deploy.yml` | open, hoort bij `RESTPLAN.md` 1.4 | gedrag, geen opruimwerk |
+| W7.2, W7.3 publiceren en `deploy.yml` | open, hoort bij `docs/archief/RESTPLAN.md` 1.4 | gedrag, geen opruimwerk |
 
 **Afwijking van het plan.** De inhoud van de oude README (data, split, modellen, resultaten,
 bevindingen) is niet over `verantwoording.md` verspreid, maar letterlijk verplaatst naar
@@ -56,7 +56,7 @@ elkaar gelegd:
 
 | Controle | Uitkomst |
 |---|---|
-| Elk bestandspad in de documentatie bestaat | ja (op geplande bestanden in `RESTPLAN.md` na) |
+| Elk bestandspad in de documentatie bestaat | ja (op geplande bestanden in `docs/archief/RESTPLAN.md` na) |
 | Elke CLI-optie in de documentatie bestaat | ja |
 | Config-waarden in de tekst (zekerheid, risicogrens, dekking, capaciteit, bedragen, embargo) | kloppen; één onduidelijke zin over de gevoeligheid rechtgezet |
 | Logica advies k, scope, embargo, poorten, manifest, drift | klopt met de documentatie |
@@ -70,14 +70,14 @@ elkaar gelegd:
 | Secrets in de volledige git-geschiedenis | geen treffers (tokens, sleutels, wachtwoorden, `.env`) |
 | Opdracht deel 2: structuur, exploratie, ≥ 2 modellen, Pandera, tests, README, rapport ≤ 2 p. (898 woorden), data leakage, AI-bijlage | aanwezig |
 | Opdracht deel 3: API met 422, geen secrets, rapport met de vijf vragen (ook 100× verkeer), AI-bijlage | aanwezig |
-| **Opdracht deel 3: publieke URL, online tot na het mondeling** | **ontbreekt**: Space en secrets aanmaken (`RESTPLAN.md` 1.2, door de student), daarna 1.3–1.7 |
+| **Opdracht deel 3: publieke URL, online tot na het mondeling** | **ontbreekt**: Space en secrets aanmaken (`docs/archief/RESTPLAN.md` 1.2, door de student), daarna 1.3–1.7 |
 
 De oorspronkelijke opdrachttekst staat niet in de repo; gecontroleerd tegen de citaten in
-`RESTPLAN.md` en `docs/archief/ACTION_PLAN.md`.
+`docs/archief/RESTPLAN.md` en `docs/archief/ACTION_PLAN.md`.
 
 **Nieuwe bevinding.** Op Linux geeft `python -m src.evaluate` voor logreg andere vierde decimalen
 dan de gecommitte (Windows-)cijfers, met de oude code net zo goed. Op twee decimalen, zoals in de
-tekst, geen verschil. Dat is de meting die `RESTPLAN.md` 3.5 vraagt.
+tekst, geen verschil. Dat is de meting die `docs/archief/RESTPLAN.md` 3.5 vraagt.
 
 ---
 
@@ -85,7 +85,7 @@ tekst, geen verschil. Dat is de meting die `RESTPLAN.md` 3.5 vraagt.
 
 ### 0.1 Deadline deel 2: morgen
 
-Volgens `RESTPLAN.md` (beslissing 0.1) is de mogelijke deadline voor deel 2 **maandag 23-11-2026
+Volgens `docs/archief/RESTPLAN.md` (beslissing 0.1) is de mogelijke deadline voor deel 2 **maandag 23-11-2026
 om 23.59**. Taak A4 (indienen, SHA noteren, tag `deel2-ingediend`) is nog open: er bestaat nog
 geen enkele tag in de repo.
 
@@ -95,14 +95,14 @@ er later ook verandert.
 
 ### 0.2 Deel 3 loopt nog
 
-`RESTPLAN.md` fases 1–4 (publieke URL, rapport deel 3, mondeling) raken dezelfde bestanden als dit
+`docs/archief/RESTPLAN.md` fases 1–4 (publieke URL, rapport deel 3, mondeling) raken dezelfde bestanden als dit
 plan: `README.md` (taak 2.3), `deploy.yml` en `src/publiceer.py` (taak 1.4),
 `docs/architectuur.md` (taak 1.5) en de experimenten (taak 3.2). §11 legt beide plannen in één
 volgorde, zodat er niets twee keer of tegen elkaar in gebeurt.
 
 ### 0.3 Het mondeling
 
-"Op het mondeling kan ik naar elke regel vragen" (`RESTPLAN.md` 4.2). Elke codewijziging hieronder
+"Op het mondeling kan ik naar elke regel vragen" (`docs/archief/RESTPLAN.md` 4.2). Elke codewijziging hieronder
 is dus ook leerstof. Daarom: kleine wijzigingen, één onderwerp per PR, en een uitleg van één zin in
 de PR-beschrijving die je hardop kunt herhalen.
 
@@ -169,9 +169,9 @@ modelset in een vers proces laden.
 
 | Rapport | Wat het zegt | Wat er echt is |
 |---|---|---|
-| 4.2 / S5 | E9 moet rechtgezet worden "vóór je er opnieuw conclusies uit trekt"; resultaten mogelijk opnieuw meten | In de ouder van `bec6182` riep `voer_job_uit()` nog `per_nacht` aan. De gecommitte `e9_aggregatie.csv` is in dezelfde commit gemeten en daarna is de job omgezet: de cijfers waren dus vermoedelijk geldig toen ze gemeten werden. Het besluit ("overgenomen") steunt op de geheugenpiek van de aggregatie, die rechtstreeks gemeten wordt en niet onder de fout valt. **Wat stuk is, is de reproductie:** wie E9 nu opnieuw draait, en dat vraagt `RESTPLAN.md` taak 3.2, krijgt twee keer dezelfde route met twee labels. W5 moet dus vóór taak 3.2, niet per se vóór het indienen. |
-| 6 | `RESTPLAN.md` tegenover `deploy.yml` is een documentatiefout | Het is geen tekstfout maar gepland werk: `RESTPLAN.md` taak 1.4 beschrijft precies die omzetting (kampioen verzenden in plaats van hertrainen). Wel moet `RESTPLAN.md` zeggen dat taken 1.1 (deploy niet rood) en 2.3 (badge naar `main`) in de code al gedaan zijn en alleen nog een run als bewijs missen. |
-| 4.3 | `pytest-benchmark` is mogelijk ongebruikt | Het is vandaag inderdaad nergens geïmporteerd, maar `RESTPLAN.md` taak 3.1 plant er `benchmarks/test_bench_functies.py` mee. Niet verwijderen zolang 3.1 open staat. |
+| 4.2 / S5 | E9 moet rechtgezet worden "vóór je er opnieuw conclusies uit trekt"; resultaten mogelijk opnieuw meten | In de ouder van `bec6182` riep `voer_job_uit()` nog `per_nacht` aan. De gecommitte `e9_aggregatie.csv` is in dezelfde commit gemeten en daarna is de job omgezet: de cijfers waren dus vermoedelijk geldig toen ze gemeten werden. Het besluit ("overgenomen") steunt op de geheugenpiek van de aggregatie, die rechtstreeks gemeten wordt en niet onder de fout valt. **Wat stuk is, is de reproductie:** wie E9 nu opnieuw draait, en dat vraagt `docs/archief/RESTPLAN.md` taak 3.2, krijgt twee keer dezelfde route met twee labels. W5 moet dus vóór taak 3.2, niet per se vóór het indienen. |
+| 6 | `docs/archief/RESTPLAN.md` tegenover `deploy.yml` is een documentatiefout | Het is geen tekstfout maar gepland werk: `docs/archief/RESTPLAN.md` taak 1.4 beschrijft precies die omzetting (kampioen verzenden in plaats van hertrainen). Wel moet `docs/archief/RESTPLAN.md` zeggen dat taken 1.1 (deploy niet rood) en 2.3 (badge naar `main`) in de code al gedaan zijn en alleen nog een run als bewijs missen. |
+| 4.3 | `pytest-benchmark` is mogelijk ongebruikt | Het is vandaag inderdaad nergens geïmporteerd, maar `docs/archief/RESTPLAN.md` taak 3.1 plant er `benchmarks/test_bench_functies.py` mee. Niet verwijderen zolang 3.1 open staat. |
 | 15 | Correcte monitoringopdracht: `labels --nachten resultaten/audit/nachtdiagnose.csv` | **Fout, zie N1.** De juiste invoer is `resultaten/business/replay.csv`. |
 
 ### 2.3 Nieuw: wat het rapport niet zag
@@ -193,14 +193,14 @@ zegt dat ze in `bouw_en_bewaar()` staan, terwijl ze in `src/poorten.py` zitten. 
 **N3. `deploy.yml` kan een andere commit uitrollen dan de CI testte.** Bij `workflow_run` checkt
 `actions/checkout@v4` zonder `ref` de laatste commit van de standaardbranch uit, niet de commit
 waarop de CI groen werd. Bij twee snelle pushes kan een ongeteste versie op de Space komen. Dit
-hoort bij het deploymentbeleid, dus niet in een opruim-PR. → W7.3, samen met `RESTPLAN.md` 1.4.
+hoort bij het deploymentbeleid, dus niet in een opruim-PR. → W7.3, samen met `docs/archief/RESTPLAN.md` 1.4.
 
 **N4. Drie verschillende MLflow-opslagplaatsen.** Lokaal standaard SQLite (`src/tracking.py:32`),
 in de CI `file:./mlruns` (`ci.yml:11`), in compose een aparte server met eigen volume. Het rapport
 noemde er twee. → W7.1.
 
 **N5. Taaknummers in de code wijzen naar `ACTION_PLAN.md`.** 24 verwijzingen als "taak 5.7" in
-`src/` en `benchmarks/`, plus `RESTPLAN.md` en `docs/audit_scope.md`. Wie `ACTION_PLAN.md`
+`src/` en `benchmarks/`, plus `docs/archief/RESTPLAN.md` en `docs/audit_scope.md`. Wie `ACTION_PLAN.md`
 verplaatst, moet die verwijzingen vindbaar houden. → W6.1.
 
 **N6. De voorbeeldopdracht in de README werkt ook zonder `--nacht` en `--as-of`,** maar dan met een
@@ -216,7 +216,7 @@ en ze is wat de API verplicht. → W3.1 gebruikt de expliciete vorm.
 | 0 | W0 | Indienen, taggen, beslissen | — | 30 min [S] | vóór 23-11, 23.59 |
 | 1 | W1.1 | Werkende opdrachten: installatie, testvolgorde, monitoring | laag | 1 u | direct na W0 |
 | 1 | W1.2 | Verouderde uitleg gelijkzetten met de code | laag | 1,5 u | direct na W0 |
-| 1 | W1.3 | `RESTPLAN.md` bijwerken | laag | 30 min | direct na W0 |
+| 1 | W1.3 | `docs/archief/RESTPLAN.md` bijwerken | laag | 30 min | direct na W0 |
 | 2 | W2 | Bewijstests: één aangewezen bron per cijfer | middel | 2–3 u | vóór W3 |
 | 3 | W3.1 | README als voordeur | middel | 2 u | na W2 |
 | 3 | W3.2 | `docs/gebruik.md` | laag | 1,5 u | na W2 |
@@ -228,13 +228,13 @@ en ze is wat de API verplicht. → W3.1 gebruikt de expliciete vorm.
 | 4 | W4.3 | Training niet meer importeren bij voorspellen | middel | 1 u | na fase 3 |
 | 4 | W4.4 | Gedeelde categorieën | middel | 1 u | na fase 3 |
 | 4 | W4.5 | Grafieken uit `evaluate.py` | middel | 1,5 u | optioneel |
-| 5 | W5 | E9-meetcorrectie | middel (code), hoog (claims) | 1,5 u | vóór `RESTPLAN.md` 3.2 |
+| 5 | W5 | E9-meetcorrectie | middel (code), hoog (claims) | 1,5 u | vóór `docs/archief/RESTPLAN.md` 3.2 |
 | 6 | W6.1 | `ACTION_PLAN.md` archiveren | laag–middel | 45 min | na deel 3 |
 | 6 | W6.2 | Inline comments: reden in plaats van geschiedenis | laag | doorlopend | bij elke aanraking |
-| 6 | W6.3 | Dependencies en gegenereerde bestanden | middel | 1 u | na `RESTPLAN.md` 3.1 |
-| 7 | W7.1 | MLflow-paden uitleggen | laag | 45 min | met `RESTPLAN.md` 1.4 |
-| 7 | W7.2 | Publiceren: garantie rechtzetten en foutinjectietest | middel | 1 u | met `RESTPLAN.md` 1.4 |
-| 7 | W7.3 | `deploy.yml` op de geteste commit | middel | 30 min | met `RESTPLAN.md` 1.4 |
+| 6 | W6.3 | Dependencies en gegenereerde bestanden | middel | 1 u | na `docs/archief/RESTPLAN.md` 3.1 |
+| 7 | W7.1 | MLflow-paden uitleggen | laag | 45 min | met `docs/archief/RESTPLAN.md` 1.4 |
+| 7 | W7.2 | Publiceren: garantie rechtzetten en foutinjectietest | middel | 1 u | met `docs/archief/RESTPLAN.md` 1.4 |
+| 7 | W7.3 | `deploy.yml` op de geteste commit | middel | 30 min | met `docs/archief/RESTPLAN.md` 1.4 |
 
 **[S]** = alleen de student. De rest kan Claude uitvoeren; elke PR leest de student na.
 
@@ -244,7 +244,7 @@ en ze is wat de API verplicht. → W3.1 gebruikt de expliciete vorm.
 
 ### W0: Deel 2 vastzetten [S]
 
-1. `RESTPLAN.md` A2 afwerken: de AI-bijlage nalezen.
+1. `docs/archief/RESTPLAN.md` A2 afwerken: de AI-bijlage nalezen.
 2. A4: indienen, de SHA van `main` noteren, tag zetten:
 
    ```bash
@@ -324,7 +324,7 @@ Geen gedrag verandert, dus het voorbeeldadvies blijft City 3, Resort 0.
 - [ ] Geen tegenstrijdigheid meer tussen "In het kort" en de poortensectie
 - [ ] Geen document belooft meer een atomische omschakeling
 
-### W1.3: `RESTPLAN.md` bijwerken
+### W1.3: `docs/archief/RESTPLAN.md` bijwerken
 
 - Taken 1.1 en 2.3 (badge): "geïmplementeerd in `ca097fd`; bewijs (groene run zonder `HF_SPACE`)
   nog toe te voegen".
@@ -446,7 +446,7 @@ verplaatsen. Nooit alleen schrappen.
    `advies.csv`; "k = zoveel kamers mag het hotel extra verkopen"; de agentwaarschuwing is een
    waarschuwing, geen fout.
 5. **De API openen.** `uvicorn` met de venv-Python, `/docs` en `/health`; "blijft draaien in de
-   terminal, `Ctrl+C` stopt". Een publieke URL pas als `RESTPLAN.md` 1.3 ze bewezen heeft.
+   terminal, `Ctrl+C` stopt". Een publieke URL pas als `docs/archief/RESTPLAN.md` 1.3 ze bewezen heeft.
 6. **Waar staat wat?** Zes bestanden (`predict.py`, `api.py`, `scope.py`, `nachten.py`,
    `train.py`, `configs/default.yaml`) met één zin elk, en de links naar de vier docs.
 7. **Beperking en verdieping.** Onderzoeksproject op historische data; het advies is geen garantie.
@@ -612,7 +612,7 @@ aangeroepen. Dezelfde controle als test in `tests/`, zodat een volgende ombouw v
 
 1. `docs/optimalisaties.md` (rij E9): een noot dat de kernmeting sinds `bec6182` niet
    reproduceerbaar was en sinds deze PR weer wel.
-2. Pas dan `RESTPLAN.md` taak 3.2 (smoke toevoegen en E9 opnieuw meten).
+2. Pas dan `docs/archief/RESTPLAN.md` taak 3.2 (smoke toevoegen en E9 opnieuw meten).
 3. Wijken de nieuwe kerncijfers af van de oude, dan beide bewaren en het verschil verklaren. Het
    besluit verandert niet, want het steunt op de geheugenpiek.
 
@@ -629,10 +629,10 @@ aangeroepen. Dezelfde controle als test in `tests/`, zodat een volgende ombouw v
 ### W6.1: `ACTION_PLAN.md` archiveren (na deel 3)
 
 - Verplaatsen met `git mv ACTION_PLAN.md docs/archief/ACTION_PLAN.md`, zodat de geschiedenis volgt.
-- Verwijzingen aanpassen in `RESTPLAN.md` en `docs/audit_scope.md`.
+- Verwijzingen aanpassen in `docs/archief/RESTPLAN.md` en `docs/audit_scope.md`.
 - De 24 "taak X.Y"-verwijzingen in de code blijven staan; bovenaan `docs/archief/ACTION_PLAN.md`
   één zin dat die nummers daarnaar verwijzen.
-- Na deel 3 ook `RESTPLAN.md` naar het archief; tot dan blijft het de enige actuele takenlijst.
+- Na deel 3 ook `docs/archief/RESTPLAN.md` naar het archief; tot dan blijft het de enige actuele takenlijst.
 
 ### W6.2: Inline comments
 
@@ -640,7 +640,7 @@ Bij elke aanraking van een bestand: geschiedenis ("eerst X, daarna Y, gemeten op
 door de reden in één zin plus een verwijzing. Behouden: `kenmerken.py` (stabiele modulepaden),
 `folds.py` (embargo), `scope.py` (geldig ≠ toepasbaar), `nachten.py` (spreiding en marge).
 
-### W6.3: Dependencies en gegenereerde bestanden (na `RESTPLAN.md` 3.1)
+### W6.3: Dependencies en gegenereerde bestanden (na `docs/archief/RESTPLAN.md` 3.1)
 
 - Per pakket in `requirements*.in`: imports (`grep`), pytest-plugins, CLI-opdrachten, geplande
   taken. Pas verwijderen als alle vier leeg zijn, en dan de lockfiles opnieuw genereren.
@@ -658,29 +658,29 @@ exporteren, dan pas documenteren als ondersteund.
 - Foutinjectietest: `os.replace` laten falen bij de tweede aanroep en vastleggen wat er gebeurt.
 - Daarna kiezen: de huidige garantie documenteren (W1.2 doet dat al), of `exporteer()` laten
   terugvallen op `.oud` als de tweede hernoeming faalt. Dat laatste is gedrag en hoort bij
-  `RESTPLAN.md` 1.4, niet bij opruimen.
+  `docs/archief/RESTPLAN.md` 1.4, niet bij opruimen.
 
 ### W7.3: `deploy.yml` op de geteste commit
 
 - `actions/checkout@v4` met `ref: ${{ github.event.workflow_run.head_sha || github.sha }}`.
-- Samen met beslissing D3 en `RESTPLAN.md` 1.4: wordt het kampioenmodel verzonden, dan traint
+- Samen met beslissing D3 en `docs/archief/RESTPLAN.md` 1.4: wordt het kampioenmodel verzonden, dan traint
   `deploy.yml` niet meer.
 
 ---
 
-## 11. Eén volgorde voor dit plan en `RESTPLAN.md`
+## 11. Eén volgorde voor dit plan en `docs/archief/RESTPLAN.md`
 
 | Stap | Wat | Waarom hier |
 |---|---|---|
-| 1 | **W0** + `RESTPLAN.md` A2–A4 | deadline; daarna is alles veilig |
+| 1 | **W0** + `docs/archief/RESTPLAN.md` A2–A4 | deadline; daarna is alles veilig |
 | 2 | **W1.1–W1.3** | klein, laag risico, helpt meteen bij het mondeling |
-| 3 | `RESTPLAN.md` 1.2 [S] (Space en secrets) | de kritieke weg van deel 3; kan parallel |
-| 4 | **W2**, dan **W3.1–W3.5** | vóór `RESTPLAN.md` 2.3, zodat de URL in de nieuwe README komt |
-| 5 | `RESTPLAN.md` 1.3–1.7, met **W7.1–W7.3** in 1.4 | dezelfde bestanden, één keer aanraken |
-| 6 | `RESTPLAN.md` 2.1–2.4 (rapport deel 3, indienen) | — |
-| 7 | **W5**, dan `RESTPLAN.md` 3.2 | de meetcorrectie vóór de herhaling |
+| 3 | `docs/archief/RESTPLAN.md` 1.2 [S] (Space en secrets) | de kritieke weg van deel 3; kan parallel |
+| 4 | **W2**, dan **W3.1–W3.5** | vóór `docs/archief/RESTPLAN.md` 2.3, zodat de URL in de nieuwe README komt |
+| 5 | `docs/archief/RESTPLAN.md` 1.3–1.7, met **W7.1–W7.3** in 1.4 | dezelfde bestanden, één keer aanraken |
+| 6 | `docs/archief/RESTPLAN.md` 2.1–2.4 (rapport deel 3, indienen) | — |
+| 7 | **W5**, dan `docs/archief/RESTPLAN.md` 3.2 | de meetcorrectie vóór de herhaling |
 | 8 | **W4.1–W4.4** | pas als de code niet meer moet bewegen voor het rapport; elk apart |
-| 9 | `RESTPLAN.md` 4.1–4.3 (mondeling) | de rondleiding beschrijft dan de vereenvoudigde code |
+| 9 | `docs/archief/RESTPLAN.md` 4.1–4.3 (mondeling) | de rondleiding beschrijft dan de vereenvoudigde code |
 | 10 | **W6.1**, **W6.3**, **W4.5** | na deel 3 |
 
 Ligt het mondeling vóór stap 8, dan schuift fase 4 naar erna: liever code die je kunt uitleggen dan
@@ -736,9 +736,9 @@ code die net veranderd is.
 
 | # | Vraag | Voorstel | Gevolg |
 |---|---|---|---|
-| D1 | Blijft `main` bevroren tot deel 2 ingediend en getagd is? | **Ja.** Ook W1.1, hoewel het de README voor deel 2 zou verbeteren: de snelstart werkt (`RESTPLAN.md` A3, 21-11), en een wijziging een dag voor de deadline is meer risico dan winst | Fase 1 start na de tag |
+| D1 | Blijft `main` bevroren tot deel 2 ingediend en getagd is? | **Ja.** Ook W1.1, hoewel het de README voor deel 2 zou verbeteren: de snelstart werkt (`docs/archief/RESTPLAN.md` A3, 21-11), en een wijziging een dag voor de deadline is meer risico dan winst | Fase 1 start na de tag |
 | D2 | Wat is de eerste demonstratie in de README? | **Lokaal een CSV**, dan de lokale API, dan de Space als verdieping | Bepaalt W3.1 §3–§5 |
-| D3 | Welk model draait de Space? | Al beslist in `RESTPLAN.md` 0.3: **het MLflow-kampioenmodel**. `deploy.yml` traint nu nog opnieuw; dat wordt rechtgezet in `RESTPLAN.md` 1.4 | W7.3 hoort bij 1.4 |
+| D3 | Welk model draait de Space? | Al beslist in `docs/archief/RESTPLAN.md` 0.3: **het MLflow-kampioenmodel**. `deploy.yml` traint nu nog opnieuw; dat wordt rechtgezet in `docs/archief/RESTPLAN.md` 1.4 | W7.3 hoort bij 1.4 |
 | D4 | Welke cijfers moet de README blijven tonen? | **Drie:** MAE boosting tegenover vuistregel (validatie), het risico per hotel op de test, de p95-latency in de container. Alle drie geankerd | Bepaalt de README-rijen in W2 |
 | D5 | Mogen `rapport/rapport.md`, de bestandsnamen onder `resultaten/` en de CLI-namen veranderen? | **Nee** voor alle drie: het rapport is de bron van een ingediende PDF, de resultaatbestanden zijn bewijs, de CLI-namen staan in rapporten en oefenvragen | Dit plan raakt ze niet |
 
@@ -750,7 +750,7 @@ code die net veranderd is.
 |---|---|---|
 | Q1, §6 installatie en monitoring, §15 | werkende opdrachten | W1.1 (met correctie N1) |
 | Q2, §6 architectuur, config, poorten | verouderde uitleg | W1.2 (met N2) |
-| §6 `RESTPLAN.md` | status rechtzetten | W1.3 |
+| §6 `docs/archief/RESTPLAN.md` | status rechtzetten | W1.3 |
 | Q3, 3.3 | dubbele foutgroepering | W4.1 |
 | Q4 | `advies_uit` | W4.2 |
 | Q5, §5 | historische plannen | W1.3, W6.1 (met N5) |

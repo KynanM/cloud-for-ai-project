@@ -1,3 +1,5 @@
+> Archief: intern werkplan, niet bijgewerkt na 23-11-2026.
+
 # Restplan: wat er nog moet gebeuren na de merge van het actieplan
 
 Opgesteld op 20-11-2026, na de merge van PR #4 (`2112c6a` op `main`). Vervolgt `docs/archief/ACTION_PLAN.md`;
