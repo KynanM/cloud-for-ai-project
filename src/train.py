@@ -8,9 +8,6 @@ import argparse
 import json
 import logging
 import sys
-import tempfile
-from functools import partial
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -33,11 +30,10 @@ from .baseline import Vuistregel, maak_vuistregel
 from .config import PROJECT, invoerkolommen, laad_config
 from .data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from .folds import embargo_einde  # één formule voor de split en de rolling-origin-folds
+from .kansen import voorspel
 from .kenmerken import als_tekst, land_als_groep
 from .logboek import zet_logging_op
 from .manifest import bestand_hash as manifest_hash
-from .manifest import maak_manifest
-from .monitoring import drift_drempels, referentie
 from .nachten import (
     alleen_volledig,
     beoordeel,
@@ -47,9 +43,8 @@ from .nachten import (
     per_nacht,
     spreidingsfactor,
 )
-from .poorten import als_dicts, beleidspoorten, ml_poorten, softwarepoorten
-from .predict import voer_job_uit, voorspel
-from .scope import controleer_scope
+from .poorten import als_dicts, beleidspoorten, ml_poorten
+from .vrijgave import bereid_serving_voor
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -256,22 +251,6 @@ def valideer(df: pd.DataFrame, cfg: dict, delen: dict | None = None) -> dict:
     }
 
 
-def portefeuille_van_een_nacht(deel: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.Timestamp]:
-    """De boekingen die verblijven in de nacht met de mediane portefeuille van `deel`, zonder label.
-
-    Voor de softwarepoort: een realistische adviesjob, uit de validatie (nooit uit de test).
-    """
-    nachten = per_nacht(deel, np.zeros(len(deel)), cfg)
-    per_datum = nachten.groupby("nacht")["boekingen"].sum().sort_values()
-    nacht = pd.Timestamp(per_datum.index[len(per_datum) // 2])
-    aankomst = aankomstdatum(deel)
-    vertrek = aankomst + pd.to_timedelta(
-        deel["stays_in_weekend_nights"] + deel["stays_in_week_nights"], unit="D"
-    )
-    binnen = deel[(aankomst <= nacht) & (nacht < vertrek)]
-    return binnen.drop(columns=[cfg["doel"]]), nacht
-
-
 # Een gefaalde poort in gewone woorden. De andere krijgen Poort.tekst().
 MELDINGEN = {
     "AUC": "AUC {p.waarde:.3f} ligt onder het minimum {p.grens}",
@@ -339,46 +318,6 @@ def keur_op_validatie(
     return v, cap, per_hotel, lijst
 
 
-def meet_software(model: Model, v: dict, cap: dict, delen: dict, cfg: dict, poorten: bool) -> list:
-    """De softwarepoort (deel 3): latency van een adviesjob en grootte van het model.
-
-    Het model dat weggeschreven wordt, op één nacht van de validatie, tegen de grens van de
-    softwaremetriek (les 06 p. 23: de softwaremetriek is de grens).
-    """
-    deel, nacht = portefeuille_van_een_nacht(delen["validatie"], cfg)
-    instellingen = {"factor": v["factor"], "capaciteit": cap}
-    as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
-    # Eén keer melden wat buiten scope valt; tijdens de 33 metingen zwijgt src.scope (poorten.stil)
-    controleer_scope(deel, cfg, nacht, as_of=as_of)
-    een_job = partial(voer_job_uit, deel, model, instellingen, cfg, nacht, as_of=as_of)
-    with tempfile.TemporaryDirectory() as tmp:
-        tijdelijk = Path(tmp) / "model.joblib"
-        joblib.dump(model, tijdelijk, compress=cfg["model"]["compress"])  # zoals weggeschreven
-        software = softwarepoorten(een_job, tijdelijk, cfg)
-    controleer_poorten(software, poorten)
-    return software
-
-
-def stel_manifest_op(
-    df: pd.DataFrame, ruw: pd.DataFrame, delen: dict, lijst: list, cfg: dict, poorten: bool
-) -> dict:
-    """Het manifest van de run: config, data, poorten, en de referentie voor de driftmeting."""
-    g = grenzen(cfg)
-    manifest = maak_manifest(cfg, ruw, g)
-    manifest["poorten_overgeslagen"] = not poorten
-    manifest["poorten"] = als_dicts(lijst)
-    # Verdelingen van de hertraining, voor de driftmeting per verzoek (src/monitoring.py)
-    manifest["referentie"] = referentie(delen["hertraining"])
-    # Alarmdrempels voor de drift, geijkt op de portefeuilles van de validatie (src/monitoring.py)
-    manifest["drift_drempels"] = drift_drempels(
-        df,
-        manifest["referentie"],
-        g["validatie_start"],
-        g["validatie_einde"],
-    )
-    return manifest
-
-
 def adviesinstellingen(run_id: str, v: dict, cap: dict, cfg: dict) -> dict:
     """Wat het advies k naast het model nodig heeft: de spreidingsfactor en de capaciteit."""
     return {
@@ -417,9 +356,9 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
     `poorten=False` slaat de poorten over, alleen om een model te meten dat ze niet haalt (de
     vuistregel in de benchmarks); het manifest zegt dan `poorten_overgeslagen: true`.
 
-    Deel 2: keur_op_validatie, hertrain en schrijf_weg. Deel 3 (les 06 en 10) voorbereid:
-    meet_software (de softwarepoort) en stel_manifest_op (manifest, driftreferentie en
-    -drempels). Die blijven hier, want CI, src.publiceer, de API en src.monitoring steunen erop.
+    Deel 2: keur_op_validatie, hertrain en schrijf_weg. Deel 3 (les 06 en 10) voorbereid in
+    src/vrijgave.py: de softwarepoort en het manifest met driftreferentie en -drempels. Die stap
+    blijft in de training, want de CI, de publicatie, de API en de driftmeting steunen erop.
     """
     df = bereid_voor(ruw, cfg)
     delen = splits(df, cfg)  # één keer: elke stap hieronder gebruikt dezelfde delen
@@ -428,9 +367,10 @@ def bouw_en_bewaar(ruw: pd.DataFrame, cfg: dict, poorten: bool = True) -> dict:
 
     model, test_auc = hertrain(df, cfg, delen)
     logger.info("AUC op de test, na hertrainen: %.3f (alleen gerapporteerd)", test_auc)
-    lijst += meet_software(model, v, cap, delen, cfg, poorten)
-
-    manifest = stel_manifest_op(df, ruw, delen, lijst, cfg, poorten)
+    # Deel 3: softwarepoort en manifest (src/vrijgave.py); train keurt de poorten zelf
+    gemeten = {"delen": delen, "g": grenzen(cfg), "v": v, "cap": cap, "lijst": lijst}
+    gemeten["poorten"] = poorten
+    manifest, lijst = bereid_serving_voor(model, df, ruw, gemeten, cfg, controleer_poorten)
     schrijf_weg(model, manifest, adviesinstellingen(manifest["run_id"], v, cap, cfg), cfg)
     return {
         **{k: w for k, w in v.items() if k != "nachten"},

@@ -22,6 +22,7 @@ from sklearn.metrics import brier_score_loss, roc_auc_score
 
 from .config import laad_config
 from .data import bereid_voor, laad_data, stop_bij_fout
+from .kansen import voorspel
 from .logboek import zet_logging_op
 from .nachten import (
     beoordeel,
@@ -29,7 +30,6 @@ from .nachten import (
     capaciteit,
     spreidingsfactor,
 )
-from .predict import voorspel
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits, volledige_nachten
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
