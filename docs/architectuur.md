@@ -53,6 +53,13 @@ data/hotel_bookings.csv
 
 Alles in `train.bouw_en_bewaar()`. Faalt één poort, dan wordt er niets weggeschreven.
 
+**Waarom niet `train_test_split`.** Het sjabloon van labo 5 splitst willekeurig, met `stratify`.
+Hier zou dat de toekomst in de training laten lekken en exacte kopieën over de split verspreiden:
+logreg haalt dan een AUC van 0,756, in de tijd 0,627. Daarom vier delen op aankomstdatum, met een
+embargo: training (leren), validatie (kiezen, de poorten), hertraining (opnieuw leren tot vlak
+vóór de test) en test (één keer meten, alleen rapporteren). Uitleg en cijfers:
+[model.md](model.md#de-split-in-de-tijd-op-aankomstdatum).
+
 ## Waarom deze controles blijven
 
 Ze lijken misschien overbodig, maar elk vangt een ander probleem:
