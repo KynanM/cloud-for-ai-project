@@ -28,31 +28,6 @@ jobs:
             resultaten/software/gate.json
             logs/
 
-  docker:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-      - run: pip install --require-hashes -r requirements-dev.lock
-      - run: python -m src.train && python -m src.publiceer
-      - run: docker build -t overboeking:ci .
-      - name: imagegrootte
-        run: |
-          grootte=$(docker image inspect -f '{{.Size}}' overboeking:ci)
-          echo "imagegrootte: $((grootte / 1024 / 1024)) MB"
-          test "$grootte" -lt 1073741824
-      - name: rooktest
-        run: |
-          docker run -d --name api -p 7860:7860 overboeking:ci
-          for i in $(seq 1 30); do curl -sf localhost:7860/health && break; sleep 2; done
-          curl -sf localhost:7860/health
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:7860/advies \
-            -H 'content-type: application/json' -d '{"nacht":"2017-08-15","boekingen":[]}')
-          test "$code" = "422"
-
   notebook:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

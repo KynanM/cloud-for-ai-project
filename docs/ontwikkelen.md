@@ -138,7 +138,10 @@ Bij elke push (`.github/workflows/ci.yml`):
 2. `ruff check` en `ruff format --check`;
 3. `python -m src.train`, met de poorten;
 4. `pytest`;
-5. de werklasten `smoke` en `normaal`, en de performancegate (`benchmarks.gate`);
-6. het image bouwen (kleiner dan 1 GB), starten, `/health` en een 422 op een leeg verzoek.
+5. de werklasten `smoke` en `normaal`, en de performancegate (`benchmarks.gate`).
 
-Na een groene CI op `main` start `deploy.yml` (zie [deployment.md](deployment.md)).
+Apart, in `.github/workflows/docker.yml` (deel 3): het image bouwen (kleiner dan 1 GB), starten,
+`/health` en een 422 op een leeg verzoek. Zo wordt de badge `ci` van deel 2 niet rood door de
+container; de README toont een tweede badge `docker` onder "Deel 3".
+
+Na een groene `ci` op `main` start `deploy.yml` (zie [deployment.md](deployment.md)).
