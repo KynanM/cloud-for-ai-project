@@ -160,3 +160,13 @@ terminal; `Ctrl+C` stopt het.
   monitoring ([docs/gebruik.md](docs/gebruik.md#monitoring)).
 
 De volledige lijst: [docs/model.md](docs/model.md#grenzen).
+
+## Data en licentie
+
+- **Dataset:** *Hotel booking demand* (Antonio, Almeida & Nunes, 2019, *Data in Brief* 22,
+  <https://doi.org/10.1016/j.dib.2018.11.126>), via
+  [Kaggle](https://www.kaggle.com/datasets/jessemostipak/hotel-booking-demand). Licentie op
+  Kaggle: Attribution 4.0 International (CC BY 4.0). Staat in `data/hotel_bookings.csv`.
+- **Code:** geschreven voor het vak Cloud for AI (VIVES, 2026-2027); er is geen aparte licentie
+  voor de code.
+- **Contact:** Kynan Melsens, kynan.melsens@student.vives.be
