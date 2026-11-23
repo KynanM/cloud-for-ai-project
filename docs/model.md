@@ -185,7 +185,7 @@ draait ze allemaal, met en zonder land.
    normale benadering. Er is geen maximum per nacht (`advies.max_aandeel: null`); de
    bescherming voor de gast is de zekerheid zelf. De risicogrens van 20 % begrenst het advies
    niet tijdens het voorspellen: ze is het criterium waarmee de zekerheid op de validatie
-   gekozen is (`drempel()` in `src/experimenten.py`), en wordt na de evaluatie gemeten.
+   gekozen is (`drempel()` in `src/onderzoek/experimenten.py`), en wordt na de evaluatie gemeten.
 4. **Capaciteit.** De dataset zegt niet hoeveel kamers er zijn. Daarom het 99ste percentiel
    van de bezette kamers per nacht in de training, uit alle uitgecheckte boekingen. City komt
    op 226 kamers, Resort op 184. Een nacht telt als volgeboekt vanaf 95 % van de capaciteit.
@@ -203,7 +203,7 @@ Dezelfde functie (`met_advies()` in `src/nachten.py`) geeft het advies in de eva
 
 `python -m src.evaluate` schrijft alles naar `resultaten/`: `evaluatie.csv` (per model en per
 hotel, met de gevoeligheid voor r = 0,3 of W = 3), `groepen.csv`, `winstcurve.csv`,
-`winstcurve.png` en `ijking.png`. `python -m src.experimenten` voegt in `resultaten/audit/` de
+`winstcurve.png` en `ijking.png`. `python -m src.onderzoek.experimenten` voegt in `resultaten/audit/` de
 vergelijkingen, de foutenanalyse en de gevoeligheid toe. Hieronder beide hotels samen.
 
 Validatie (Q1 2017, 164 hotel-nachten, waarvan 30 volgeboekt). Hier wordt gekozen. "Te veel":
@@ -273,7 +273,7 @@ de hertraining, één keer op de test gemeten, en weggeschreven. Naast `models/m
 
 Naast model en advies schrijft `src.train` `models/manifest.json`: run, commit, sha256 van de
 data, een hash van de config, de features, de trainperiode, de zekerheid, de versies van de
-bibliotheken en de sha256 van model en advies (`src/manifest.py`). `src.predict` stopt met een
+bibliotheken en de sha256 van model en advies (`src/serving/manifest.py`). `src.predict` stopt met een
 duidelijke melding als het model- of adviesbestand niet van die run is, of als de config sinds het
 trainen anders beslist (features, label, split, advies of model). Een andere winstcurve of
 gevoeligheidsanalyse mag wel. Getest in `tests/test_systeem.py`, ook met een bewust verwisseld

@@ -39,6 +39,7 @@ UIT = PROJECT / "resultaten" / "software" / "gate.json"
 
 
 def meet(runs: int) -> np.ndarray:
+    """Meet de kern op de normale workload, `runs` keer."""
     cfg = laad_config()
     model = laad_model(cfg["model"]["pad"])
     instellingen = laad_advies(cfg["model"]["advies_pad"])
@@ -60,10 +61,12 @@ def meet(runs: int) -> np.ndarray:
 
 
 def sleutel() -> str:
+    """Het platform, want de referentietijden verschillen per besturingssysteem."""
     return f"{platform.system()}-{platform.machine()}"
 
 
 def main(argv: list[str]) -> None:
+    """python -m benchmarks.gate: faal als de kern merkbaar trager is dan de referentie."""
     parser = argparse.ArgumentParser(description="Performancepoort voor CI.")
     parser.add_argument("--runs", type=int, default=BENCH["ci"]["runs"])
     parser.add_argument(

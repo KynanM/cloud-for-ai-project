@@ -6,7 +6,7 @@ import pytest
 
 from src.folds import embargo_einde, folds
 from src.nachten import beoordeel
-from src.robuustheid import blokbootstrap, wilson
+from src.onderzoek.robuustheid import blokbootstrap, wilson
 from src.train import grenzen
 
 
@@ -95,7 +95,7 @@ def test_risiconoemers_met_de_hand():
 
 def test_de_test_is_afgeschermd(ruw, cfg):
     from src.evaluate import met
-    from src.experimenten import Opzet
+    from src.onderzoek.experimenten import Opzet
 
     o = Opzet(ruw, cfg)
     with pytest.raises(PermissionError, match="test"):

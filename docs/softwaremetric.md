@@ -147,7 +147,7 @@ regel (laagste MAE binnen de grens) kiest boosting.
 
 ### De primaire metriek: `POST /advies` over HTTP (fase 2)
 
-Sessie `fase2_http`: `uvicorn src.api:app` op dezelfde machine, één worker, 10 opwarm + 200
+Sessie `fase2_http`: `uvicorn src.serving.api:app` op dezelfde machine, één worker, 10 opwarm + 200
 gemeten, het hele pad inclusief JSON en Pydantic.
 
 | Workload | Boekingen | p50 (ms) | **p95 (ms)** [95 %-interval] | max (ms) | Mislukt / ongeldig | Grens gehaald |

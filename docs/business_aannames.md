@@ -2,7 +2,7 @@
 
 De businessmetriek is de **europroxy per volgeboekte nacht**. Dit document zegt wat ze meet, onder
 welke voorwaarden ze klopt, en wat ze niet mag beweren. De rekensommen staan als tests in
-`tests/test_businessrekening.py`; de cijfers komen uit `python -m src.experimenten`
+`tests/test_businessrekening.py`; de cijfers komen uit `python -m src.onderzoek.experimenten`
 (`resultaten/audit/`).
 
 ## De formule

@@ -1,4 +1,4 @@
-# Aannames voor de ROI-raming (src/business.py, taak 4.2). Alles hier is AANGENOMEN, niet gemeten.
+# Aannames voor de ROI-raming (src/onderzoek/business.py, taak 4.2). Alles hier is AANGENOMEN, niet gemeten.
 # Wat gemeten is (de meerwaarde per volle nacht, het aantal volle nachten, de infrastructuur),
 # komt uit resultaten/.
 uurtarief_eur: 60 # aanname: kost van een uur van een data engineer of revenue manager

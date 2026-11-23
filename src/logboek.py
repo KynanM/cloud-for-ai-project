@@ -8,8 +8,8 @@ Twee formaten (`logs_formaat` in de config, of de omgevingsvariabele OVERBOEKING
 
 - tekst: één leesbare regel per gebeurtenis (standaard op de opdrachtregel)
 - json: één JSON-object per regel, met tijd, niveau, module, bericht en de velden die de code
-  meegeeft (`logger.info("verzoek", extra={"velden": {...}})`). Zo kan src.monitoring de logs
-  lezen zonder tekst te ontleden (taak 5.7)
+  meegeeft (`logger.info("verzoek", extra={"velden": {...}})`). Zo kan src.serving.monitoring
+  de logs lezen zonder tekst te ontleden (taak 5.7)
 
 Het logbestand roteert elke nacht en bewaart 30 dagen (`logs_retentie_dagen`).
 """
@@ -27,6 +27,7 @@ FORMAAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 class JsonFormaat(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        """Eén logregel als één JSON-object, met de extra velden van de aanroeper."""
         regel = {
             "tijd": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
             "niveau": record.levelname,

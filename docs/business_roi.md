@@ -7,7 +7,7 @@ wordt ook verkocht ([business_aannames.md](business_aannames.md)). Hier worden d
 gevarieerd, en wordt een netto waarde per maand geraamd. Elke invoer is gelabeld: **gemeten**,
 **geraamd** of **aangenomen**.
 
-Code: `src/business.py`. Vooraf vastgelegd: `configs/experimenten/e8_business.yaml`,
+Code: `src/onderzoek/business.py`. Vooraf vastgelegd: `configs/experimenten/e8_business.yaml`,
 `e8b_roi.yaml`, `e8c_verband.yaml`. MLflow-experimenten met dezelfde naam.
 
 ## 1. Businessstress: 108 scenario's (taak 4.1)

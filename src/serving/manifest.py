@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import PROJECT, invoerkolommen
+from ..config import PROJECT, invoerkolommen
 
 # Wat het gedrag van model en advies bepaalt. Paden, logs, de winstcurve en de
 # gevoeligheidsanalyse horen er niet bij: die veranderen niets aan wat het hotel te zien krijgt.
@@ -66,6 +66,7 @@ def commit() -> str:
 
 
 def versies() -> dict[str, str]:
+    """De versies van Python en de bibliotheken die model en advies bepalen."""
     uit = {"python": platform.python_version()}
     for naam in BIBLIOTHEKEN:
         try:

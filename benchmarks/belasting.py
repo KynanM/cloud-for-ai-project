@@ -28,6 +28,7 @@ BENCH = yaml.safe_load((PROJECT / "configs" / "benchmark.yaml").read_text(encodi
 
 
 def lichaam() -> bytes:
+    """Het verzoek van de normale workload, als bytes."""
     from benchmarks.bench import verzoek, workloads
 
     wl = workloads()["normaal"]
@@ -36,11 +37,13 @@ def lichaam() -> bytes:
 
 
 async def trap(url: str, inhoud: bytes, rps: float, duur_s: float, timeout: float) -> dict:
+    """Stuur `rps` verzoeken per seconde gedurende `duur_s`, en geef tijden en statussen."""
     import httpx
 
     resultaten: list[tuple[float, int]] = []
 
     async def een(client):
+        """Eén verzoek: latency en status naar de resultaten (status 0 bij een HTTP-fout)."""
         start = time.perf_counter()
         try:
             r = await client.post(
@@ -82,6 +85,7 @@ async def trap(url: str, inhoud: bytes, rps: float, duur_s: float, timeout: floa
 
 
 def main(argv: list[str]) -> None:
+    """python -m benchmarks.belasting: een loadtest in trappen tegen POST /advies."""
     parser = argparse.ArgumentParser(description="Loadtest van POST /advies.")
     parser.add_argument("--url", default="http://127.0.0.1:7860")
     parser.add_argument("--variant", required=True)

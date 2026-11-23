@@ -1,6 +1,6 @@
 """Controles op de data en het besliscontract, vóór er een model aan te pas komt.
 
-python -m src.audit
+python -m src.onderzoek.audit
 
 Schrijft naar `<resultaten>/audit/`:
 
@@ -21,12 +21,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .config import laad_config
-from .data import aankomstdatum, laad_data, maak_label, schoon_op
-from .logboek import zet_logging_op
-from .manifest import commit, versies
-from .nachten import dekking
-from .train import grenzen, splits
+from ..config import laad_config
+from ..data import aankomstdatum, laad_data, maak_label, schoon_op, stop_bij_fout
+from ..logboek import zet_logging_op
+from ..nachten import dekking
+from ..serving.manifest import commit, versies
+from ..train import grenzen, splits
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
@@ -96,6 +96,7 @@ def boeking_nachten(schoon: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     horizon = np.timedelta64(cfg["label"]["horizon_dagen"], "D")
 
     def actief(t: np.ndarray) -> np.ndarray:
+        """Per boeking-nacht: geboekt op tijdstip t en dan nog niet geannuleerd."""
         return (geboekt[i] <= t) & ~(geannuleerd[i] & (status[i] <= t))
 
     return pd.DataFrame(
@@ -177,7 +178,9 @@ def dekkingstabel(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return uit[["periode", "hotel", "nacht", "dekking", "meegeteld"]]
 
 
+@stop_bij_fout()
 def main() -> None:
+    """python -m src.onderzoek.audit: filterwaterval, contract A tegenover B, dekking per nacht."""
     cfg = laad_config()
     zet_logging_op(cfg, "audit")
     uit = cfg["resultaten"] / "audit"

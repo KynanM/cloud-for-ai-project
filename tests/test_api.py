@@ -10,14 +10,19 @@ import typing
 
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
 
-from src import schema
-from src.data import laad_data
-from src.predict import laad_advies, laad_model, voer_job_uit
+# TestClient heeft httpx nodig, en dat staat alleen in de dev-lock: zonder httpx overslaan
+pytest.importorskip("httpx")
 
-# Elke test hier laadt de API en start een proces: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+from fastapi.testclient import TestClient  # noqa: E402
+
+from src import schema  # noqa: E402
+from src.data import laad_data  # noqa: E402
+from src.predict import laad_advies, laad_model, voer_job_uit  # noqa: E402
+
+# Elke test hier laadt de API en start een proces: buiten de snelle set (pytest -m "not traag").
+# Deel 3: buiten pytest -m "not deel3"
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]
 
 NACHT = "2017-08-15"
 AS_OF = "2017-07-16"
@@ -27,7 +32,7 @@ AS_OF = "2017-07-16"
 def client(cfg):
     if not cfg["model"]["manifest_pad"].exists():
         pytest.skip("geen getraind model in models/: eerst python -m src.train")
-    from src.api import app
+    from src.serving.api import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -145,7 +150,7 @@ def literal_waarden(annotatie) -> set:
 
 def test_pydantic_en_pandera_zeggen_hetzelfde():
     # Twee lagen validatie mogen niet uit elkaar lopen: zelfde kolommen, zelfde toegelaten waarden
-    from src.api import Boeking
+    from src.serving.api import Boeking
 
     velden = Boeking.model_fields
     assert set(velden) == set(schema.INVOER.columns)
@@ -159,6 +164,6 @@ def test_pydantic_en_pandera_zeggen_hetzelfde():
 
 def test_de_api_laadt_de_trainingscode_niet():
     # In een apart proces: in deze testsessie is src.train al door andere tests geladen
-    code = "import sys, src.api; print('src.train' in sys.modules)"
+    code = "import sys, src.serving.api; print('src.train' in sys.modules)"
     uit = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert uit.stdout.strip() == "False"
