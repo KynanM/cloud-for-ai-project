@@ -9,7 +9,8 @@ import pytest
 from benchmarks.bench_foutgedrag import GEVALLEN, beoordeel, boekingen, via_api, via_cli
 
 # Elke test hier start de opdrachtregel per geval: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]  # deel 3: foutgedrag via de API
+pytest.importorskip("httpx")  # staat alleen in de dev-lock
 
 
 @pytest.fixture(scope="module")
