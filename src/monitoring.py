@@ -35,6 +35,7 @@ import pandas as pd
 
 from .config import PROJECT, laad_config
 from .logboek import zet_logging_op
+from .poorten import slo_p95_ms
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
@@ -147,6 +148,7 @@ def risico_na_de_nacht(nachten: pd.DataFrame, cfg: dict, venster: str = "28D") -
 
 
 def lees_jsonlog(pad: Path, sinds: datetime) -> list[dict]:
+    """De JSON-regels van een logbestand vanaf `sinds`; regels die geen JSON zijn, vallen weg."""
     if not pad.exists():
         return []
     uit = []
@@ -161,58 +163,61 @@ def lees_jsonlog(pad: Path, sinds: datetime) -> list[dict]:
     return uit
 
 
-def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[dict]:
-    import yaml
-
-    slo = yaml.safe_load((PROJECT / "configs" / "benchmark.yaml").read_text(encoding="utf-8"))[
-        "slo"
-    ]
-    sinds = datetime.now(UTC) - timedelta(hours=uren)
-    regels = [
-        r for r in lees_jsonlog(Path(cfg["logs"]) / "api.log", sinds) if r.get("soort") == "verzoek"
-    ]
-    manifest_pad = Path(cfg["model"]["manifest_pad"])
-    drempels = {}
-    if manifest_pad.exists():
-        drempels = json.loads(manifest_pad.read_text(encoding="utf-8")).get("drift_drempels", {})
+def servicealarmen(regels: list[dict], grens_ms: float) -> list[dict]:
+    """De servicemetriek: p95 van de geslaagde verzoeken boven de grens, en 5xx-fouten."""
     alerts = []
-    if regels:
-        lat = np.array([r["latency_ms"] for r in regels if r.get("status") == 200])
-        if len(lat) and np.percentile(lat, 95) > slo["normaal"]["p95_latency_ms"]:
-            alerts.append({"alert": "p95 boven de grens", "waarde": float(np.percentile(lat, 95))})
-        fouten = [r for r in regels if r.get("status", 200) >= 500]
-        if fouten:
-            alerts.append({"alert": "5xx-fouten", "waarde": len(fouten)})
-        # Eén alarm per soort, met het aantal verzoeken en de hoogste waarde: geen alarm per verzoek
-        onbekend = [
-            r["onbekend_aandeel"]
-            for r in regels
-            if r.get("onbekend_aandeel", 0) > DREMPELS["onbekend_aandeel"]
-        ]
-        if onbekend:
-            alerts.append(
-                {
-                    "alert": "veel onbekende categorieën",
-                    "waarde": max(onbekend),
-                    "verzoeken": len(onbekend),
-                }
-            )
-        per_kolom: dict[str, list[float]] = {}
-        for r in regels:
-            for kolom, waarde in (r.get("drift_psi") or {}).items():
-                if waarde > drempels.get(kolom, DREMPELS["psi"]):
-                    per_kolom.setdefault(kolom, []).append(waarde)
-        for kolom, waarden in per_kolom.items():
-            alerts.append(
-                {
-                    "alert": f"drift in {kolom}",
-                    "waarde": max(waarden),
-                    "drempel": drempels.get(kolom, DREMPELS["psi"]),
-                    "verzoeken": len(waarden),
-                }
-            )
-    else:
-        alerts.append({"alert": f"geen enkel verzoek in de laatste {uren} uur", "waarde": 0})
+    lat = np.array([r["latency_ms"] for r in regels if r.get("status") == 200])
+    if len(lat) and np.percentile(lat, 95) > grens_ms:
+        alerts.append({"alert": "p95 boven de grens", "waarde": float(np.percentile(lat, 95))})
+    fouten = [r for r in regels if r.get("status", 200) >= 500]
+    if fouten:
+        alerts.append({"alert": "5xx-fouten", "waarde": len(fouten)})
+    return alerts
+
+
+def onbekendalarm(regels: list[dict]) -> list[dict]:
+    """Eén alarm als verzoeken veel categorieën bevatten die het model nooit zag."""
+    onbekend = [
+        r["onbekend_aandeel"]
+        for r in regels
+        if r.get("onbekend_aandeel", 0) > DREMPELS["onbekend_aandeel"]
+    ]
+    if not onbekend:
+        return []
+    return [
+        {"alert": "veel onbekende categorieën", "waarde": max(onbekend), "verzoeken": len(onbekend)}
+    ]
+
+
+def driftalarmen(regels: list[dict], drempels: dict) -> list[dict]:
+    """Eén alarm per kolom met drift boven haar drempel (uit het manifest, anders de standaard),
+    met het aantal verzoeken en de hoogste PSI: geen alarm per verzoek."""
+    per_kolom: dict[str, list[float]] = {}
+    for r in regels:
+        for kolom, waarde in (r.get("drift_psi") or {}).items():
+            if waarde > drempels.get(kolom, DREMPELS["psi"]):
+                per_kolom.setdefault(kolom, []).append(waarde)
+    return [
+        {
+            "alert": f"drift in {kolom}",
+            "waarde": max(waarden),
+            "drempel": drempels.get(kolom, DREMPELS["psi"]),
+            "verzoeken": len(waarden),
+        }
+        for kolom, waarden in per_kolom.items()
+    ]
+
+
+def manifestdrempels(cfg: dict) -> dict:
+    """De driftdrempels per kolom uit het manifest van het actieve model (leeg zonder manifest)."""
+    manifest_pad = Path(cfg["model"]["manifest_pad"])
+    if not manifest_pad.exists():
+        return {}
+    return json.loads(manifest_pad.read_text(encoding="utf-8")).get("drift_drempels", {})
+
+
+def schrijf_alarmen(alerts: list[dict], uitmap: Path | None) -> None:
+    """Voeg de alarmen toe aan <uitmap>/alerts.jsonl (standaard uitvoer/), met het tijdstip."""
     uit = PROJECT / "uitvoer" if uitmap is None else Path(uitmap)
     uit.mkdir(parents=True, exist_ok=True)
     with (uit / "alerts.jsonl").open("a", encoding="utf-8") as f:
@@ -221,12 +226,35 @@ def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[di
                 json.dumps({"gecontroleerd": datetime.now(UTC).isoformat(timespec="seconds"), **a})
                 + "\n"
             )
+
+
+def controleer(cfg: dict, uren: int = 24, uitmap: Path | None = None) -> list[dict]:
+    """Controleer de API-log van de laatste `uren`: service, onbekende categorieën en drift.
+
+    Elke soort alarm komt uit een eigen functie; de drempels komen uit configs/benchmark.yaml
+    en het manifest. De alarmen gaan naar alerts.jsonl en als WARNING naar de log.
+    """
+    sinds = datetime.now(UTC) - timedelta(hours=uren)
+    regels = [
+        r for r in lees_jsonlog(Path(cfg["logs"]) / "api.log", sinds) if r.get("soort") == "verzoek"
+    ]
+    drempels = manifestdrempels(cfg)
+    if regels:
+        alerts = (
+            servicealarmen(regels, slo_p95_ms())
+            + onbekendalarm(regels)
+            + driftalarmen(regels, drempels)
+        )
+    else:
+        alerts = [{"alert": f"geen enkel verzoek in de laatste {uren} uur", "waarde": 0}]
+    schrijf_alarmen(alerts, uitmap)
     for a in alerts:
         logger.warning("ALERT %s: %s", a["alert"], a["waarde"])
     return alerts
 
 
 def main(argv: list[str]) -> None:
+    """python -m src.monitoring labels|controleer: risico achteraf, of de logs controleren."""
     parser = argparse.ArgumentParser(
         description="Monitoring: labels achteraf, of de logs controleren."
     )
@@ -241,20 +269,24 @@ def main(argv: list[str]) -> None:
     if args.opdracht == "controleer":
         controleer(cfg, args.uren)
     else:
-        nachten = pd.read_csv(args.nachten)
-        tabel = risico_na_de_nacht(nachten, cfg)
-        uit = cfg["resultaten"] / "monitoring"
-        uit.mkdir(parents=True, exist_ok=True)
-        tabel.to_csv(uit / "risico_na_de_nacht.csv", index=False, float_format="%.4f")
-        for _, r in tabel[tabel["alert"]].iterrows():
-            logger.warning(
-                "ALERT %s, vier weken vanaf %s: te veel %.0f %%",
-                r["hotel"],
-                f"{r['venster_start']:%d-%m-%Y}",
-                100 * r["te_veel"],
-            )
-        # De tabel is de uitvoer van het commando zelf, geen logregel
-        sys.stdout.write(tabel.to_string(index=False) + "\n")
+        labels(cfg, args.nachten)
+
+
+def labels(cfg: dict, nachten_pad: str) -> None:
+    """Risico na de nacht uit de echte uitkomsten: tabel naar resultaten/monitoring/ en stdout."""
+    tabel = risico_na_de_nacht(pd.read_csv(nachten_pad), cfg)
+    uit = cfg["resultaten"] / "monitoring"
+    uit.mkdir(parents=True, exist_ok=True)
+    tabel.to_csv(uit / "risico_na_de_nacht.csv", index=False, float_format="%.4f")
+    for _, r in tabel[tabel["alert"]].iterrows():
+        logger.warning(
+            "ALERT %s, vier weken vanaf %s: te veel %.0f %%",
+            r["hotel"],
+            f"{r['venster_start']:%d-%m-%Y}",
+            100 * r["te_veel"],
+        )
+    # De tabel is de uitvoer van het commando zelf, geen logregel
+    sys.stdout.write(tabel.to_string(index=False) + "\n")
 
 
 if __name__ == "__main__":
