@@ -40,7 +40,17 @@ def per_nacht(
     nog blijven. Hun portefeuille is onvolledig: het advies is dan te laag, en de nacht kan toch
     als volgeboekt tellen. Zie `dekking()` en `alleen_volledig()`: de evaluatie laat die nachten
     weg. Bij voorspellen is er geen label: dan ontbreekt de kolom `echt`.
+
+    Eén nacht (begin == einde, zoals bij een advies) neemt een snellere route die niet elk
+    verblijf uitrolt (E9): dezelfde uitvoer, getest in tests/test_nachten.py.
     """
+    if begin is not None and einde is not None and pd.Timestamp(begin) == pd.Timestamp(einde):
+        return _een_nacht(deel, kansen, cfg, begin)
+    return _alle_nachten(deel, kansen, cfg, begin, einde)
+
+
+def _alle_nachten(deel: pd.DataFrame, kansen: np.ndarray, cfg: dict, begin, einde) -> pd.DataFrame:
+    """Rol elk verblijf uit tot boeking-nachten, filter op de periode en tel per hotel-nacht."""
     boeking, nacht = _uitgerold(deel)
     rijen = _rijen(deel, kansen, cfg, boeking, nacht)
     if begin is not None:
@@ -50,8 +60,9 @@ def per_nacht(
     return _tel(rijen, cfg["doel"] in deel.columns)
 
 
-def per_nacht_enkel(deel: pd.DataFrame, kansen: np.ndarray, cfg: dict, nacht) -> pd.DataFrame:
-    """Zelfde uitvoer als `per_nacht(begin=nacht, einde=nacht)`, zonder elk verblijf uit te rollen.
+def _een_nacht(deel: pd.DataFrame, kansen: np.ndarray, cfg: dict, nacht) -> pd.DataFrame:
+    """Zelfde uitvoer als `_alle_nachten(begin=nacht, einde=nacht)`, zonder elk verblijf uit te
+    rollen.
 
     Voor één adviesnacht volstaat het de boekingen te kiezen waarvan het verblijf die nacht bevat:
     aankomst ≤ nacht < aankomst + aantal nachten. Getest op gelijkheid in tests/test_nachten.py;
@@ -84,6 +95,7 @@ def _rijen(deel, kansen, cfg: dict, boeking: np.ndarray, nacht: np.ndarray) -> p
 
 
 def _tel(rijen: pd.DataFrame, met_label: bool) -> pd.DataFrame:
+    """Per hotel-nacht: som van kansen, varianties en labels, gemiddelde prijs, aantal boekingen."""
     som = {"verwacht": ("verwacht", "sum"), "variantie": ("variantie", "sum")}
     if met_label:
         som["echt"] = ("echt", "sum")

@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from src import predict, schema
+from src import nachten, schema
 from src.config import PROJECT
 from src.data import OngeldigeDataError, laad_data
 from src.meting import Meting
@@ -125,12 +125,12 @@ def test_opdrachtregel_schrijft_advies_en_metingen(tmp_path, cfg):
     assert resultaat["nacht"] == "2017-08-15"
 
 
-def test_de_aggregatie_loopt_via_per_nacht_enkel(onderdelen, cfg, monkeypatch):
-    # E9 (benchmarks/experimenten_software.py) vervangt precies deze naam om de oude route te
-    # meten. Roept voer_job_uit() een andere functie aan, dan meet E9 stil twee keer hetzelfde.
+def test_de_aggregatie_loopt_via_de_route_voor_een_nacht(onderdelen, cfg, monkeypatch):
+    # E9 (benchmarks/experimenten_software.py) vervangt precies nachten._een_nacht om de oude
+    # route te meten. Neemt voer_job_uit() een andere route, dan meet E9 stil twee keer hetzelfde.
     model, instellingen, nieuw = onderdelen
-    spion = mock.Mock(wraps=predict.per_nacht_enkel)
-    monkeypatch.setattr(predict, "per_nacht_enkel", spion)
+    spion = mock.Mock(wraps=nachten._een_nacht)
+    monkeypatch.setattr(nachten, "_een_nacht", spion)
 
     voer_job_uit(nieuw, model, instellingen, cfg, NACHT)
 
