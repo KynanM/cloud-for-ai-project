@@ -116,6 +116,149 @@ def teken_ijking(uitkomst: dict, pad) -> None:
     plt.close(fig)
 
 
+# --------------------------------------------------------------------- figuren van src.robuustheid
+
+
+def teken_risico(tabel: pd.DataFrame, grens: float, pad: Path):
+    """Te veel per hotel en maand, per model, met de 90 %-blokbootstrap en de risicogrens."""
+    modellen = ["vuistregel", "logreg", "boosting"]
+    fig, assen = plt.subplots(2, 3, figsize=(13, 6.5), sharey=True)
+    for i, hotel in enumerate(["City Hotel", "Resort Hotel"]):
+        for j, model in enumerate(modellen):
+            ax = assen[i, j]
+            g = tabel[(tabel["hotel"] == hotel) & (tabel["model"] == model)].sort_values("maand")
+            x = np.arange(len(g))
+            kleur = np.where(g["periode"] == "validatie", "#2b6cb0", "#b7791f")
+            ax.errorbar(
+                x,
+                g["te_veel"],
+                yerr=[
+                    g["te_veel"] - g["blok7_laag"].fillna(g["te_veel"]),
+                    g["blok7_hoog"].fillna(g["te_veel"]) - g["te_veel"],
+                ],
+                fmt="none",
+                ecolor="#999999",
+                capsize=2,
+            )
+            ax.scatter(x, g["te_veel"], c=kleur, zorder=3, s=22)
+            ax.axhline(grens, color="#c53030", lw=1, ls="--")
+            ax.set_xticks(x, g["maand"], rotation=60, fontsize=7)
+            ax.set_title(f"{model} · {hotel}", fontsize=9)
+            if j == 0:
+                ax.set_ylabel("aandeel nachten met te veel kamers")
+    fig.suptitle(
+        "Te veel per hotel en maand (blauw: validatie, oranje: test, alleen diagnose)."
+        " Lijn: risicogrens 20 %. Balkjes: 90 %-blokbootstrap (7 dagen)",
+        fontsize=9,
+    )
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
+def teken_bootstrap(tabel: pd.DataFrame, pad: Path):
+    """Per vergelijking het 90 %-interval over losse nachten en over blokken van 1 tot 28 dagen."""
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    lengtes = ["losse_nachten", "blok1", "blok7", "blok14", "blok28"]
+    for i, rij in tabel.iterrows():
+        for j, lengte in enumerate(lengtes):
+            y = i + (j - 2) * 0.13
+            ax.plot(
+                [rij[f"{lengte}_laag"], rij[f"{lengte}_hoog"]],
+                [y, y],
+                color=f"C{j}",
+                lw=2,
+                label=lengte if i == 0 else None,
+            )
+        ax.plot(rij["verschil"], i, "k|", ms=12)
+    ax.axvline(0, color="#555555", lw=1)
+    ax.set_yticks(
+        range(len(tabel)),
+        [f"{v} ({e})" for v, e in zip(tabel["vergelijking"], tabel["eenheid"], strict=True)],
+        fontsize=8,
+    )
+    ax.set_xscale("symlog", linthresh=1)
+    ax.legend(fontsize=7, loc="lower right")
+    ax.set_title(
+        "90 %-interval van het verschil per nacht: losse nachten tegenover blokken van dagen"
+        " (validatie)",
+        fontsize=9,
+    )
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
+def teken_rolling(tabel: pd.DataFrame, pad: Path):
+    """De MAE per kwartaal van de rolling origin, per model, voor beide hotels en per hotel."""
+    fig, assen = plt.subplots(1, 3, figsize=(12, 3.8), sharey=True)
+    for ax, hotel in zip(assen, ["beide", "City Hotel", "Resort Hotel"], strict=True):
+        for soort in ["vuistregel", "logreg", "boosting"]:
+            g = tabel[(tabel["hotel"] == hotel) & (tabel["model"] == soort)]
+            ax.plot(g["fold"], g["mae"], marker="o", label=soort)
+        ax.set_title(hotel, fontsize=9)
+        ax.set_xlabel("meetblok (kwartaal)")
+    assen[0].set_ylabel("MAE per hotel-nacht")
+    assen[0].legend(fontsize=8)
+    fig.suptitle("Rolling origin: elk kwartaal geleerd op alles vóór het embargo", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
+def teken_complexiteit(tabel: pd.DataFrame, grens_ms: float, pad: Path):
+    """De complexiteitsladder: MAE tegenover de p95-latency, met de latencygrens."""
+    fig, ax = plt.subplots(figsize=(8.5, 5))
+    for _, rij in tabel.iterrows():
+        kleur = "#2f855a" if rij["gekozen"] else ("#2b6cb0" if rij["binnen_grenzen"] else "#c53030")
+        ax.scatter(rij["kern_p95_ms"], rij["mae"], s=50, color=kleur, zorder=3)
+        ax.annotate(
+            rij["trede"].split(" ", 1)[0],
+            (rij["kern_p95_ms"], rij["mae"]),
+            xytext=(5, 4),
+            textcoords="offset points",
+            fontsize=8,
+        )
+    ax.axvline(grens_ms, color="#c53030", ls="--", lw=1, label="grens p95 = 1 000 ms")
+    ax.set_xscale("log")
+    ax.set_xlabel("p95-latency van de kern, normale workload (ms, log)")
+    ax.set_ylabel("MAE per hotel-nacht (validatie)")
+    ax.set_title(
+        "Complexiteitsladder (les 06 p. 23): de MAE optimaliseren, de latency als grens", fontsize=9
+    )
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
+def teken_kalibratie(tabel: pd.DataFrame, pad: Path):
+    """IJking per hotel: gemiddelde kans tegenover het aandeel per bak, met 95 %-Wilson-interval."""
+    fig, assen = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+    for (soort, hotel), g in tabel.groupby(["model", "hotel"], sort=False):
+        ax = assen[["City Hotel", "Resort Hotel"].index(hotel)]
+        xs, ys = g["gem_kans"].to_numpy(), g["aandeel"].to_numpy()
+        ax.errorbar(
+            xs,
+            ys,
+            yerr=[ys - g["wilson95_laag"].to_numpy(), g["wilson95_hoog"].to_numpy() - ys],
+            marker="o",
+            ms=4,
+            capsize=2,
+            label=f"{soort} (ECE {g['ece'].iloc[0]:.3f})",
+        )
+        ax.set_title(hotel, fontsize=9)
+    for ax in assen:
+        ax.plot([0, 0.6], [0, 0.6], color="#888888", lw=1, ls="--")
+        ax.set_xlabel("gemiddelde voorspelde kans (10 kwantielbakken)")
+        ax.legend(fontsize=7)
+    assen[0].set_ylabel("waargenomen aandeel, met 95 %-Wilson-interval")
+    fig.suptitle("IJking per hotel op de validatie", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(pad, dpi=130)
+    return fig
+
+
 def software_fases() -> Path:
     ruw = pd.read_csv(RES / "software" / "raw_runs.csv", low_memory=False)
     kern = ruw[(ruw["sessie"] == "fase1") & (ruw["doel"] == "kern")]

@@ -17,6 +17,7 @@ Gekozen wordt op de validatie of op de rolling-origin-folds, nooit op de test. D
 alleen voor in `risico` (diagnose, gemarkeerd) en daarvoor is `test_toegestaan` nodig.
 """
 
+import json
 import logging
 import sys
 import tempfile
@@ -34,24 +35,31 @@ from scipy.stats import binomtest  # noqa: E402
 from sklearn.calibration import CalibratedClassifierCV  # noqa: E402
 from sklearn.frozen import FrozenEstimator  # noqa: E402
 from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score  # noqa: E402
+from sklearn.model_selection import GroupShuffleSplit, train_test_split  # noqa: E402
 
+from .audit import boeking_nachten  # noqa: E402
 from .config import laad_config  # noqa: E402
-from .data import aankomstdatum, laad_data, stop_bij_fout  # noqa: E402
+from .data import aankomstdatum, laad_data, schoon_op, stop_bij_fout  # noqa: E402
 from .evaluate import met, zekerheden_winstcurve  # noqa: E402
 from .experimenten import GEKOZEN, Opzet, beide, bootstrap, modelvergelijking, variant  # noqa: E402
+from .figuren import (  # noqa: E402
+    teken_bootstrap,
+    teken_complexiteit,
+    teken_kalibratie,
+    teken_risico,
+    teken_rolling,
+)
 from .folds import folds  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
 from .nachten import (  # noqa: E402
-    alleen_volledig,
     beoordeel,
     capaciteit,
-    dekking,
-    per_nacht,
     spreidingsfactor,
 )
-from .predict import voorspel  # noqa: E402
+from .poorten import slo_p95_ms  # noqa: E402
+from .predict import voer_job_uit, voorspel  # noqa: E402
 from .tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
-from .train import bouw_pijplijn, kenmerken_en_label  # noqa: E402
+from .train import bouw_pijplijn, kenmerken_en_label, volledige_nachten  # noqa: E402
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
@@ -97,6 +105,7 @@ def blokbootstrap(
 
 
 def fout_per_nacht(nachten: pd.DataFrame) -> pd.Series:
+    """|verwacht − echt| per hotel-nacht: wat de blokbootstrap tussen twee varianten vergelijkt."""
     return nachten.set_index(["hotel", "nacht"]).eval("abs(verwacht - echt)")
 
 
@@ -107,6 +116,7 @@ def verschiltabel(a: pd.Series, b: pd.Series) -> pd.DataFrame:
 
 
 def schrijf(tabel: pd.DataFrame, bestand: str) -> Path:
+    """Schrijf een tabel naar resultaten/audit/ en toon ze in de log."""
     cfg = laad_config()
     pad = cfg["resultaten"] / "audit" / bestand
     pad.parent.mkdir(parents=True, exist_ok=True)
@@ -116,9 +126,49 @@ def schrijf(tabel: pd.DataFrame, bestand: str) -> Path:
 
 
 def figuurpad(naam: str) -> Path:
+    """Het pad van een figuur in resultaten/figuren/; de map wordt gemaakt als ze er niet is."""
     pad = laad_config()["resultaten"] / "figuren" / naam
     pad.parent.mkdir(parents=True, exist_ok=True)
     return pad
+
+
+def op_validatie(o: Opzet, cfg: dict) -> dict:
+    """Leer op de training en meet op de validatie: de standaardrun van de experimenten hier."""
+    return o.draai(cfg, "validatie", "training", "validatie")
+
+
+def met_delta(
+    tabel: pd.DataFrame, kolom: str, fouten: dict, referentie: str, seed: int
+) -> pd.DataFrame:
+    """Per rij het verschil in MAE per nacht met `referentie`, met een blokbootstrap van 7 dagen."""
+    for i, rij in tabel.iterrows():
+        d = verschiltabel(fouten[referentie], fouten[rij[kolom]])
+        tabel.loc[i, "delta_mae"] = d["verschil"].mean()
+        tabel.loc[i, "delta_blok7_laag"], tabel.loc[i, "delta_blok7_hoog"] = blokbootstrap(
+            d, "verschil", 7, seed
+        )
+    return tabel
+
+
+def log_per_rij(
+    experiment: str,
+    tabel: pd.DataFrame,
+    kolom: str,
+    exp: dict,
+    cfg: dict,
+    metrics: dict,
+    tabellen: list,
+    figuur: tuple | None = None,
+    **tags,
+) -> None:
+    """Eén MLflow-run per rij: de metrics (naam → kolom), de tabellen en eventueel een figuur."""
+    for _, rij in tabel.iterrows():
+        with experimentrun(experiment, rij[kolom], exp, cfg, **tags):
+            log_metrics({naam: rij[k] for naam, k in metrics.items()})
+            for t, naam in tabellen:
+                log_tabel(t, naam)
+            if figuur is not None:
+                log_figuur(*figuur)
 
 
 # --------------------------------------------------------------------------- 3.4 risico
@@ -169,43 +219,8 @@ def risico_per_groep(bewaard: dict, o: Opzet) -> pd.DataFrame:
     return pd.DataFrame(rijen)
 
 
-def teken_risico(tabel: pd.DataFrame, grens: float, pad: Path):
-    modellen = ["vuistregel", "logreg", "boosting"]
-    fig, assen = plt.subplots(2, 3, figsize=(13, 6.5), sharey=True)
-    for i, hotel in enumerate(["City Hotel", "Resort Hotel"]):
-        for j, model in enumerate(modellen):
-            ax = assen[i, j]
-            g = tabel[(tabel["hotel"] == hotel) & (tabel["model"] == model)].sort_values("maand")
-            x = np.arange(len(g))
-            kleur = np.where(g["periode"] == "validatie", "#2b6cb0", "#b7791f")
-            ax.errorbar(
-                x,
-                g["te_veel"],
-                yerr=[
-                    g["te_veel"] - g["blok7_laag"].fillna(g["te_veel"]),
-                    g["blok7_hoog"].fillna(g["te_veel"]) - g["te_veel"],
-                ],
-                fmt="none",
-                ecolor="#999999",
-                capsize=2,
-            )
-            ax.scatter(x, g["te_veel"], c=kleur, zorder=3, s=22)
-            ax.axhline(grens, color="#c53030", lw=1, ls="--")
-            ax.set_xticks(x, g["maand"], rotation=60, fontsize=7)
-            ax.set_title(f"{model} · {hotel}", fontsize=9)
-            if j == 0:
-                ax.set_ylabel("aandeel nachten met te veel kamers")
-    fig.suptitle(
-        "Te veel per hotel en maand (blauw: validatie, oranje: test, alleen diagnose)."
-        " Lijn: risicogrens 20 %. Balkjes: 90 %-blokbootstrap (7 dagen)",
-        fontsize=9,
-    )
-    fig.tight_layout()
-    fig.savefig(pad, dpi=130)
-    return fig
-
-
 def risico(o: Opzet) -> pd.DataFrame:
+    """E3: het aandeel nachten met te veel kamers per hotel en maand, met intervallen."""
     exp = laad_experiment("e3_risico")
     _, bewaard = modelvergelijking(o)
     tabel = risico_per_groep(bewaard, o)
@@ -231,93 +246,75 @@ def risico(o: Opzet) -> pd.DataFrame:
 # --------------------------------------------------------------------------- 3.5 bootstrap
 
 
+def aantoonbaar(laag: float, hoog: float) -> bool:
+    """Een interval dat 0 niet bevat: beide grenzen hebben hetzelfde teken."""
+    return np.sign(laag) == np.sign(hoog)
+
+
+def bootstrap_rij(naam: str, eenheid: str, a: pd.Series, b: pd.Series, seed: int) -> dict:
+    """Het verschil b − a per nacht, met een interval over losse nachten en over blokken dagen."""
+    d = verschiltabel(a, b)
+    laag0, hoog0 = bootstrap(d["verschil"], seed)
+    rij = {
+        "vergelijking": naam,
+        "eenheid": eenheid,
+        "nachten": len(d),
+        "verschil": d["verschil"].mean(),
+        "losse_nachten_laag": laag0,
+        "losse_nachten_hoog": hoog0,
+    }
+    for lengte in (1, 7, 14, 28):
+        laag, hoog = blokbootstrap(d, "verschil", lengte, seed)
+        rij[f"blok{lengte}_laag"], rij[f"blok{lengte}_hoog"] = laag, hoog
+    rij["conclusie_losse_nachten"] = (
+        "aantoonbaar" if aantoonbaar(laag0, hoog0) else "niet aantoonbaar"
+    )
+    rij["conclusie_blok7_en_14"] = (
+        "aantoonbaar"
+        if aantoonbaar(rij["blok7_laag"], rij["blok7_hoog"])
+        and aantoonbaar(rij["blok14_laag"], rij["blok14_hoog"])
+        else "niet aantoonbaar"
+    )
+    rij["blijft_staan"] = rij["conclusie_losse_nachten"] == rij["conclusie_blok7_en_14"]
+    return rij
+
+
+def euro_volle_nachten(nachten, factor, o: Opzet, cfg: dict, zekerheid: float) -> pd.Series:
+    """Euro per volgeboekte hotel-nacht bij een gegeven zekerheid."""
+    _, n = beoordeel(nachten, factor, o.cap, o.bezet, cfg, zekerheid, detail=True)
+    return n[n["vol"]].set_index(["hotel", "nacht"])["euro"]
+
+
 def bootstrap_gevoeligheid(o: Opzet) -> pd.DataFrame:
+    """E4: blijven de conclusies over losse nachten staan als nachten in blokken samen blijven?"""
     exp = laad_experiment("e4_bootstrap")
     seed = o.cfg["model"]["seed"]
     basis = met(o.cfg, *GEKOZEN)
     r = {
-        "boosting": o.draai(basis, "validatie", "training", "validatie"),
-        "boosting 200": o.draai(
-            variant(basis, model__boosting={**basis["model"]["boosting"], "max_iter": 200}),
-            "validatie",
-            "training",
-            "validatie",
+        "boosting": op_validatie(o, basis),
+        "boosting 200": op_validatie(
+            o, variant(basis, model__boosting={**basis["model"]["boosting"], "max_iter": 200})
         ),
-        "logreg": o.draai(met(o.cfg, "logreg", False), "validatie", "training", "validatie"),
-        "vuistregel": o.draai(
-            met(o.cfg, "vuistregel", False), "validatie", "training", "validatie"
-        ),
+        "logreg": op_validatie(o, met(o.cfg, "logreg", False)),
+        "vuistregel": op_validatie(o, met(o.cfg, "vuistregel", False)),
     }
     fout = {k: fout_per_nacht(v["nachten"]) for k, v in r.items()}
-    factor = spreidingsfactor(r["boosting"]["nachten"])
-
-    def euro(z):
-        _, n = beoordeel(r["boosting"]["nachten"], factor, o.cap, o.bezet, basis, z, detail=True)
-        return n[n["vol"]].set_index(["hotel", "nacht"])["euro"]
-
+    nachten = r["boosting"]["nachten"]
+    factor = spreidingsfactor(nachten)
     vergelijkingen = [
         ("200 tegenover 100 iteraties", "Δ MAE", fout["boosting"], fout["boosting 200"]),
         ("logreg tegenover boosting", "Δ MAE", fout["boosting"], fout["logreg"]),
         ("vuistregel tegenover boosting", "Δ MAE", fout["boosting"], fout["vuistregel"]),
-        ("zekerheid 0,725 tegenover 0,80", "Δ € per volle nacht", euro(0.80), euro(0.725)),
+        (
+            "zekerheid 0,725 tegenover 0,80",
+            "Δ € per volle nacht",
+            euro_volle_nachten(nachten, factor, o, basis, 0.80),
+            euro_volle_nachten(nachten, factor, o, basis, 0.725),
+        ),
     ]
-    rijen = []
-    for naam, eenheid, a, b in vergelijkingen:
-        d = verschiltabel(a, b)
-        laag0, hoog0 = bootstrap(d["verschil"], seed)
-        rij = {
-            "vergelijking": naam,
-            "eenheid": eenheid,
-            "nachten": len(d),
-            "verschil": d["verschil"].mean(),
-            "losse_nachten_laag": laag0,
-            "losse_nachten_hoog": hoog0,
-        }
-        for lengte in (1, 7, 14, 28):
-            laag, hoog = blokbootstrap(d, "verschil", lengte, seed)
-            rij[f"blok{lengte}_laag"], rij[f"blok{lengte}_hoog"] = laag, hoog
-        teken = np.sign
-        rij["conclusie_losse_nachten"] = (
-            "aantoonbaar" if teken(laag0) == teken(hoog0) else "niet aantoonbaar"
-        )
-        rij["conclusie_blok7_en_14"] = (
-            "aantoonbaar"
-            if teken(rij["blok7_laag"]) == teken(rij["blok7_hoog"])
-            and teken(rij["blok14_laag"]) == teken(rij["blok14_hoog"])
-            else "niet aantoonbaar"
-        )
-        rij["blijft_staan"] = rij["conclusie_losse_nachten"] == rij["conclusie_blok7_en_14"]
-        rijen.append(rij)
-    tabel = pd.DataFrame(rijen)
+    tabel = pd.DataFrame([bootstrap_rij(*v, seed) for v in vergelijkingen])
     pad = schrijf(tabel, "bootstrap_gevoeligheid.csv")
-    fig, ax = plt.subplots(figsize=(9, 4.5))
-    lengtes = ["losse_nachten", "blok1", "blok7", "blok14", "blok28"]
-    for i, rij in tabel.iterrows():
-        for j, lengte in enumerate(lengtes):
-            y = i + (j - 2) * 0.13
-            ax.plot(
-                [rij[f"{lengte}_laag"], rij[f"{lengte}_hoog"]],
-                [y, y],
-                color=f"C{j}",
-                lw=2,
-                label=lengte if i == 0 else None,
-            )
-        ax.plot(rij["verschil"], i, "k|", ms=12)
-    ax.axvline(0, color="#555555", lw=1)
-    ax.set_yticks(
-        range(len(tabel)),
-        [f"{v} ({e})" for v, e in zip(tabel["vergelijking"], tabel["eenheid"], strict=True)],
-        fontsize=8,
-    )
-    ax.set_xscale("symlog", linthresh=1)
-    ax.legend(fontsize=7, loc="lower right")
-    ax.set_title(
-        "90 %-interval van het verschil per nacht: losse nachten tegenover blokken van dagen"
-        " (validatie)",
-        fontsize=9,
-    )
-    fig.tight_layout()
-    fig.savefig(figuurpad("bootstrap_bloklengte.png"), dpi=130)
+    fig = teken_bootstrap(tabel, figuurpad("bootstrap_bloklengte.png"))
     for _, rij in tabel.iterrows():
         with experimentrun("e4_bootstrap", rij["vergelijking"], exp, o.cfg):
             log_metrics({k: v for k, v in rij.items() if isinstance(v, (int, float, np.floating))})
@@ -328,6 +325,7 @@ def bootstrap_gevoeligheid(o: Opzet) -> pd.DataFrame:
 
 
 def log_figuur_los(fig, experiment: str, exp: dict, cfg: dict, naam: str) -> None:
+    """Een figuur in een eigen run "figuur", voor experimenten met een run per variant."""
     with experimentrun(experiment, "figuur", exp, cfg):
         log_figuur(fig, naam)
 
@@ -339,11 +337,7 @@ def meet_fold(model, fold, o: Opzet, cfg: dict, factor: dict | None) -> tuple:
     """Voorspel een meetblok, tel per hotel-nacht (alleen volledige nachten), beoordeel."""
     y = fold.meet[cfg["doel"]]
     p = voorspel(model, fold.meet, cfg)
-    nachten = alleen_volledig(
-        per_nacht(fold.meet, p, cfg, fold.begin, fold.einde),
-        dekking(o.df, fold.begin, fold.einde),
-        cfg["evaluatie"]["min_dekking"],
-    )
+    nachten = volledige_nachten(fold.meet, p, fold.begin, fold.einde, cfg, o.df)
     eigen = spreidingsfactor(nachten)
     gebruikt = factor if factor is not None else eigen
     cap = capaciteit(o.bezet, fold.train_einde, cfg["advies"]["capaciteit_percentiel"])
@@ -351,8 +345,36 @@ def meet_fold(model, fold, o: Opzet, cfg: dict, factor: dict | None) -> tuple:
     return tabel, eigen, y.to_numpy(), p, nachten
 
 
-def rolling_origin(o: Opzet) -> pd.DataFrame:
-    exp = laad_experiment("e5_rolling")
+def rolling_rij(soort: str, fold, rij: pd.Series, y, p, leertijd: float, vorige) -> dict:
+    """Eén rij van de rolling origin: model × kwartaal × hotel, met fout, risico en ijking."""
+    hotel = rij["hotel"]
+    masker = np.ones(len(y), bool) if hotel == "beide" else (fold.meet["hotel"] == hotel).to_numpy()
+    return {
+        "model": soort,
+        "fold": fold.naam,
+        "train_einde": f"{fold.train_einde:%Y-%m-%d}",
+        "train_boekingen": len(fold.train),
+        "hotel": hotel,
+        "nachten": rij["nachten"],
+        "mae": rij["mae"],
+        "bias": rij["bias"],
+        "voorspeld_echt": rij["voorspeld_echt"],
+        "te_veel": rij["te_veel"],
+        "euro_per_volle_nacht": rij["euro_per_volle_nacht"],
+        "volle_nachten": rij["volle_nachten"],
+        "auc": roc_auc_score(y[masker], p[masker]),
+        "brier": brier_score_loss(y[masker], p[masker]),
+        "logloss": log_loss(y[masker], np.clip(p[masker], 1e-6, 1 - 1e-6)),
+        "factor": "vorige fold" if vorige is not None else "eigen fold (eerste)",
+        "leertijd_s": leertijd,
+    }
+
+
+def rolling_folds(o: Opzet) -> tuple[pd.DataFrame, dict]:
+    """Per model en kwartaal: leren op alles vóór het embargo, meten op het kwartaal.
+
+    De spreidingsfactor komt van het vorige kwartaal, zoals het in de praktijk zou gaan.
+    """
     rijen, fouten = [], {}
     for soort in ["vuistregel", "logreg", "boosting"]:
         cfg = met(o.cfg, soort, False)
@@ -364,35 +386,14 @@ def rolling_origin(o: Opzet) -> pd.DataFrame:
             tabel, eigen, y, p, nachten = meet_fold(model, fold, o, cfg, vorige)
             fouten[(soort, fold.naam)] = fout_per_nacht(nachten)
             for _, rij in tabel.iterrows():
-                hotel = rij["hotel"]
-                masker = (
-                    np.ones(len(y), bool)
-                    if hotel == "beide"
-                    else (fold.meet["hotel"] == hotel).to_numpy()
-                )
-                rijen.append(
-                    {
-                        "model": soort,
-                        "fold": fold.naam,
-                        "train_einde": f"{fold.train_einde:%Y-%m-%d}",
-                        "train_boekingen": len(fold.train),
-                        "hotel": hotel,
-                        "nachten": rij["nachten"],
-                        "mae": rij["mae"],
-                        "bias": rij["bias"],
-                        "voorspeld_echt": rij["voorspeld_echt"],
-                        "te_veel": rij["te_veel"],
-                        "euro_per_volle_nacht": rij["euro_per_volle_nacht"],
-                        "volle_nachten": rij["volle_nachten"],
-                        "auc": roc_auc_score(y[masker], p[masker]),
-                        "brier": brier_score_loss(y[masker], p[masker]),
-                        "logloss": log_loss(y[masker], np.clip(p[masker], 1e-6, 1 - 1e-6)),
-                        "factor": "vorige fold" if vorige is not None else "eigen fold (eerste)",
-                        "leertijd_s": leertijd,
-                    }
-                )
+                rijen.append(rolling_rij(soort, fold, rij, y, p, leertijd, vorige))
             vorige = eigen
-    tabel = pd.DataFrame(rijen)
+    return pd.DataFrame(rijen), fouten
+
+
+def rolling_besluit(tabel: pd.DataFrame, fouten: dict, o: Opzet) -> pd.DataFrame:
+    """Blijft boosting? Laagste gemiddelde MAE, 3 van 4 kwartalen beter dan logreg, per hotel
+    binnen de risicogrens. Plus het verschil met logreg over alle folds, met blokbootstrap."""
     beide_ = tabel[tabel["hotel"] == "beide"]
     rang = beide_.pivot(index="fold", columns="model", values="mae")
     winst_vs_logreg = int((rang["boosting"] < rang["logreg"]).sum())
@@ -404,26 +405,22 @@ def rolling_origin(o: Opzet) -> pd.DataFrame:
     ]
     blijft = bool(gemiddeld.idxmin() == "boosting" and winst_vs_logreg >= 3 and over_grens.empty)
     tabel["besluit"] = "boosting blijft" if blijft else "keuze heroverwegen"
-    # Verschil boosting − logreg over alle folds, met blokbootstrap
     a = pd.concat([fouten[("boosting", f.naam)] for f in folds(o.df, o.cfg)])
     b = pd.concat([fouten[("logreg", f.naam)] for f in folds(o.df, o.cfg)])
     d = verschiltabel(a, b)
     laag, hoog = blokbootstrap(d, "verschil", 7, o.cfg["model"]["seed"])
     tabel["delta_mae_logreg_min_boosting"] = d["verschil"].mean()
     tabel["delta_blok7_laag"], tabel["delta_blok7_hoog"] = laag, hoog
+    return tabel
+
+
+def rolling_origin(o: Opzet) -> pd.DataFrame:
+    """E5: is boosting over vier kwartalen (rolling origin, met embargo) nog de beste keuze?"""
+    exp = laad_experiment("e5_rolling")
+    tabel, fouten = rolling_folds(o)
+    tabel = rolling_besluit(tabel, fouten, o)
     pad = schrijf(tabel, "rolling_origin.csv")
-    fig, assen = plt.subplots(1, 3, figsize=(12, 3.8), sharey=True)
-    for ax, hotel in zip(assen, ["beide", "City Hotel", "Resort Hotel"], strict=True):
-        for soort in ["vuistregel", "logreg", "boosting"]:
-            g = tabel[(tabel["hotel"] == hotel) & (tabel["model"] == soort)]
-            ax.plot(g["fold"], g["mae"], marker="o", label=soort)
-        ax.set_title(hotel, fontsize=9)
-        ax.set_xlabel("meetblok (kwartaal)")
-    assen[0].set_ylabel("MAE per hotel-nacht")
-    assen[0].legend(fontsize=8)
-    fig.suptitle("Rolling origin: elk kwartaal geleerd op alles vóór het embargo", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(figuurpad("rolling_origin_mae.png"), dpi=130)
+    fig = teken_rolling(tabel, figuurpad("rolling_origin_mae.png"))
     for soort, g in tabel.groupby("model"):
         with experimentrun(
             "e5_rolling", soort, exp, met(o.cfg, soort, False), besluit=tabel["besluit"].iloc[0]
@@ -450,10 +447,6 @@ def rolling_origin(o: Opzet) -> pd.DataFrame:
 
 def kern_latency(model, cfg: dict, factor: dict, cap: dict, herhalingen: int = 50) -> dict:
     """p50/p95 van voer_job_uit() op de normale workload (resultaten/software/workloads.json)."""
-    import json
-
-    from .predict import voer_job_uit
-
     wl = json.loads((cfg["resultaten"] / "software" / "workloads.json").read_text(encoding="utf-8"))
     normaal = wl["workloads"]["normaal"]
     df = pd.read_csv(Path(cfg["resultaten"]).parent / normaal["bestand"])
@@ -503,61 +496,51 @@ TREDEN = [
 ]
 
 
-def complexiteitsladder(o: Opzet) -> pd.DataFrame:
-    import yaml
+def trede_config(o: Opzet, soort: str, wijziging: dict) -> dict:
+    """De config van één trede: een model, bij boosting met andere hyperparameters."""
+    cfg = met(o.cfg, soort if soort != "randomforest" else "boosting", False)
+    cfg["model"]["soort"] = soort
+    if soort == "boosting":
+        cfg["model"]["boosting"] = {**cfg["model"]["boosting"], **wijziging}
+    return cfg
 
-    exp = laad_experiment("e6_complexiteit")
-    bench = yaml.safe_load(
-        (Path(__file__).resolve().parent.parent / "configs" / "benchmark.yaml").read_text(
-            encoding="utf-8"
-        )
-    )
-    slo = bench["slo"]
-    rijen, fouten = [], {}
-    for naam, soort, wijziging in TREDEN:
-        cfg = met(o.cfg, soort if soort != "randomforest" else "boosting", False)
-        cfg["model"]["soort"] = soort
-        if soort == "boosting":
-            cfg["model"]["boosting"] = {**cfg["model"]["boosting"], **wijziging}
-        start = time.perf_counter()
-        r = o.draai(cfg, "validatie", "training", "validatie")
-        leertijd = r["leertijd_s"]
-        factor = spreidingsfactor(r["nachten"])
-        per_hotel = beoordeel(r["nachten"], factor, o.cap, o.bezet, cfg)
-        model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(o.delen["training"], cfg))
-        latency = kern_latency(model, cfg, factor, o.cap)
-        fouten[naam] = fout_per_nacht(r["nachten"])
-        t = beide(per_hotel)
-        h = per_hotel.set_index("hotel")
-        rijen.append(
-            {
-                "trede": naam,
-                "soort": soort,
-                "mae": t["mae"],
-                "bias": t["bias"],
-                "auc": roc_auc_score(r["y"], r["p"]),
-                "brier": brier_score_loss(r["y"], r["p"]),
-                "te_veel_city": h.loc["City Hotel", "te_veel"],
-                "te_veel_resort": h.loc["Resort Hotel", "te_veel"],
-                "euro_per_volle_nacht": t["euro_per_volle_nacht"],
-                "kern_p50_ms": latency["p50_ms"],
-                "kern_p95_ms": latency["p95_ms"],
-                "model_kb": model_kb(model, cfg),
-                "leertijd_s": leertijd,
-                "duur_s": time.perf_counter() - start,
-            }
-        )
-        logger.info("trede %s: MAE %.3f, p95 %.0f ms", naam, t["mae"], latency["p95_ms"])
-    tabel = pd.DataFrame(rijen)
-    referentie = fouten["4 boosting huidig"]
-    grens = o.cfg["advies"]["risicogrens"]
-    for i, rij in tabel.iterrows():
-        d = verschiltabel(referentie, fouten[rij["trede"]])
-        laag, hoog = blokbootstrap(d, "verschil", 7, o.cfg["model"]["seed"])
-        tabel.loc[i, "delta_mae"] = d["verschil"].mean()
-        tabel.loc[i, "delta_blok7_laag"], tabel.loc[i, "delta_blok7_hoog"] = laag, hoog
+
+def meet_trede(o: Opzet, naam: str, soort: str, wijziging: dict) -> tuple[dict, pd.Series]:
+    """Eén trede op de validatie: fout, risico en euro's, plus latency en grootte van het model."""
+    cfg = trede_config(o, soort, wijziging)
+    start = time.perf_counter()
+    r = op_validatie(o, cfg)
+    factor = spreidingsfactor(r["nachten"])
+    per_hotel = beoordeel(r["nachten"], factor, o.cap, o.bezet, cfg)
+    model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(o.delen["training"], cfg))
+    latency = kern_latency(model, cfg, factor, o.cap)
+    t = beide(per_hotel)
+    h = per_hotel.set_index("hotel")
+    rij = {
+        "trede": naam,
+        "soort": soort,
+        "mae": t["mae"],
+        "bias": t["bias"],
+        "auc": roc_auc_score(r["y"], r["p"]),
+        "brier": brier_score_loss(r["y"], r["p"]),
+        "te_veel_city": h.loc["City Hotel", "te_veel"],
+        "te_veel_resort": h.loc["Resort Hotel", "te_veel"],
+        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+        "kern_p50_ms": latency["p50_ms"],
+        "kern_p95_ms": latency["p95_ms"],
+        "model_kb": model_kb(model, cfg),
+        "leertijd_s": r["leertijd_s"],
+        "duur_s": time.perf_counter() - start,
+    }
+    logger.info("trede %s: MAE %.3f, p95 %.0f ms", naam, t["mae"], latency["p95_ms"])
+    return rij, fout_per_nacht(r["nachten"])
+
+
+def kies_trede(tabel: pd.DataFrame, grens_ms: float, grens: float) -> tuple[pd.DataFrame, str]:
+    """Binnen de grenzen (latency, risico per hotel) en aantoonbaar beter dan de huidige trede:
+    de laagste MAE. Anders blijft de huidige."""
     tabel["binnen_grenzen"] = (
-        (tabel["kern_p95_ms"] <= slo["normaal"]["p95_latency_ms"])
+        (tabel["kern_p95_ms"] <= grens_ms)
         & (tabel["te_veel_city"] <= grens)
         & (tabel["te_veel_resort"] <= grens)
     )
@@ -567,53 +550,37 @@ def complexiteitsladder(o: Opzet) -> pd.DataFrame:
         kandidaten.sort_values("mae").iloc[0]["trede"] if len(kandidaten) else "4 boosting huidig"
     )
     tabel["gekozen"] = tabel["trede"] == gekozen
-    tabel["bindt_de_latencygrens"] = bool(
-        (tabel["kern_p95_ms"] > slo["normaal"]["p95_latency_ms"]).any()
-    )
+    tabel["bindt_de_latencygrens"] = bool((tabel["kern_p95_ms"] > grens_ms).any())
+    return tabel, gekozen
+
+
+def complexiteitsladder(o: Opzet) -> pd.DataFrame:
+    """E6 (les 06 p. 23): van vuistregel tot random forest, de MAE tegen de latencygrens."""
+    exp = laad_experiment("e6_complexiteit")
+    grens_ms = slo_p95_ms()
+    rijen, fouten = [], {}
+    for naam, soort, wijziging in TREDEN:
+        rij, fouten[naam] = meet_trede(o, naam, soort, wijziging)
+        rijen.append(rij)
+    seed = o.cfg["model"]["seed"]
+    tabel = met_delta(pd.DataFrame(rijen), "trede", fouten, "4 boosting huidig", seed)
+    tabel, gekozen = kies_trede(tabel, grens_ms, o.cfg["advies"]["risicogrens"])
     pad = schrijf(tabel, "complexiteit.csv")
-    fig, ax = plt.subplots(figsize=(8.5, 5))
-    for _, rij in tabel.iterrows():
-        kleur = "#2f855a" if rij["gekozen"] else ("#2b6cb0" if rij["binnen_grenzen"] else "#c53030")
-        ax.scatter(rij["kern_p95_ms"], rij["mae"], s=50, color=kleur, zorder=3)
-        ax.annotate(
-            rij["trede"].split(" ", 1)[0],
-            (rij["kern_p95_ms"], rij["mae"]),
-            xytext=(5, 4),
-            textcoords="offset points",
-            fontsize=8,
-        )
-    ax.axvline(
-        slo["normaal"]["p95_latency_ms"],
-        color="#c53030",
-        ls="--",
-        lw=1,
-        label="grens p95 = 1 000 ms",
+    fig = teken_complexiteit(tabel, grens_ms, figuurpad("complexiteit.png"))
+    metrics = {
+        "ml.mae": "mae",
+        "ml.auc": "auc",
+        "beleid.te_veel_city": "te_veel_city",
+        "beleid.te_veel_resort": "te_veel_resort",
+        "software.kern_p95_ms": "kern_p95_ms",
+        "software.model_kb": "model_kb",
+        "software.leertijd_s": "leertijd_s",
+        "business.euro_per_volle_nacht": "euro_per_volle_nacht",
+    }
+    tabellen, figuur = [(tabel, pad.name)], (fig, "complexiteit.png")
+    log_per_rij(
+        "e6_complexiteit", tabel, "trede", exp, o.cfg, metrics, tabellen, figuur, gekozen=gekozen
     )
-    ax.set_xscale("log")
-    ax.set_xlabel("p95-latency van de kern, normale workload (ms, log)")
-    ax.set_ylabel("MAE per hotel-nacht (validatie)")
-    ax.set_title(
-        "Complexiteitsladder (les 06 p. 23): de MAE optimaliseren, de latency als grens", fontsize=9
-    )
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(figuurpad("complexiteit.png"), dpi=130)
-    for _, rij in tabel.iterrows():
-        with experimentrun("e6_complexiteit", rij["trede"], exp, o.cfg, gekozen=gekozen):
-            log_metrics(
-                {
-                    "ml.mae": rij["mae"],
-                    "ml.auc": rij["auc"],
-                    "beleid.te_veel_city": rij["te_veel_city"],
-                    "beleid.te_veel_resort": rij["te_veel_resort"],
-                    "software.kern_p95_ms": rij["kern_p95_ms"],
-                    "software.model_kb": rij["model_kb"],
-                    "software.leertijd_s": rij["leertijd_s"],
-                    "business.euro_per_volle_nacht": rij["euro_per_volle_nacht"],
-                }
-            )
-            log_tabel(tabel, pad.name)
-            log_figuur(fig, "complexiteit.png")
     plt.close(fig)
     return tabel
 
@@ -621,8 +588,54 @@ def complexiteitsladder(o: Opzet) -> pd.DataFrame:
 # --------------------------------------------------------------------------- 3.8 weging
 
 
+def weging_varianten(basis: dict) -> list[tuple[str, dict, bool]]:
+    """Referentie en gewogen klassen, elk zonder en met isotone herijking."""
+    gewogen = {**basis["model"]["boosting"], "class_weight": "balanced"}
+    return [
+        ("referentie", basis, False),
+        ("referentie + isotoon", basis, True),
+        ("balanced", variant(basis, model__boosting=gewogen), False),
+        ("balanced + isotoon", variant(basis, model__boosting=gewogen), True),
+    ]
+
+
+def leer_variant(cfg: dict, herijk: bool, training, vroeg, laat):
+    """Leer op de training; met herijking leert het model op `vroeg` en de isotone herijking op
+    `laat` (de laatste twee maanden), zodat de herijking op ongeziene data leert."""
+    if not herijk:
+        return bouw_pijplijn(cfg).fit(*kenmerken_en_label(training, cfg))
+    model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(vroeg, cfg))
+    return CalibratedClassifierCV(FrozenEstimator(model), method="isotonic").fit(
+        *kenmerken_en_label(laat, cfg)
+    )
+
+
+def meet_weging(o: Opzet, naam: str, cfg: dict, model, basis: dict) -> tuple[dict, pd.Series]:
+    """Eén variant op de validatie: fout, risico, euro's, ijking en latency."""
+    meet, g = o.delen["validatie"], o.g
+    y_meet = meet[basis["doel"]]
+    p = voorspel(model, meet, basis)
+    nachten = volledige_nachten(meet, p, g["validatie_start"], g["validatie_einde"], cfg, o.df)
+    factor = spreidingsfactor(nachten)
+    t = beide(beoordeel(nachten, factor, o.cap, o.bezet, cfg))
+    rij = {
+        "variant": naam,
+        "mae": t["mae"],
+        "bias": t["bias"],
+        "voorspeld_echt": t["voorspeld_echt"],
+        "te_veel": t["te_veel"],
+        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+        "doorverwezen": t["doorverwezen"],
+        "auc": roc_auc_score(y_meet, p),
+        "brier": brier_score_loss(y_meet, p),
+        "logloss": log_loss(y_meet, np.clip(p, 1e-6, 1 - 1e-6)),
+        "kern_p95_ms": kern_latency(model, cfg, factor, o.cap, herhalingen=30)["p95_ms"],
+    }
+    return rij, fout_per_nacht(nachten)
+
+
 def weging(o: Opzet) -> pd.DataFrame:
-    """Referentie, referentie + isotone herijking, balanced, balanced + isotone herijking.
+    """E6b: referentie, isotone herijking, gewogen klassen, en gewogen klassen met herijking.
 
     Herijking op een tijdsgescheiden stuk: de laatste twee maanden vóór het einde van de training.
     Het model leert op de rest; de herijking leert alleen op die twee maanden.
@@ -633,80 +646,22 @@ def weging(o: Opzet) -> pd.DataFrame:
     aankomst = aankomstdatum(training)
     grens = aankomst.max() - pd.DateOffset(months=2)
     vroeg, laat = training[aankomst <= grens], training[aankomst > grens]
-    varianten = [
-        ("referentie", basis, False),
-        ("referentie + isotoon", basis, True),
-        (
-            "balanced",
-            variant(
-                basis, model__boosting={**basis["model"]["boosting"], "class_weight": "balanced"}
-            ),
-            False,
-        ),
-        (
-            "balanced + isotoon",
-            variant(
-                basis, model__boosting={**basis["model"]["boosting"], "class_weight": "balanced"}
-            ),
-            True,
-        ),
-    ]
     rijen, fouten = [], {}
-    g = o.g
-    y_meet = o.delen["validatie"][basis["doel"]]
-    for naam, cfg, herijk in varianten:
-        if herijk:
-            model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(vroeg, cfg))
-            model = CalibratedClassifierCV(FrozenEstimator(model), method="isotonic").fit(
-                *kenmerken_en_label(laat, cfg)
-            )
-        else:
-            model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(training, cfg))
-        p = voorspel(model, o.delen["validatie"], basis)
-        nachten = alleen_volledig(
-            per_nacht(o.delen["validatie"], p, cfg, g["validatie_start"], g["validatie_einde"]),
-            dekking(o.df, g["validatie_start"], g["validatie_einde"]),
-            cfg["evaluatie"]["min_dekking"],
-        )
-        factor = spreidingsfactor(nachten)
-        t = beide(beoordeel(nachten, factor, o.cap, o.bezet, cfg))
-        fouten[naam] = fout_per_nacht(nachten)
-        rijen.append(
-            {
-                "variant": naam,
-                "mae": t["mae"],
-                "bias": t["bias"],
-                "voorspeld_echt": t["voorspeld_echt"],
-                "te_veel": t["te_veel"],
-                "euro_per_volle_nacht": t["euro_per_volle_nacht"],
-                "doorverwezen": t["doorverwezen"],
-                "auc": roc_auc_score(y_meet, p),
-                "brier": brier_score_loss(y_meet, p),
-                "logloss": log_loss(y_meet, np.clip(p, 1e-6, 1 - 1e-6)),
-                "kern_p95_ms": kern_latency(model, cfg, factor, o.cap, herhalingen=30)["p95_ms"],
-            }
-        )
-    tabel = pd.DataFrame(rijen)
-    for i, rij in tabel.iterrows():
-        d = verschiltabel(fouten["referentie"], fouten[rij["variant"]])
-        tabel.loc[i, "delta_mae"] = d["verschil"].mean()
-        tabel.loc[i, "delta_blok7_laag"], tabel.loc[i, "delta_blok7_hoog"] = blokbootstrap(
-            d, "verschil", 7, o.cfg["model"]["seed"]
-        )
+    for naam, cfg, herijk in weging_varianten(basis):
+        model = leer_variant(cfg, herijk, training, vroeg, laat)
+        rij, fouten[naam] = meet_weging(o, naam, cfg, model, basis)
+        rijen.append(rij)
+    tabel = met_delta(pd.DataFrame(rijen), "variant", fouten, "referentie", o.cfg["model"]["seed"])
     tabel["aantoonbaar_beter"] = tabel["delta_blok7_hoog"] < 0
     pad = schrijf(tabel, "weging.csv")
-    for _, rij in tabel.iterrows():
-        with experimentrun("e6b_weging", rij["variant"], exp, o.cfg):
-            log_metrics(
-                {
-                    "ml.mae": rij["mae"],
-                    "ml.voorspeld_echt": rij["voorspeld_echt"],
-                    "ml.brier": rij["brier"],
-                    "business.euro_per_volle_nacht": rij["euro_per_volle_nacht"],
-                    "software.kern_p95_ms": rij["kern_p95_ms"],
-                }
-            )
-            log_tabel(tabel, pad.name)
+    metrics = {
+        "ml.mae": "mae",
+        "ml.voorspeld_echt": "voorspeld_echt",
+        "ml.brier": "brier",
+        "business.euro_per_volle_nacht": "euro_per_volle_nacht",
+        "software.kern_p95_ms": "kern_p95_ms",
+    }
+    log_per_rij("e6b_weging", tabel, "variant", exp, o.cfg, metrics, [(tabel, pad.name)])
     return tabel
 
 
@@ -731,121 +686,97 @@ FEATURESETS = {
 }
 
 
+def meet_featureset(o: Opzet, basis: dict, naam: str, weg: list) -> tuple[dict, pd.Series]:
+    """Eén featureset op de validatie: zonder de kolommen in `weg`."""
+    cfg = variant(
+        basis,
+        features__numeriek=[k for k in basis["features"]["numeriek"] if k not in weg],
+        features__categorisch=[k for k in basis["features"]["categorisch"] if k not in weg],
+    )
+    r = op_validatie(o, cfg)
+    factor = spreidingsfactor(r["nachten"])
+    t = beide(beoordeel(r["nachten"], factor, o.cap, o.bezet, cfg))
+    model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(o.delen["training"], cfg))
+    rij = {
+        "featureset": naam,
+        "weggelaten": ", ".join(weg) or "—",
+        "mae": t["mae"],
+        "bias": t["bias"],
+        "te_veel": t["te_veel"],
+        "euro_per_volle_nacht": t["euro_per_volle_nacht"],
+        "auc": roc_auc_score(r["y"], r["p"]),
+        "brier": brier_score_loss(r["y"], r["p"]),
+        "kern_p95_ms": kern_latency(model, cfg, factor, o.cap, herhalingen=30)["p95_ms"],
+    }
+    return rij, fout_per_nacht(r["nachten"])
+
+
 def featuresets(o: Opzet) -> pd.DataFrame:
+    """E7: kost een conservatievere featureset iets? Elke set tegenover de huidige (S0)."""
     exp = laad_experiment("e7_features")
     basis = met(o.cfg, *GEKOZEN)
     rijen, fouten = [], {}
     for naam, weg in FEATURESETS.items():
-        cfg = variant(
-            basis,
-            features__numeriek=[k for k in basis["features"]["numeriek"] if k not in weg],
-            features__categorisch=[k for k in basis["features"]["categorisch"] if k not in weg],
-        )
-        r = o.draai(cfg, "validatie", "training", "validatie")
-        factor = spreidingsfactor(r["nachten"])
-        t = beide(beoordeel(r["nachten"], factor, o.cap, o.bezet, cfg))
-        fouten[naam] = fout_per_nacht(r["nachten"])
-        model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(o.delen["training"], cfg))
-        rijen.append(
-            {
-                "featureset": naam,
-                "weggelaten": ", ".join(weg) or "—",
-                "mae": t["mae"],
-                "bias": t["bias"],
-                "te_veel": t["te_veel"],
-                "euro_per_volle_nacht": t["euro_per_volle_nacht"],
-                "auc": roc_auc_score(r["y"], r["p"]),
-                "brier": brier_score_loss(r["y"], r["p"]),
-                "kern_p95_ms": kern_latency(model, cfg, factor, o.cap, herhalingen=30)["p95_ms"],
-            }
-        )
-    tabel = pd.DataFrame(rijen)
-    for i, rij in tabel.iterrows():
-        d = verschiltabel(fouten["S0 huidig"], fouten[rij["featureset"]])
-        tabel.loc[i, "delta_mae"] = d["verschil"].mean()
-        tabel.loc[i, "delta_blok7_laag"], tabel.loc[i, "delta_blok7_hoog"] = blokbootstrap(
-            d, "verschil", 7, o.cfg["model"]["seed"]
-        )
+        rij, fouten[naam] = meet_featureset(o, basis, naam, weg)
+        rijen.append(rij)
+    tabel = met_delta(
+        pd.DataFrame(rijen), "featureset", fouten, "S0 huidig", o.cfg["model"]["seed"]
+    )
     tabel["binnen_interval_van_s0"] = (tabel["delta_blok7_laag"] <= 0) & (
         tabel["delta_blok7_hoog"] >= 0
     )
     pad = schrijf(tabel, "features.csv")
-    for _, rij in tabel.iterrows():
-        with experimentrun("e7_features", rij["featureset"], exp, o.cfg):
-            log_metrics(
-                {
-                    "ml.mae": rij["mae"],
-                    "ml.auc": rij["auc"],
-                    "beleid.te_veel": rij["te_veel"],
-                    "business.euro_per_volle_nacht": rij["euro_per_volle_nacht"],
-                    "software.kern_p95_ms": rij["kern_p95_ms"],
-                }
-            )
-            log_tabel(tabel, pad.name)
+    metrics = {
+        "ml.mae": "mae",
+        "ml.auc": "auc",
+        "beleid.te_veel": "te_veel",
+        "business.euro_per_volle_nacht": "euro_per_volle_nacht",
+        "software.kern_p95_ms": "kern_p95_ms",
+    }
+    log_per_rij("e7_features", tabel, "featureset", exp, o.cfg, metrics, [(tabel, pad.name)])
     return tabel
 
 
 # --------------------------------------------------------------------------- 3.10 kalibratie
 
 
+def ijkingsbakken(y: np.ndarray, p: np.ndarray) -> tuple[list[dict], float]:
+    """Tien kwantielbakken van de kans: per bak de gemiddelde kans, het aandeel en een 95 %-Wilson-
+    interval, plus de ECE (het gewogen verschil tussen kans en aandeel)."""
+    randen = np.unique(np.quantile(p, np.linspace(0, 1, 11)))
+    bak = np.clip(np.digitize(p, randen[1:-1]), 0, len(randen) - 2)
+    bakken, ece = [], 0.0
+    for b in np.unique(bak):
+        m = bak == b
+        k, n = int(y[m].sum()), int(m.sum())
+        wl, wh = wilson(k, n, 0.95)
+        ece += n / len(y) * abs(p[m].mean() - y[m].mean())
+        bakken.append(
+            {
+                "bin": int(b),
+                "n": n,
+                "gem_kans": p[m].mean(),
+                "aandeel": y[m].mean(),
+                "wilson95_laag": wl,
+                "wilson95_hoog": wh,
+            }
+        )
+    return bakken, ece
+
+
 def kalibratie(o: Opzet) -> pd.DataFrame:
+    """E10: de ijking per hotel op de validatie, per bak met aantallen en intervallen."""
     exp = laad_experiment("e10_kalibratie")
     rijen = []
-    fig, assen = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+    hotels = o.delen["validatie"]["hotel"].to_numpy()
     for soort in ["vuistregel", "logreg", "boosting"]:
-        cfg = met(o.cfg, soort, False)
-        r = o.draai(cfg, "validatie", "training", "validatie")
-        hotels = o.delen["validatie"]["hotel"].to_numpy()
-        for ax, hotel in zip(assen, ["City Hotel", "Resort Hotel"], strict=True):
+        r = op_validatie(o, met(o.cfg, soort, False))
+        for hotel in ["City Hotel", "Resort Hotel"]:
             masker = hotels == hotel
-            y, p = r["y"][masker], r["p"][masker]
-            randen = np.unique(np.quantile(p, np.linspace(0, 1, 11)))
-            bak = np.clip(np.digitize(p, randen[1:-1]), 0, len(randen) - 2)
-            ece = 0.0
-            xs, ys, laag, hoog = [], [], [], []
-            for b in np.unique(bak):
-                m = bak == b
-                k, n = int(y[m].sum()), int(m.sum())
-                wl, wh = wilson(k, n, 0.95)
-                ece += n / len(y) * abs(p[m].mean() - y[m].mean())
-                rijen.append(
-                    {
-                        "model": soort,
-                        "hotel": hotel,
-                        "bin": int(b),
-                        "n": n,
-                        "gem_kans": p[m].mean(),
-                        "aandeel": y[m].mean(),
-                        "wilson95_laag": wl,
-                        "wilson95_hoog": wh,
-                    }
-                )
-                xs.append(p[m].mean())
-                ys.append(y[m].mean())
-                laag.append(wl)
-                hoog.append(wh)  # noqa: E702
-            for rij in rijen:
-                if rij["model"] == soort and rij["hotel"] == hotel:
-                    rij["ece"] = ece
-            ax.errorbar(
-                xs,
-                ys,
-                yerr=[np.array(ys) - laag, np.array(hoog) - ys],
-                marker="o",
-                ms=4,
-                capsize=2,
-                label=f"{soort} (ECE {ece:.3f})",
-            )
-            ax.set_title(hotel, fontsize=9)
-    for ax in assen:
-        ax.plot([0, 0.6], [0, 0.6], color="#888888", lw=1, ls="--")
-        ax.set_xlabel("gemiddelde voorspelde kans (10 kwantielbakken)")
-        ax.legend(fontsize=7)
-    assen[0].set_ylabel("waargenomen aandeel, met 95 %-Wilson-interval")
-    fig.suptitle("IJking per hotel op de validatie", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(figuurpad("ijking_intervallen.png"), dpi=130)
+            bakken, ece = ijkingsbakken(r["y"][masker], r["p"][masker])
+            rijen += [{"model": soort, "hotel": hotel, **b, "ece": ece} for b in bakken]
     tabel = pd.DataFrame(rijen)
+    fig = teken_kalibratie(tabel, figuurpad("ijking_intervallen.png"))
     pad = schrijf(tabel, "kalibratie.csv")
     for (soort, hotel), g in tabel.groupby(["model", "hotel"]):
         with experimentrun("e10_kalibratie", f"{soort} · {hotel}", exp, o.cfg):
@@ -861,15 +792,11 @@ def kalibratie(o: Opzet) -> pd.DataFrame:
 
 def contract_mae(o: Opzet) -> pd.DataFrame:
     """MAE van dezelfde voorspellingen tegen het label van contract A en van contract B."""
-    from .audit import boeking_nachten
-    from .data import schoon_op
-
     bn = boeking_nachten(schoon_op(laad_data(o.cfg["data"]["pad"]), o.cfg), o.cfg)
     b_per_nacht = bn[bn["in_b"]].groupby(["hotel", "nacht"])["label"].sum().rename("echt_b")
     rijen = []
     for soort in ["vuistregel", "logreg", "boosting"]:
-        cfg = met(o.cfg, soort, False)
-        r = o.draai(cfg, "validatie", "training", "validatie")
+        r = op_validatie(o, met(o.cfg, soort, False))
         n = (
             r["nachten"]
             .set_index(["hotel", "nacht"])
@@ -892,8 +819,6 @@ def contract_mae(o: Opzet) -> pd.DataFrame:
 
 def duplicaten_split(o: Opzet) -> pd.DataFrame:
     """Random split met en zonder exacte kopieën die over de split vallen, naast de tijdsplit."""
-    from sklearn.model_selection import GroupShuffleSplit, train_test_split
-
     samen = pd.concat([o.delen["training"], o.delen["validatie"]])
     weg = [
         k
@@ -929,6 +854,7 @@ def duplicaten_split(o: Opzet) -> pd.DataFrame:
 
 
 def claims(o: Opzet) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """E12: twee beweringen nagemeten: het verschil tussen contract A en B, en de kopieën."""
     exp = laad_experiment("e12_claims")
     a, b = contract_mae(o), duplicaten_split(o)
     pad_a, pad_b = schrijf(a, "contract_mae.csv"), schrijf(b, "split_duplicaten.csv")
@@ -954,12 +880,8 @@ def per_hotel_beoordeeld(nachten, factor, cap, bezet, cfg, zekerheden: dict) -> 
     return pd.concat(delen, ignore_index=True)
 
 
-def zekerheid_per_hotel(o: Opzet) -> pd.DataFrame:
-    """Taak 3.4b: een zekerheid per hotel, afgestemd op de folds van 2016, gemeten op Q1 2017."""
-    exp = laad_experiment("e3b_zekerheid_hotel")
-    cfg = met(o.cfg, *GEKOZEN)
-    grens = o.cfg["advies"]["risicogrens"]
-    zekerheden = zekerheden_winstcurve(o.cfg)
+def afstemming_2016(o: Opzet, cfg: dict, zekerheden) -> pd.DataFrame:
+    """Te veel en euro's per hotel, per zekerheid, op de folds van vóór de validatie (2016)."""
     rijen, vorige = [], None
     for fold in [f for f in folds(o.df, o.cfg) if f.einde < o.g["validatie_start"]]:
         model = bouw_pijplijn(cfg).fit(*kenmerken_en_label(fold.train, cfg))
@@ -974,38 +896,55 @@ def zekerheid_per_hotel(o: Opzet) -> pd.DataFrame:
                      "te_veel": r["te_veel"], "euro": r["euro_per_volle_nacht"]}
                 )  # fmt: skip
         vorige = eigen
-    afstemming = pd.DataFrame(rijen)
+    return pd.DataFrame(rijen)
+
+
+def kies_zekerheid(afstemming: pd.DataFrame, grens: float) -> dict:
+    """Per hotel de zekerheid met de meeste euro's waarbij geen fold over de risicogrens gaat."""
     gekozen = {}
     for hotel, g in afstemming.groupby("hotel"):
         per_z = g.groupby("zekerheid").agg(max_te_veel=("te_veel", "max"), euro=("euro", "mean"))
         binnen = per_z[per_z["max_te_veel"] <= grens]
         gekozen[hotel] = float(binnen["euro"].idxmax()) if len(binnen) else float(per_z.index.max())
+    return gekozen
+
+
+def zekerheid_variant(naam: str, z: dict, r: dict, factor, o: Opzet, cfg: dict, grens) -> dict:
+    """Eén variant op de validatie: risico per hotel en maand, euro's en doorverwezen gasten."""
+    n = per_hotel_beoordeeld(r["nachten"], factor, o.cap, o.bezet, cfg, z)
+    n["maand"] = pd.to_datetime(n["nacht"]).dt.strftime("%Y-%m")
+    n["te_veel_nacht"] = (n["echt"] < n["k"]).astype(float)
+    maand = n.groupby(["hotel", "maand"])["te_veel_nacht"].mean()
+    vol = n[n["vol"]]
+    return {
+        "variant": naam,
+        "zekerheid_city": z["City Hotel"],
+        "zekerheid_resort": z["Resort Hotel"],
+        "te_veel": n["te_veel_nacht"].mean(),
+        "max_te_veel_hotel_maand": maand.max(),
+        "hotel_maand_boven_grens": int((maand > grens).sum()),
+        "euro_per_volle_nacht": vol["euro"].mean(),
+        "doorverwezen": vol["doorverwezen"].mean(),
+        **{f"te_veel_{h.split()[0].lower()}_{m}": v for (h, m), v in maand.items()},
+    }
+
+
+def zekerheid_per_hotel(o: Opzet) -> pd.DataFrame:
+    """Taak 3.4b: een zekerheid per hotel, afgestemd op de folds van 2016, gemeten op Q1 2017."""
+    exp = laad_experiment("e3b_zekerheid_hotel")
+    cfg = met(o.cfg, *GEKOZEN)
+    grens = o.cfg["advies"]["risicogrens"]
+    afstemming = afstemming_2016(o, cfg, zekerheden_winstcurve(o.cfg))
+    gekozen = kies_zekerheid(afstemming, grens)
     logger.info("Zekerheid per hotel, afgestemd op 2016: %s", gekozen)
 
-    r = o.draai(cfg, "validatie", "training", "validatie")
+    r = op_validatie(o, cfg)
     factor = spreidingsfactor(r["nachten"])
-    uit = []
-    for naam, z in [("0,80 voor beide hotels", dict.fromkeys(gekozen, cfg["advies"]["zekerheid"])),
-                    ("zekerheid per hotel", gekozen)]:  # fmt: skip
-        n = per_hotel_beoordeeld(r["nachten"], factor, o.cap, o.bezet, cfg, z)
-        n["maand"] = pd.to_datetime(n["nacht"]).dt.strftime("%Y-%m")
-        n["te_veel_nacht"] = (n["echt"] < n["k"]).astype(float)
-        maand = n.groupby(["hotel", "maand"])["te_veel_nacht"].mean()
-        vol = n[n["vol"]]
-        uit.append(
-            {
-                "variant": naam,
-                "zekerheid_city": z["City Hotel"],
-                "zekerheid_resort": z["Resort Hotel"],
-                "te_veel": n["te_veel_nacht"].mean(),
-                "max_te_veel_hotel_maand": maand.max(),
-                "hotel_maand_boven_grens": int((maand > grens).sum()),
-                "euro_per_volle_nacht": vol["euro"].mean(),
-                "doorverwezen": vol["doorverwezen"].mean(),
-                **{f"te_veel_{h.split()[0].lower()}_{m}": v for (h, m), v in maand.items()},
-            }
-        )
-    tabel = pd.DataFrame(uit)
+    varianten = [("0,80 voor beide hotels", dict.fromkeys(gekozen, cfg["advies"]["zekerheid"])),
+                 ("zekerheid per hotel", gekozen)]  # fmt: skip
+    tabel = pd.DataFrame(
+        [zekerheid_variant(naam, z, r, factor, o, cfg, grens) for naam, z in varianten]
+    )
     basis, alt = tabel.iloc[0], tabel.iloc[1]
     vervangt = bool(
         alt["hotel_maand_boven_grens"] == 0
@@ -1018,20 +957,17 @@ def zekerheid_per_hotel(o: Opzet) -> pd.DataFrame:
     afstemming.to_csv(
         pad.with_name("zekerheid_per_hotel_afstemming.csv"), index=False, float_format="%.4f"
     )
-    for _, rij in tabel.iterrows():
-        with experimentrun(
-            "e3b_zekerheid_hotel", rij["variant"], exp, o.cfg, besluit=rij["besluit"]
-        ):
-            log_metrics(
-                {
-                    "beleid.max_te_veel_hotel_maand": rij["max_te_veel_hotel_maand"],
-                    "beleid.hotel_maand_boven_grens": rij["hotel_maand_boven_grens"],
-                    "business.euro_per_volle_nacht": rij["euro_per_volle_nacht"],
-                    "business.doorverwezen": rij["doorverwezen"],
-                }
-            )
-            log_tabel(tabel, pad.name)
-            log_tabel(afstemming, "zekerheid_per_hotel_afstemming.csv")
+    metrics = {
+        "beleid.max_te_veel_hotel_maand": "max_te_veel_hotel_maand",
+        "beleid.hotel_maand_boven_grens": "hotel_maand_boven_grens",
+        "business.euro_per_volle_nacht": "euro_per_volle_nacht",
+        "business.doorverwezen": "doorverwezen",
+    }
+    tabellen = [(tabel, pad.name), (afstemming, "zekerheid_per_hotel_afstemming.csv")]
+    besluit = tabel["besluit"].iloc[0]
+    log_per_rij(
+        "e3b_zekerheid_hotel", tabel, "variant", exp, o.cfg, metrics, tabellen, besluit=besluit
+    )
     return tabel
 
 
@@ -1052,6 +988,7 @@ TAKEN = {
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
+    """python -m src.robuustheid <taak|alles>: de gekozen robuustheidsexperimenten."""
     if not argv or any(a not in [*TAKEN, "alles"] for a in argv):
         raise SystemExit(f"python -m src.robuustheid {{{','.join([*TAKEN, 'alles'])}}}")
     cfg = laad_config()
