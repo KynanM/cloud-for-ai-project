@@ -13,7 +13,7 @@ python -m pip install --require-hashes -r requirements-dev.lock
 | `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib, pytest) | de lector: `pip install -r requirements.txt` |
 | `requirements-api.txt` | de webservice: wat `src.serving.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
 | `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
-| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, het notebook | ontwikkelen |
+| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, pytest-cov, het notebook | ontwikkelen |
 | `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
 
 Matplotlib staat niet in het image: met Matplotlib groeit het van 670 naar 794 MB, en de API
@@ -52,6 +52,27 @@ De marker `traag` (in `pytest.ini`) zet de tests apart die trainen, MLflow of de
 de opdrachtregel starten. `python -m pytest -m "not traag"` draait de rest in ±10 s.
 
 `ruff format` controleert ook de codeblokken in Markdown.
+
+### Coverage
+
+```bash
+python -m pytest --cov=src --cov=benchmarks
+```
+
+Gemeten op 23-11-2026 (291 tests, na `python -m src.train`), als aandeel van de regels:
+
+| Deel | Coverage |
+|---|---|
+| kern (`src/*.py`) | 68 % |
+| `src/serving/` | 71 % |
+| `src/onderzoek/` | 20 % |
+| `benchmarks/` | 13 % |
+| alles samen | 40 % |
+
+De kern zonder de tekenfuncties en `src.evaluate` ligt hoger: `nachten.py`, `poorten.py`,
+`scope.py` en `vrijgave.py` staan op 100 %, `train.py` op 92 %. Het onderzoek en de benchmarks
+zijn opdrachten die `resultaten/` opnieuw maken; die worden niet door tests gedraaid, wel door
+de bewijstests nagelezen (`tests/test_bewijsregister.py`).
 
 ## Trainen en van model wisselen
 
