@@ -125,9 +125,8 @@ De onderzoeksmodules gaan verder dan wat de opdracht van deel 2 vraagt ("een ML-
 gestructureerde repo, met data-exploratie en minstens twee modellen"), en `InfoVak.txt` zegt dat
 modellen kiezen, architecturen vergelijken en hyperparameters tunen niet het werk van dit vak is.
 Ze staan er als verantwoording van de keuzes (bootstrap, rolling origin, complexiteitsladder,
-kalibratie); om deel 2 te beoordelen zijn ze niet nodig. De kern telt 2 640 regels code,
-`src/onderzoek/` 2 552 en `src/serving/` 1 251; de audit, met negen kernmodules, kwam op
-ongeveer 1 op 3.
+kalibratie); om deel 2 te beoordelen zijn ze niet nodig. De kern is ongeveer 2 700 regels,
+`src/onderzoek/` 2 600 en `src/serving/` 1 300.
 
 ### De rest van de repo
 
