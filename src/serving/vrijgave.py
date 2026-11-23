@@ -5,9 +5,11 @@
 - het manifest, met de referentieverdelingen en de driftdrempels die src.serving.monitoring per
   verzoek gebruikt (les 10)
 
-src.train roept bereid_serving_voor() aan en schrijft daarna weg. Zo hangt de trainingscode van
-deel 2 niet af van src.predict of src.serving.monitoring. Weglaten kan niet: de CI,
-src.serving.publiceer, de API en de monitoring steunen op het manifest en de driftdrempels.
+src.train roept bereid_serving_voor() aan en schrijft daarna weg. train.py importeert
+src.predict en src.serving.monitoring dus niet rechtstreeks, maar via deze module wel: de
+softwarepoort draait een echte adviesjob (voer_job_uit) en het manifest bewaart de
+driftreferentie. Weglaten kan niet: de CI, src.serving.publiceer, de API en de monitoring
+steunen op het manifest en de driftdrempels.
 """
 
 from __future__ import annotations
