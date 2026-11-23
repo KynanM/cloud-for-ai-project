@@ -23,6 +23,7 @@ weging,class_weight balanced,MAE 27.0; voorspeld/echt 2.73,resultaten/audit/expe
 trainingsvenster,laatste 12 maanden,MAE 5.04,resultaten/audit/experimenten.csv,uitgevoerd en reproduceerbaar
 spreiding,te veel huidig / factor 1 (maart; zonder maximum),19 % / 36 %,resultaten/audit/spreiding.csv,uitgevoerd en reproduceerbaar
 drempel,beste kandidaat tegenover 0.80 (zonder maximum),0.725: +13.9 € (−34.9 tot +56.6),resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
+drempel,winstcurve boosting op de validatie: hoogste punt tegenover 0.80,0.725: 494 € tegenover 480 €,resultaten/winstcurve.csv; resultaten/audit/drempel.csv,uitgevoerd en reproduceerbaar
 business,€ per volle nacht test vuistregel / boosting (zonder maximum),540 / 715,resultaten/evaluatie.csv,uitgevoerd en reproduceerbaar
 business,verlies door het oude maximum van 5 % (test),570 € van 1 232 € (zonder maximum: 0),resultaten/audit/verlies.csv,uitgevoerd en reproduceerbaar
 business,maximum 7.5 % (test),705 €; 0.36 doorverwezen,resultaten/audit/maximum.csv,uitgevoerd en reproduceerbaar

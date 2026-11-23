@@ -13,6 +13,7 @@ vastleggen:
 
 import joblib
 import numpy as np
+import pytest
 
 from src.data import laad_data
 from src.predict import laad_model, voorspel
@@ -68,6 +69,7 @@ def test_persistentie(model, df, cfg, tmp_path):
     np.testing.assert_allclose(na, voorspel(model, df, cfg))
 
 
+@pytest.mark.traag
 def test_zelfde_seed_zelfde_model(df, cfg):
     eerste, _ = train(df, cfg)
     tweede, _ = train(df, cfg)

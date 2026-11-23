@@ -8,6 +8,9 @@ import pytest
 
 from benchmarks.bench_foutgedrag import GEVALLEN, beoordeel, boekingen, via_api, via_cli
 
+# Elke test hier start de opdrachtregel per geval: buiten de snelle set (pytest -m "not traag")
+pytestmark = pytest.mark.traag
+
 
 @pytest.fixture(scope="module")
 def client(cfg):

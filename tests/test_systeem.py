@@ -22,6 +22,9 @@ from src.predict import adviseer, laad_advies, laad_model
 from src.schema import INVOER
 from src.train import bouw_en_bewaar
 
+# Elke test hier traint en start de opdrachtregel: buiten de snelle set (pytest -m "not traag")
+pytestmark = pytest.mark.traag
+
 NACHT = "2017-08-15"
 
 

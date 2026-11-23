@@ -12,6 +12,11 @@ resultaten: resultaten/
 # Logbestanden: elke opdracht schrijft naar <logs>/<opdracht>.log en naar de console.
 # Niet gecommit. Zie src/logboek.py.
 logs: logs/
+# tekst: één leesbare regel per gebeurtenis. json: één object per regel, voor src.monitoring.
+# De omgevingsvariabele OVERBOEKING_LOGFORMAAT gaat voor (het image zet json).
+logs_formaat: tekst
+# Het logbestand roteert elke nacht; zoveel dagen blijven bewaard.
+logs_retentie_dagen: 30
 
 # Het label wordt afgeleid, het staat niet als kolom in de csv. Zie maak_label() in src/data.py.
 doel: annuleert_na_beslismoment
@@ -164,8 +169,9 @@ model:
   logreg:
     max_iter: 1000
     # Met de standaard (1e-4) stopt de solver vóór het optimum, en hangt het resultaat af van
-    # de machine (MAE op de test 5,135 tegenover 5,113 voor logreg met land). Met 1e-6 ligt de
-    # oplossing vast: 1e-8 verschilt minder dan 0,001 in MAE. Niet afgesteld op de score.
+    # de machine (MAE op de test 5,135 tegenover 5,113 voor logreg met land). Met 1e-6 is de
+    # oplossing stabiel: tussen machines verschilt de MAE minder dan 0,001, afgerond in de tabellen
+    # niets; 1e-8 verschilt minder dan 0,001 in MAE. Niet afgesteld op de score.
     tol: 1.0e-6
   boosting:
     # Eerst 200. 100 is op de validatie aantoonbaar beter (MAE per nacht, bootstrap): zie

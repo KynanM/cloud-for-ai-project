@@ -10,7 +10,7 @@ voor label, features, evaluatie en `src.predict` samen. De cijfers komen uit `py
 |---|---|
 | Wie | de revenue manager van het hotel. Het model adviseert, de revenue manager beslist |
 | Wat | hoeveel kamers het hotel voor een nacht extra mag verkopen: k |
-| Wanneer | 30 dagen vóór de nacht (`label.horizon_dagen`) |
+| Wanneer | 30 dagen vóór de aankomst (`label.horizon_dagen`, contract A hieronder) |
 | Op basis van | de boekingen die op dat moment actief zijn, zoals het boekingssysteem ze exporteert |
 | Doel | een offline **proxy** voor de waarde van het advies, geen gerealiseerde winst (zie [business_aannames.md](business_aannames.md)) |
 
