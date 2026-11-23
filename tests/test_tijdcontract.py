@@ -1,15 +1,15 @@
 """Het besliscontract en de verliesrekening, op boekingen die je met de hand narekent.
 
 Contract A (wat het model doet): beslismoment T = aankomst − 30 dagen, voor elke nacht.
-Contract B: T = die nacht − 30 dagen. Zie src/audit.py en docs/besliscontract.md.
+Contract B: T = die nacht − 30 dagen. Zie src/onderzoek/audit.py en docs/besliscontract.md.
 """
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.audit import boeking_nachten, contract
-from src.experimenten import bootstrap, verliezen
+from src.onderzoek.audit import boeking_nachten, contract
+from src.onderzoek.experimenten import bootstrap, verliezen
 
 
 def boeking(aankomst, nachten, lead_time, status="Check-Out", status_datum=None):

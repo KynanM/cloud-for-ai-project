@@ -25,13 +25,13 @@ import pandas as pd  # noqa: E402
 import yaml  # noqa: E402
 from scipy.stats import spearmanr  # noqa: E402
 
-from .config import PROJECT, laad_config  # noqa: E402
-from .data import laad_data, stop_bij_fout  # noqa: E402
+from ..config import PROJECT, laad_config  # noqa: E402
+from ..data import laad_data, stop_bij_fout  # noqa: E402
+from ..figuren import teken_scenario, teken_tornado, teken_verband  # noqa: E402
+from ..logboek import zet_logging_op  # noqa: E402
+from ..nachten import met_advies, winst_fysiek  # noqa: E402
+from ..serving.tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
 from .experimenten import Opzet, modelvergelijking  # noqa: E402
-from .figuren import teken_scenario, teken_tornado, teken_verband  # noqa: E402
-from .logboek import zet_logging_op  # noqa: E402
-from .nachten import met_advies, winst_fysiek  # noqa: E402
-from .tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 

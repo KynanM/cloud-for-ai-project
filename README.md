@@ -142,7 +142,7 @@ Verder lezen:
 
 [![docker](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/KynanM/cloud-for-ai-project/actions/workflows/docker.yml)
 
-Deel 3 zet het model achter een webservice (`src/api.py`) in een container.
+Deel 3 zet het model achter een webservice (`src/serving/api.py`) in een container.
 Eén advies duurt in de container **183 ms** (p95).
 
 ### De API openen
@@ -150,7 +150,7 @@ Eén advies duurt in de container **183 ms** (p95).
 Hetzelfde advies via HTTP. Op Windows met `.\.venv\Scripts\python.exe`:
 
 ```bash
-.venv/bin/python -m uvicorn src.api:app --port 7860
+.venv/bin/python -m uvicorn src.serving.api:app --port 7860
 ```
 
 Open daarna <http://127.0.0.1:7860/docs> om een verzoek te proberen, of

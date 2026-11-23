@@ -28,10 +28,10 @@ from .data import OngeldigeDataError, aankomstdatum, laad_data, stop_bij_fout, v
 from .kansen import voorspel  # ook bereikbaar als src.predict.voorspel
 from .kenmerken import als_tekst
 from .logboek import zet_logging_op
-from .manifest import controleer
-from .meting import Meting
 from .nachten import met_advies, per_nacht
 from .scope import BuitenScopeError, controleer_scope
+from .serving.manifest import controleer
+from .serving.meting import Meting
 
 # `Model` is alleen een type-aanduiding (Pipeline of Vuistregel). Voorspellen hoeft de
 # trainingscode niet te laden: de API importeert zo src/train.py niet mee.

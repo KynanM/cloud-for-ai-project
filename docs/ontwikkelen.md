@@ -11,7 +11,7 @@ python -m pip install --require-hashes -r requirements-dev.lock
 | Bestand | Wat | Wie gebruikt het |
 |---|---|---|
 | `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib, pytest) | de lector: `pip install -r requirements.txt` |
-| `requirements-api.txt` | de webservice: wat `src.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
+| `requirements-api.txt` | de webservice: wat `src.serving.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
 | `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
 | `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, het notebook | ontwikkelen |
 | `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
@@ -79,10 +79,10 @@ benchmarks.
 | Opdracht | Wat | Schrijft |
 |---|---|---|
 | `python -m src.evaluate` | alle modellen per hotel-nacht, validatie en test | `resultaten/evaluatie.csv`, `groepen.csv`, `winstcurve.*`, `ijking.png` |
-| `python -m src.audit` | filterwaterval, besliscontract A tegenover B, dekking | `resultaten/audit/` |
-| `python -m src.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
-| `python -m src.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
-| `python -m src.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
+| `python -m src.onderzoek.audit` | filterwaterval, besliscontract A tegenover B, dekking | `resultaten/audit/` |
+| `python -m src.onderzoek.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
+| `python -m src.onderzoek.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
+| `python -m src.onderzoek.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
 | `python -m src.figuren` | de figuren van de softwaremetriek | `resultaten/figuren/` |
 | `python -m benchmarks.workloads` | de vaste werklasten voor de benchmarks | `benchmarks/workloads/*.csv` (niet gecommit) en `resultaten/software/workloads.json` |
 | `python -m benchmarks.bench` | de softwaremetriek | `resultaten/software/` |
@@ -112,7 +112,7 @@ aan, niet de test. Schrijf je een zin met een geankerd cijfer om, pas dan ook he
 
 ## Logging
 
-`src.train`, `src.predict`, `src.evaluate`, `src.audit` en `src.experimenten` schrijven
+`src.train`, `src.predict`, `src.evaluate`, `src.onderzoek.audit` en `src.onderzoek.experimenten` schrijven
 logregels (tijd, niveau, module, boodschap) naar het scherm én naar `logs/<opdracht>.log`. Dat
 bestand groeit aan, zodat je achteraf terugvindt welk model met welke cijfers weggeschreven werd.
 De map staat in `configs/default.yaml` (`logs`), het opzetten in `src/logboek.py`. `logs/` wordt

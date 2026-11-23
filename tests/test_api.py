@@ -32,7 +32,7 @@ AS_OF = "2017-07-16"
 def client(cfg):
     if not cfg["model"]["manifest_pad"].exists():
         pytest.skip("geen getraind model in models/: eerst python -m src.train")
-    from src.api import app
+    from src.serving.api import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -150,7 +150,7 @@ def literal_waarden(annotatie) -> set:
 
 def test_pydantic_en_pandera_zeggen_hetzelfde():
     # Twee lagen validatie mogen niet uit elkaar lopen: zelfde kolommen, zelfde toegelaten waarden
-    from src.api import Boeking
+    from src.serving.api import Boeking
 
     velden = Boeking.model_fields
     assert set(velden) == set(schema.INVOER.columns)
@@ -164,6 +164,6 @@ def test_pydantic_en_pandera_zeggen_hetzelfde():
 
 def test_de_api_laadt_de_trainingscode_niet():
     # In een apart proces: in deze testsessie is src.train al door andere tests geladen
-    code = "import sys, src.api; print('src.train' in sys.modules)"
+    code = "import sys, src.serving.api; print('src.train' in sys.modules)"
     uit = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert uit.stdout.strip() == "False"

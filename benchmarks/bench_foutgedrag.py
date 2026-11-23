@@ -252,7 +252,7 @@ def beoordeel(geval: Geval, uitkomst: dict) -> bool:
 def main() -> pd.DataFrame:
     from fastapi.testclient import TestClient
 
-    from src.api import app
+    from src.serving.api import app
 
     basis = boekingen()
     rijen = []

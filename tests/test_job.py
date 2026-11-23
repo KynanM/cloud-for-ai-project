@@ -16,7 +16,6 @@ from sklearn.pipeline import Pipeline
 from src import nachten, schema
 from src.config import PROJECT
 from src.data import OngeldigeDataError, laad_data
-from src.meting import Meting
 from src.predict import (
     adviseer,
     adviseer_uit_kansen,
@@ -25,6 +24,7 @@ from src.predict import (
     voer_job_uit,
     voorspel,
 )
+from src.serving.meting import Meting
 
 NACHT = pd.Timestamp("2017-08-15")
 FASES = {"schema", "scope", "voorspellen", "aggregeren", "advies", "advies_valideren"}

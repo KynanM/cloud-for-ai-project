@@ -21,12 +21,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .config import laad_config
-from .data import aankomstdatum, laad_data, maak_label, schoon_op, stop_bij_fout
-from .logboek import zet_logging_op
-from .manifest import commit, versies
-from .nachten import dekking
-from .train import grenzen, splits
+from ..config import laad_config
+from ..data import aankomstdatum, laad_data, maak_label, schoon_op, stop_bij_fout
+from ..logboek import zet_logging_op
+from ..nachten import dekking
+from ..serving.manifest import commit, versies
+from ..train import grenzen, splits
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 

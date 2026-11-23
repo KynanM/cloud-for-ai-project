@@ -6,7 +6,7 @@ Voor elke nacht van april tot augustus 2017: de portefeuille van die nacht (alle
 die er verblijven, zonder label), het beslismoment 30 dagen ervoor (contract A), en een echt
 `POST /advies` via FastAPI's TestClient. Naast het advies k komt het echte aantal annulaties van
 die nacht, zoals een hotel het later zou kennen. Zo draait de hele keten: verzoek, scope, advies,
-latency, en daarna de monitoring (`python -m src.monitoring labels`).
+latency, en daarna de monitoring (`python -m src.serving.monitoring labels`).
 
 De test kiest hier niets: het is een demonstratie van de keten en het bewijs voor de monitoring.
 Schrijft resultaten/business/replay.csv.
@@ -21,9 +21,9 @@ import pandas as pd
 from fastapi.testclient import TestClient
 
 from src import schema
-from src.api import app
 from src.config import PROJECT, laad_config
 from src.data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
+from src.serving.api import app
 from src.train import grenzen
 
 UIT = PROJECT / "resultaten" / "business" / "replay.csv"

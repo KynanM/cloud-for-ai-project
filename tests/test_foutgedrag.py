@@ -19,7 +19,7 @@ def client(cfg):
         pytest.skip("geen getraind model in models/: eerst python -m src.train")
     from fastapi.testclient import TestClient
 
-    from src.api import app
+    from src.serving.api import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
