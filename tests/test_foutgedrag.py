@@ -9,7 +9,8 @@ import pytest
 from benchmarks.bench_foutgedrag import GEVALLEN, beoordeel, boekingen, via_api, via_cli
 
 # Elke test hier start de opdrachtregel per geval: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]  # deel 3: foutgedrag via de API
+pytest.importorskip("httpx")  # staat alleen in de dev-lock
 
 
 @pytest.fixture(scope="module")
@@ -18,7 +19,7 @@ def client(cfg):
         pytest.skip("geen getraind model in models/: eerst python -m src.train")
     from fastapi.testclient import TestClient
 
-    from src.api import app
+    from src.serving.api import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c

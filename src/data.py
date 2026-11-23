@@ -1,12 +1,15 @@
 """Data inlezen, en ze meteen valideren. Wat niet klopt, komt hier niet voorbij."""
 
 import logging
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
 import pandera.pandas as pa
 
 from . import schema
+from .datums import aankomstdatum
+from .scope import binnen_opschoning
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ logger = logging.getLogger(__name__)
 def laad_data(
     pad: str | Path, valideer_met: pa.DataFrameSchema | None = schema.TRAINING
 ) -> pd.DataFrame:
-    """Lees een csv in en valideer hem tegen een schema.
+    """Lees een csv in en valideer hem tegen een schema. Faalt met OngeldigeDataError.
 
     `lazy=True` verzamelt alle fouten in één keer, in plaats van te stoppen bij de eerste.
     Geef `valideer_met=None` om zonder validatie in te lezen. Dat doe je alleen om te zien
@@ -23,13 +26,22 @@ def laad_data(
     try:
         df = pd.read_csv(pad)
     except pd.errors.EmptyDataError:
-        raise SystemExit(f"{pad} is leeg: geen kolommen, geen boekingen.") from None
+        raise OngeldigeDataError(f"{pad} is leeg: geen kolommen, geen boekingen.", []) from None
     if valideer_met is None:
         return df
+    return valideer(df, valideer_met, pad)
+
+
+@contextmanager
+def stop_bij_fout():
+    """Voor de opdrachten (main): ongeldige data stopt met een leesbare melding, zonder stacktrace.
+
+    De bibliotheek gooit OngeldigeDataError; alleen de opdrachtregel zet die om in SystemExit
+    (les 5 p. 45). Bruikbaar als `with stop_bij_fout():` en als decorator `@stop_bij_fout()`.
+    """
     try:
-        return valideer(df, valideer_met, pad)
+        yield
     except OngeldigeDataError as fout:
-        # Op de opdrachtregel stoppen, met de samenvatting per controle als melding.
         raise SystemExit(str(fout)) from None
 
 
@@ -96,21 +108,7 @@ def schoon_op(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
     Dezelfde regels als bij voorspellen: src/scope.py is de enige plek waar ze staan.
     """
-    from .scope import binnen_opschoning  # hier: scope gebruikt zelf aankomstdatum() uit data
-
     return df[binnen_opschoning(df, cfg)]
-
-
-def aankomstdatum(df: pd.DataFrame) -> pd.Series:
-    """De aankomstdatum uit de drie losse kolommen van de export."""
-    return pd.to_datetime(
-        df["arrival_date_year"].astype(str)
-        + "-"
-        + df["arrival_date_month"]
-        + "-"
-        + df["arrival_date_day_of_month"].astype(str),
-        format="%Y-%B-%d",
-    )
 
 
 def maak_label(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:

@@ -15,7 +15,8 @@ gemeten verbruik en gelabelde aannames:
 Scenario's: vandaag één verzoek per dag (beide hotels in één batch), 100× meer verkeer (100
 verzoeken per dag), en het niveau waarop één container de grens breekt
 (resultaten/serving/belasting.csv).
-Schrijft resultaten/serving/kosten.csv en kosten.json (gebruikt door src/business.py, ROI).
+Schrijft resultaten/serving/kosten.csv en kosten.json (gebruikt door src/onderzoek/business.py,
+voor de ROI).
 """
 
 import json
@@ -54,6 +55,7 @@ def idle_cpu_s_per_uur(image: str = "overboeking:lokaal", seconden: int = 60) ->
     time.sleep(15)  # opstarten niet meetellen
 
     def usage() -> float:
+        """De CPU-tijd die de container tot nu toe verbruikte, in seconden."""
         stat = subprocess.run(["docker", "exec", naam, "cat", "/sys/fs/cgroup/cpu.stat"],
                               capture_output=True, text=True, check=True).stdout  # fmt: skip
         return (
@@ -67,13 +69,40 @@ def idle_cpu_s_per_uur(image: str = "overboeking:lokaal", seconden: int = 60) ->
     return (na - voor) / seconden * 3600
 
 
-def main() -> dict:
-    container = pd.read_csv(UIT / "container.csv")
-    slank = container[container["image"] == "overboeking:lokaal"].iloc[0]
-    cpu_s = float(slank["cpu_s_per_advies"])
-    latency_s = float(slank["p50_ms"]) / 1000
-    idle_uur = idle_cpu_s_per_uur()
+def breekpunt_per_dag() -> float | None:
+    """Verzoeken per dag die één container binnen p95 en foutgrens aankan (belasting.csv)."""
+    belasting = UIT / "belasting.csv"
+    if not belasting.exists():
+        return None
+    b = pd.read_csv(belasting)
+    b1 = b[(b["variant"] == "B api x1") & b["p95_ok"] & b["fout_ok"]]
+    return float(b1["throughput_rps"].max()) * 86_400 if len(b1) else None
 
+
+def kostenrij(naam: str, per_dag: float, latency_s: float, lokaal: tuple, cloud_per_advies) -> dict:
+    """De kosten van één scenario: lokaal (stroom, met idle) en Cloud Run (met en zonder gratis)."""
+    lokaal_per_advies, lokaal_idle_maand = lokaal
+    per_maand = per_dag * DAGEN
+    vcpu_s = per_maand * latency_s * CLOUD["vcpu"]
+    gib_s = per_maand * latency_s * CLOUD["gib"]
+    betaald = (
+        max(vcpu_s - CLOUD_GRATIS["vcpu_s"], 0) * CLOUD["vcpu_s"]
+        + max(gib_s - CLOUD_GRATIS["gib_s"], 0) * CLOUD["gib_s"]
+        + max(per_maand - CLOUD_GRATIS["verzoeken"], 0) * CLOUD["per_verzoek"]
+    ) * DOLLAR_IN_EURO
+    return {
+        "scenario": naam,
+        "verzoeken_per_dag": per_dag,
+        "lokaal_eur_per_1000": 1000 * lokaal_per_advies,
+        "lokaal_eur_per_maand": per_maand * lokaal_per_advies + lokaal_idle_maand,
+        "cloud_eur_per_1000_zonder_gratis": 1000 * cloud_per_advies,
+        "cloud_eur_per_maand_zonder_gratis": per_maand * cloud_per_advies,
+        "cloud_eur_per_maand_met_gratis": betaald,
+    }
+
+
+def kostentabel(cpu_s: float, latency_s: float, idle_uur: float) -> pd.DataFrame:
+    """Kosten per scenario uit de gemeten CPU, latency en idle-CPU van de container."""
     lokaal_per_advies = cpu_s * WATT_PER_KERN / 3600 / 1000 * EURO_PER_KWH
     lokaal_idle_maand = idle_uur * 24 * DAGEN * WATT_PER_KERN / 3600 / 1000 * EURO_PER_KWH
     cloud_per_advies_usd = (
@@ -81,39 +110,24 @@ def main() -> dict:
         + CLOUD["per_verzoek"]
     )
     cloud_per_advies = cloud_per_advies_usd * DOLLAR_IN_EURO
-
-    breekpunt = None
-    belasting = UIT / "belasting.csv"
-    if belasting.exists():
-        b = pd.read_csv(belasting)
-        b1 = b[(b["variant"] == "B api x1") & b["p95_ok"] & b["fout_ok"]]
-        breekpunt = float(b1["throughput_rps"].max()) * 86_400 if len(b1) else None
-
     scenarios = {"vandaag (1 verzoek per dag)": 1, "100x meer verkeer": 100}
+    breekpunt = breekpunt_per_dag()
     if breekpunt:
         scenarios["breekpunt van één container"] = breekpunt
-    rijen = []
-    for naam, per_dag in scenarios.items():
-        per_maand = per_dag * DAGEN
-        vcpu_s = per_maand * latency_s * CLOUD["vcpu"]
-        gib_s = per_maand * latency_s * CLOUD["gib"]
-        betaald = (
-            max(vcpu_s - CLOUD_GRATIS["vcpu_s"], 0) * CLOUD["vcpu_s"]
-            + max(gib_s - CLOUD_GRATIS["gib_s"], 0) * CLOUD["gib_s"]
-            + max(per_maand - CLOUD_GRATIS["verzoeken"], 0) * CLOUD["per_verzoek"]
-        ) * DOLLAR_IN_EURO
-        rijen.append(
-            {
-                "scenario": naam,
-                "verzoeken_per_dag": per_dag,
-                "lokaal_eur_per_1000": 1000 * lokaal_per_advies,
-                "lokaal_eur_per_maand": per_maand * lokaal_per_advies + lokaal_idle_maand,
-                "cloud_eur_per_1000_zonder_gratis": 1000 * cloud_per_advies,
-                "cloud_eur_per_maand_zonder_gratis": per_maand * cloud_per_advies,
-                "cloud_eur_per_maand_met_gratis": betaald,
-            }
-        )
-    tabel = pd.DataFrame(rijen)
+    lokaal = (lokaal_per_advies, lokaal_idle_maand)
+    return pd.DataFrame(
+        [kostenrij(n, d, latency_s, lokaal, cloud_per_advies) for n, d in scenarios.items()]
+    )
+
+
+def main() -> dict:
+    """python -m benchmarks.kosten: kosten per advies en per maand, lokaal en in de cloud."""
+    container = pd.read_csv(UIT / "container.csv")
+    slank = container[container["image"] == "overboeking:lokaal"].iloc[0]
+    cpu_s = float(slank["cpu_s_per_advies"])
+    latency_s = float(slank["p50_ms"]) / 1000
+    idle_uur = idle_cpu_s_per_uur()
+    tabel = kostentabel(cpu_s, latency_s, idle_uur)
     UIT.mkdir(parents=True, exist_ok=True)
     tabel.to_csv(UIT / "kosten.csv", index=False, float_format="%.6f")
     samenvatting = {

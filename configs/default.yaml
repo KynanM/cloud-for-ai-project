@@ -12,7 +12,7 @@ resultaten: resultaten/
 # Logbestanden: elke opdracht schrijft naar <logs>/<opdracht>.log en naar de console.
 # Niet gecommit. Zie src/logboek.py.
 logs: logs/
-# tekst: één leesbare regel per gebeurtenis. json: één object per regel, voor src.monitoring.
+# tekst: één leesbare regel per gebeurtenis. json: één object per regel, voor src.serving.monitoring.
 # De omgevingsvariabele OVERBOEKING_LOGFORMAAT gaat voor (het image zet json).
 logs_formaat: tekst
 # Het logbestand roteert elke nacht; zoveel dagen blijven bewaard.
@@ -88,14 +88,14 @@ rolling:
 # Welke hotel-nachten meetellen in de evaluatie. De eerste nachten van een periode missen de
 # gasten die vóór de periode aankwamen en dan nog blijven: hun portefeuille is onvolledig.
 # Een nacht telt pas mee als minstens dit aandeel van haar boeking-nachten in de periode zit.
-# Zie dekking() in src/nachten.py en python -m src.audit (dekking.csv).
+# Zie dekking() in src/nachten.py en python -m src.onderzoek.audit (dekking.csv).
 evaluatie:
   min_dekking: 0.95
 
 # De baseline: wat de revenue manager vandaag doet. Zie src/baseline.py.
 vuistregel:
   # null: alle historiek vóór het einde van de training. Een getal: alleen zoveel maanden.
-  # Gekozen op de validatie (src.experimenten, experimenten.csv): alle historiek 6,36,
+  # Gekozen op de validatie (src.onderzoek.experimenten, experimenten.csv): alle historiek 6,36,
   # 12 maanden 6,65. De sterkste baseline maakt de poort strenger.
   venster_maanden: null
   # Klassen van lead_time in dagen: <60, 60–120, 120–240, 240+. Actief op T is minstens 30.
@@ -118,7 +118,7 @@ advies:
   # maximum blijft het advies gepoold binnen de risicogrens hieronder (test 16 %), maar City
   # alleen niet (test 22 %, resultaten/evaluatie.csv). Weggehaald op 10-11-2026.
   max_aandeel: null
-  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.experimenten, drempel.csv).
+  # Risicogrens bij het kiezen van de zekerheid op de validatie (src.onderzoek.experimenten, drempel.csv).
   # Een keuzecriterium, geen controle bij het voorspellen:
   # op hoogstens dit aandeel van de nachten komen er minder kamers vrij dan k. Gekozen wordt de
   # zekerheid met de hoogste europroxy binnen die grens.
@@ -162,8 +162,11 @@ model:
   # Wat het advies k naast het model nodig heeft: spreidingsfactor en capaciteit per hotel.
   advies_pad: models/advies.json
   # Bindt model, advies, config en data aan één run. src.predict stopt als ze niet bij
-  # elkaar horen. Zie src/manifest.py.
+  # elkaar horen. Zie src/serving/manifest.py.
   manifest_pad: models/manifest.json
+  # joblib-compressie van het modelbestand: 254 -> 79 KB, laden +6 %
+  # (resultaten/software/artefact.csv, taak 1.8).
+  compress: 3
   # Voor het toeval in boosting. Zelfde seed, zelfde model.
   seed: 42
   logreg:
@@ -181,7 +184,7 @@ model:
     max_leaf_nodes: 15
     min_samples_leaf: 100
     l2_regularization: 1.0
-  # Alleen voor de complexiteitsladder (src/robuustheid.py): een bos als extra modelklasse.
+  # Alleen voor de complexiteitsladder (src/onderzoek/robuustheid.py): een bos als extra modelklasse.
   randomforest:
     n_estimators: 300
     min_samples_leaf: 50

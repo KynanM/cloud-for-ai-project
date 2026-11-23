@@ -8,13 +8,14 @@ import shutil
 
 import pytest
 
-from src import publiceer
 from src.config import laad_config
+from src.serving import publiceer
 from src.train import bouw_en_bewaar
 from tests.test_systeem import config_in
 
 # Elke test hier traint en schrijft naar MLflow: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]  # deel 3: MLflow-registry en export
+pytest.importorskip("mlflow")  # staat alleen in de dev-lock
 
 
 @pytest.fixture(scope="module")
@@ -22,7 +23,7 @@ def omgeving(tmp_path_factory, ruw):
     map_ = tmp_path_factory.mktemp("publiceer")
     mp = pytest.MonkeyPatch()
     mp.setenv("MLFLOW_TRACKING_URI", "sqlite:///" + (map_ / "mlflow.db").as_posix())
-    mp.setattr("src.tracking.ARTEFACTEN", map_ / "mlartifacts")
+    mp.setattr("src.serving.tracking.ARTEFACTEN", map_ / "mlartifacts")
     cfg = laad_config(config_in(map_))
     bouw_en_bewaar(ruw, cfg)
     yield cfg, map_

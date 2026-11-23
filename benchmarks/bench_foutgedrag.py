@@ -42,7 +42,10 @@ class Geval:
 
 
 def zet(rij: int, **velden):
+    """Een geval dat velden van één boeking verandert."""
+
     def wijzig(boekingen):
+        """Pas de boekingen van het verzoek aan zoals het geval vraagt."""
         boekingen[rij].update(velden)
         return boekingen
 
@@ -50,13 +53,17 @@ def zet(rij: int, **velden):
 
 
 def gemengd(boekingen):
+    """Elke tiende boeking wordt Non Refund: een verzoek met deels buiten scope."""
     for i in range(0, len(boekingen), 10):
         boekingen[i]["deposit_type"] = "Non Refund"
     return boekingen
 
 
 def alles(**velden):
+    """Een geval dat velden van elke boeking verandert."""
+
     def wijzig(boekingen):
+        """Pas de boekingen van het verzoek aan zoals het geval vraagt."""
         for b in boekingen:
             b.update(velden)
         return boekingen
@@ -65,7 +72,10 @@ def alles(**velden):
 
 
 def zonder(veld):
+    """Een geval waarin een kolom ontbreekt."""
+
     def wijzig(boekingen):
+        """Pas de boekingen van het verzoek aan zoals het geval vraagt."""
         for b in boekingen:
             b.pop(veld, None)
         return boekingen
@@ -163,12 +173,14 @@ GEVALLEN = [
 
 
 def boekingen() -> list[dict]:
+    """De geldige voorbeeldboekingen, als lijst dicts: de basis van elk geval."""
     cfg = laad_config()
     df = laad_data(cfg["data"]["voorbeeld"], valideer_met=None)
     return json.loads(df[list(schema.INVOER.columns)].to_json(orient="records"))
 
 
 def verzoek(geval: Geval, basis: list[dict]) -> tuple[dict, list[dict]]:
+    """Het verzoek van een geval: de aangepaste boekingen, nacht en as_of."""
     lijst = copy.deepcopy(basis)
     if geval.wijzig is not None:
         lijst = geval.wijzig(lijst)
@@ -177,6 +189,7 @@ def verzoek(geval: Geval, basis: list[dict]) -> tuple[dict, list[dict]]:
 
 
 def via_api(client, geval: Geval, basis: list[dict]) -> dict:
+    """Stuur een geval naar POST /advies en beschrijf het antwoord."""
     lichaam, _ = verzoek(geval, basis)
     start = time.perf_counter()
     if geval.lichaam is not None:
@@ -204,21 +217,8 @@ def via_api(client, geval: Geval, basis: list[dict]) -> dict:
     }
 
 
-def via_cli(geval: Geval, basis: list[dict], tmp: Path) -> dict | None:
-    if geval.cli is None:
-        return None
-    lichaam, lijst = verzoek(geval, basis)
-    invoer, uitvoer = tmp / f"{geval.naam}.csv", tmp / f"{geval.naam}_advies.csv"
-    kolommen = list(schema.INVOER.columns)
-    df = pd.DataFrame(lijst, columns=[k for k in kolommen if not lijst or k in lijst[0]])
-    df.to_csv(invoer, index=False)
-    opdracht = [
-        sys.executable, "-m", "src.predict", str(invoer),
-        "--nacht", lichaam["nacht"], "--as-of", lichaam["as_of"], "--uitvoer", str(uitvoer),
-    ]  # fmt: skip
-    start = time.perf_counter()
-    draai = subprocess.run(opdracht, cwd=PROJECT, capture_output=True, text=True, timeout=300)
-    duur = (time.perf_counter() - start) * 1000
+def cli_uitkomst(draai, uitvoer: Path, duur: float) -> dict:
+    """Wat de opdrachtregel teruggaf: advies, advies met uitsluiting, of een weigering."""
     uitgesloten_pad = Path(f"{uitvoer}.uitgesloten.csv")
     uitgesloten = pd.read_csv(uitgesloten_pad) if uitgesloten_pad.exists() else pd.DataFrame()
     if draai.returncode == 0:
@@ -238,7 +238,26 @@ def via_cli(geval: Geval, basis: list[dict], tmp: Path) -> dict | None:
     }
 
 
+def via_cli(geval: Geval, basis: list[dict], tmp: Path) -> dict | None:
+    """Een geval als CSV naar python -m src.predict; None als het geen CLI-variant heeft."""
+    if geval.cli is None:
+        return None
+    lichaam, lijst = verzoek(geval, basis)
+    invoer, uitvoer = tmp / f"{geval.naam}.csv", tmp / f"{geval.naam}_advies.csv"
+    kolommen = list(schema.INVOER.columns)
+    df = pd.DataFrame(lijst, columns=[k for k in kolommen if not lijst or k in lijst[0]])
+    df.to_csv(invoer, index=False)
+    opdracht = [
+        sys.executable, "-m", "src.predict", str(invoer),
+        "--nacht", lichaam["nacht"], "--as-of", lichaam["as_of"], "--uitvoer", str(uitvoer),
+    ]  # fmt: skip
+    start = time.perf_counter()
+    draai = subprocess.run(opdracht, cwd=PROJECT, capture_output=True, text=True, timeout=300)
+    return cli_uitkomst(draai, uitvoer, (time.perf_counter() - start) * 1000)
+
+
 def beoordeel(geval: Geval, uitkomst: dict) -> bool:
+    """Klopt het gedrag met wat het geval verwacht (status, reden, geen traceback)?"""
     verwachte_status = geval.http if uitkomst["kanaal"] == "api" else geval.cli
     ok = uitkomst["gekregen"] == geval.verwacht and uitkomst["status"] == verwachte_status
     if geval.reden is not None:
@@ -250,9 +269,10 @@ def beoordeel(geval: Geval, uitkomst: dict) -> bool:
 
 
 def main() -> pd.DataFrame:
+    """python -m benchmarks.bench_foutgedrag: elk geval via de API en de opdrachtregel."""
     from fastapi.testclient import TestClient
 
-    from src.api import app
+    from src.serving.api import app
 
     basis = boekingen()
     rijen = []

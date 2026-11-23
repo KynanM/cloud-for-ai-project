@@ -33,10 +33,12 @@ POORT = 7871
 
 
 def docker(*args, check=True, **kwargs) -> subprocess.CompletedProcess:
+    """Een docker-opdracht, met de uitvoer als tekst."""
     return subprocess.run(["docker", *args], capture_output=True, text=True, check=check, **kwargs)
 
 
 def start(image: str, cpus: str, geheugen: str, threads: str, naam: str) -> None:
+    """Start een API-container met CPU-, geheugen- en threadlimiet."""
     docker("rm", "-f", naam, check=False)
     docker(
         "run", "-d", "--name", naam, "-p", f"127.0.0.1:{POORT}:7860",
@@ -47,6 +49,7 @@ def start(image: str, cpus: str, geheugen: str, threads: str, naam: str) -> None
 
 
 def wacht(url: str, tot: float = 120.0) -> float:
+    """Wacht tot /health antwoordt; geef de wachttijd, of faal na `tot` seconden."""
     begin = time.perf_counter()
     while time.perf_counter() - begin < tot:
         try:
@@ -67,11 +70,13 @@ def cgroup(naam: str) -> dict:
 
 
 def lichaam(naam_workload: str) -> bytes:
+    """Het verzoek van een workload, als bytes."""
     wl = workloads()[naam_workload]
     return json.dumps(verzoek(pd.read_csv(PROJECT / wl["bestand"]), wl)).encode()
 
 
 def koude_start(image: str, n: int, cpus="1", geheugen="1g", threads="1") -> pd.DataFrame:
+    """Tijd tot het eerste advies na het starten van een container, `n` keer."""
     inhoud = lichaam("normaal")
     url = f"http://127.0.0.1:{POORT}"
     rijen = []
@@ -100,6 +105,7 @@ def koude_start(image: str, n: int, cpus="1", geheugen="1g", threads="1") -> pd.
 
 
 def warm(image: str, cpus: str, geheugen: str, threads: str, sessie: str, gemeten: int) -> dict:
+    """Latency, geheugen en CPU van een opgewarmde container."""
     naam = "overboeking-warm"
     start(image, cpus, geheugen, threads, naam)
     url = f"http://127.0.0.1:{POORT}"
@@ -146,6 +152,7 @@ def schaal_cli(image: str, cpus: str, geheugen: str, threads: str, workload: str
 
 
 def vergelijk(args) -> None:
+    """Het slanke image tegenover het image uit één stage: grootte en latency."""
     rijen = []
     for image in ("overboeking:lokaal", "overboeking:enkel"):
         grootte = int(docker("image", "inspect", "-f", "{{.Size}}", image).stdout.strip())
@@ -167,6 +174,7 @@ def vergelijk(args) -> None:
 
 
 def sizing(args) -> None:
+    """Latency en CPU bij verschillende combinaties van CPU, geheugen en threads."""
     combinaties = [("0.5", "512m", "1"), ("1", "512m", "1"), ("1", "1g", "1"), ("2", "1g", "1"),
                    ("2", "1g", "2"), ("2", "2g", "2")]  # fmt: skip
     rijen = []
@@ -191,6 +199,7 @@ def sizing(args) -> None:
 
 
 def main(argv: list[str]) -> None:
+    """python -m benchmarks.container: vergelijk, sizing of koudestart."""
     parser = argparse.ArgumentParser(description="Metingen in de container.")
     parser.add_argument("taak", choices=["vergelijk", "sizing", "koudestart"])
     parser.add_argument("--n", type=int, default=20)

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from src.data import aankomstdatum
-from src.experimenten import hertraingrens, maandstarts
+from src.onderzoek.experimenten import hertraingrens, maandstarts
 from src.train import grenzen, splits
 
 

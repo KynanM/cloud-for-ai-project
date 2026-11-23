@@ -1,7 +1,7 @@
 # Besliscontract
 
 Wat weet het hotel wanneer, en over welke gebeurtenis gaat het label? Dit document legt dat vast
-voor label, features, evaluatie en `src.predict` samen. De cijfers komen uit `python -m src.audit`
+voor label, features, evaluatie en `src.predict` samen. De cijfers komen uit `python -m src.onderzoek.audit`
 (`resultaten/audit/contract.csv` en `contract_nacht.csv`).
 
 ## De beslissing
@@ -77,7 +77,7 @@ boeking-nachten in de validatie, in Resort 8 %.
 komt (`evaluatie.min_dekking`, `dekking()` en `alleen_volledig()` in `src/nachten.py`). Zo vallen
 op de validatie 5 nachten van City en 11 van Resort weg, op de test 4 en 7
 (`resultaten/audit/dekking.csv`). De regel geldt in `src.train` (poort en spreidingsfactor),
-`src.evaluate` en `src.experimenten`. `tests/test_nachten.py` en `tests/test_tijdcontract.py`
+`src.evaluate` en `src.onderzoek.experimenten`. `tests/test_nachten.py` en `tests/test_tijdcontract.py`
 controleren hem op zelfgemaakte boekingen.
 
 Het einde van een periode heeft dit probleem niet: wie na het einde aankomt, slaapt niet in een

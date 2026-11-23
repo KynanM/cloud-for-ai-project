@@ -8,7 +8,7 @@ de [README](../README.md). Waarom het zo draait: [adr/0001-waar-het-draait.md](a
 | Stap | Opdracht | Resultaat |
 |---|---|---|
 | **trainen** | `python -m src.train` | `models/model.joblib`, `advies.json`, `manifest.json`, alleen als alle poorten gehaald zijn |
-| **publiceren** | `python -m src.publiceer` | een nieuwe versie in de MLflow-registry; als de poorten gehaald zijn de alias `kampioen` erop, en de kampioen gekopieerd naar `models/actief/` |
+| **publiceren** | `python -m src.serving.publiceer` | een nieuwe versie in de MLflow-registry; als de poorten gehaald zijn de alias `kampioen` erop, en de kampioen gekopieerd naar `models/actief/` |
 | **starten** | `uvicorn`, Docker of compose | een API die `models/actief/` (of `models/`) laadt |
 
 `models/` is het laatst getrainde model. `models/actief/` is het gepubliceerde, het enige dat het
@@ -17,15 +17,15 @@ image meekrijgt. Beide worden niet gecommit.
 ## Publiceren en terugdraaien
 
 ```bash
-python -m src.publiceer
+python -m src.serving.publiceer
 ```
 
 ```bash
-python -m src.publiceer --lijst
+python -m src.serving.publiceer --lijst
 ```
 
 ```bash
-python -m src.publiceer --versie 3
+python -m src.serving.publiceer --versie 3
 ```
 
 De eerste registreert en publiceert, de tweede toont alle versies met hun poorten, de derde zet
@@ -42,11 +42,11 @@ Drie plaatsen, die niets met elkaar delen:
 
 | Waar | Opslag | Ingesteld door |
 |---|---|---|
-| lokaal | `mlflow.db` (SQLite) in de projectmap, artefacten in `mlartifacts/` | standaard in `src/tracking.py` |
+| lokaal | `mlflow.db` (SQLite) in de projectmap, artefacten in `mlartifacts/` | standaard in `src/serving/tracking.py` |
 | CI | `file:./mlruns` | `MLFLOW_TRACKING_URI` in `ci.yml` |
 | compose | een MLflow-server op <http://127.0.0.1:5000>, met een eigen volume | `compose.yaml` |
 
-`src.publiceer` gebruikt de lokale SQLite, tenzij je `MLFLOW_TRACKING_URI` zet. Wil je de
+`src.serving.publiceer` gebruikt de lokale SQLite, tenzij je `MLFLOW_TRACKING_URI` zet. Wil je de
 compose-server gebruiken, test dan eerst dat registreren, terugvinden en exporteren werken: de
 artefactopslag van de server moet ook bereikbaar zijn, niet alleen de URL.
 
@@ -57,7 +57,7 @@ python -m src.train
 ```
 
 ```bash
-python -m src.publiceer
+python -m src.serving.publiceer
 ```
 
 ```bash
@@ -101,7 +101,7 @@ Vier API-containers achter nginx, op poort 8080:
 docker compose --profile schaal up -d --scale api=4
 ```
 
-De API-logs komen in `logs/api.log`; controleer ze met `python -m src.monitoring controleer`
+De API-logs komen in `logs/api.log`; controleer ze met `python -m src.serving.monitoring controleer`
 ([gebruik.md](gebruik.md#monitoring)).
 
 **Twee verschillende infrastructuren.** De softwaremetriek (p95 ≤ 1 000 ms) is gemeten op 1 vCPU

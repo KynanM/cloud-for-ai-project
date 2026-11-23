@@ -209,9 +209,9 @@ def test_beoordeel_meldt_bias_nul_en_maximum_adviezen(cfg):
 
 @pytest.mark.parametrize("seed", range(20))
 def test_een_nacht_zonder_uitrollen_is_hetzelfde(seed, df, cfg):
-    # Taak 1.6 (E9): per_nacht_enkel() moet exact per_nacht(begin=nacht, einde=nacht) geven
+    # Taak 1.6 (E9): de route voor één nacht moet exact de algemene route (uitrollen) geven
     from src.data import aankomstdatum
-    from src.nachten import per_nacht_enkel
+    from src.nachten import _alle_nachten, _een_nacht
 
     rng = np.random.default_rng(seed)
     deel = df.iloc[rng.choice(len(df), size=500, replace=False)]
@@ -222,7 +222,9 @@ def test_een_nacht_zonder_uitrollen_is_hetzelfde(seed, df, cfg):
     if seed % 2:
         deel = deel.drop(columns=cfg["doel"])  # zoals bij voorspellen: zonder label
 
-    verwacht = per_nacht(deel, kansen, cfg, begin=nacht, einde=nacht)
-    gekregen = per_nacht_enkel(deel, kansen, cfg, nacht)
+    verwacht = _alle_nachten(deel, kansen, cfg, begin=nacht, einde=nacht)
+    gekregen = _een_nacht(deel, kansen, cfg, nacht)
 
     pd.testing.assert_frame_equal(gekregen, verwacht)
+    # per_nacht() kiest voor één nacht zelf de snelle route, met dezelfde uitvoer
+    pd.testing.assert_frame_equal(per_nacht(deel, kansen, cfg, nacht, nacht), verwacht)

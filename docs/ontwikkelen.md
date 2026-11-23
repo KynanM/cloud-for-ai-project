@@ -8,18 +8,21 @@ Voor wie aan de code werkt. Voorbeelden gebruiken `python`; neem de Python uit j
 python -m pip install --require-hashes -r requirements-dev.lock
 ```
 
-| Bestand | Wat |
-|---|---|
-| `requirements.in` | de runtime: wat de API en `src.predict` nodig hebben, met vaste versies (`==`) |
-| `requirements-dev.in` | daarbovenop: MLflow, Matplotlib, pytest, ruff, notebook |
-| `requirements.lock`, `requirements-dev.lock` | alle pakketten, ook de onrechtstreekse, met versie en hash. Gemaakt met `uv pip compile` |
-| `requirements.txt` | een verwijzing naar `requirements-dev.in`, voor wie `pip install -r requirements.txt` gewoon is. Vergrendelt alleen de directe pakketten |
+| Bestand | Wat | Wie gebruikt het |
+|---|---|---|
+| `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib, pytest) | de lector: `pip install -r requirements.txt` |
+| `requirements-api.txt` | de webservice: wat `src.serving.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
+| `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
+| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, ruff, het notebook | ontwikkelen |
+| `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
 
-Het image installeert `requirements.lock`, de CI `requirements-dev.lock`. Een pakket toevoegen:
-in het `.in`-bestand, dan de lockfile opnieuw maken, bijvoorbeeld:
+Matplotlib staat niet in het image: met Matplotlib groeit het van 670 naar 794 MB, en de API
+tekent niets. Elke directe versie staat met `==` vast. Een pakket toevoegen: in het `.txt`-bestand,
+dan beide lockfiles opnieuw maken (dezelfde opdracht staat bovenaan elke lockfile):
 
 ```bash
-uv pip compile --generate-hashes requirements-dev.in -o requirements-dev.lock
+uv pip compile requirements-api.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
+uv pip compile requirements-dev.txt --universal --python-version 3.13 --generate-hashes -o requirements-dev.lock
 ```
 
 ## Stijl en tests
@@ -76,10 +79,10 @@ benchmarks.
 | Opdracht | Wat | Schrijft |
 |---|---|---|
 | `python -m src.evaluate` | alle modellen per hotel-nacht, validatie en test | `resultaten/evaluatie.csv`, `groepen.csv`, `winstcurve.*`, `ijking.png` |
-| `python -m src.audit` | filterwaterval, besliscontract A tegenover B, dekking | `resultaten/audit/` |
-| `python -m src.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
-| `python -m src.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
-| `python -m src.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
+| `python -m src.onderzoek.audit` | filterwaterval, besliscontract A tegenover B, dekking | `resultaten/audit/` |
+| `python -m src.onderzoek.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
+| `python -m src.onderzoek.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
+| `python -m src.onderzoek.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
 | `python -m src.figuren` | de figuren van de softwaremetriek | `resultaten/figuren/` |
 | `python -m benchmarks.workloads` | de vaste werklasten voor de benchmarks | `benchmarks/workloads/*.csv` (niet gecommit) en `resultaten/software/workloads.json` |
 | `python -m benchmarks.bench` | de softwaremetriek | `resultaten/software/` |
@@ -109,7 +112,7 @@ aan, niet de test. Schrijf je een zin met een geankerd cijfer om, pas dan ook he
 
 ## Logging
 
-`src.train`, `src.predict`, `src.evaluate`, `src.audit` en `src.experimenten` schrijven
+`src.train`, `src.predict`, `src.evaluate`, `src.onderzoek.audit` en `src.onderzoek.experimenten` schrijven
 logregels (tijd, niveau, module, boodschap) naar het scherm én naar `logs/<opdracht>.log`. Dat
 bestand groeit aan, zodat je achteraf terugvindt welk model met welke cijfers weggeschreven werd.
 De map staat in `configs/default.yaml` (`logs`), het opzetten in `src/logboek.py`. `logs/` wordt
@@ -138,7 +141,10 @@ Bij elke push (`.github/workflows/ci.yml`):
 2. `ruff check` en `ruff format --check`;
 3. `python -m src.train`, met de poorten;
 4. `pytest`;
-5. de werklasten `smoke` en `normaal`, en de performancegate (`benchmarks.gate`);
-6. het image bouwen (kleiner dan 1 GB), starten, `/health` en een 422 op een leeg verzoek.
+5. de werklasten `smoke` en `normaal`, en de performancegate (`benchmarks.gate`).
 
-Na een groene CI op `main` start `deploy.yml` (zie [deployment.md](deployment.md)).
+Apart, in `.github/workflows/docker.yml` (deel 3): het image bouwen (kleiner dan 1 GB), starten,
+`/health` en een 422 op een leeg verzoek. Zo wordt de badge `ci` van deel 2 niet rood door de
+container; de README toont een tweede badge `docker` onder "Deel 3".
+
+Na een groene `ci` op `main` start `deploy.yml` (zie [deployment.md](deployment.md)).

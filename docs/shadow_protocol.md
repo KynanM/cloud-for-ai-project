@@ -30,7 +30,7 @@ datum_beslissing,nacht,hotel,geboekt_op_T,k_mens,minuten,opmerking
 | Doet het model het beter dan de mens? | € per volle nacht met `winst_fysiek()` voor k_model en k_mens, op dezelfde nachten | nu vergeleken met een nagebootste vuistregel, niet met de echte beslissing |
 | Wordt een extra kamer verkocht? | extra verkocht / k | de verkoopkans is nu een aanname (0,5 tot 1) |
 | Tijdswinst | minuten per beslissing, voor en na | niet gemeten |
-| Risico per hotel en per maand | te veel per hotel per vier weken (`python -m src.monitoring labels`) | gemeten op de geschiedenis, niet in productie |
+| Risico per hotel en per maand | te veel per hotel per vier weken (`python -m src.serving.monitoring labels`) | gemeten op de geschiedenis, niet in productie |
 
 ## Stopregel
 
@@ -43,8 +43,8 @@ De shadow-periode stopt vroeger, en het model gaat terug naar de tekentafel, als
 ## Analyseplan
 
 1. Gepaarde vergelijking per hotel-nacht: € model − € mens, met een blokbootstrap van 7 dagen
-   (dezelfde methode als in `src/robuustheid.py`), alleen voor nachten die op T vol waren.
-2. Verkoopkans en aandeel volle nachten invullen in `src/business.py`: van scenario naar meting.
+   (dezelfde methode als in `src/onderzoek/robuustheid.py`), alleen voor nachten die op T vol waren.
+2. Verkoopkans en aandeel volle nachten invullen in `src/onderzoek/business.py`: van scenario naar meting.
 3. ROI opnieuw berekenen met de gemeten tijdswinst in plaats van aangenomen beheeruren.
 4. Pas als het interval van stap 1 boven 0 ligt én de stopregel nooit gevuurd heeft: het advies
    uit shadow mode halen (AI-assistentie, les 06 p. 24). Volledige automatisering blijft uitgesloten.

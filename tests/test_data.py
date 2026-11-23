@@ -66,7 +66,7 @@ def test_laad_data_zegt_welke_controle_faalt(ruw, tmp_path):
     ruw.assign(reservation_status="Canceled").to_csv(pad, index=False)
 
     # Act en Assert: geen muur tekst, maar de naam van de controle
-    with pytest.raises(SystemExit, match="aandeel annulaties en no-shows ligt niet tussen"):
+    with pytest.raises(OngeldigeDataError, match="aandeel annulaties en no-shows ligt niet tussen"):
         laad_data(pad)
 
 

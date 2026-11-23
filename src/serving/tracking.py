@@ -9,12 +9,13 @@ gecommit vóór het experiment draait; een run zonder beslisregel start niet.
         log_tabel(tabel, "resultaat.csv")
 
 De trackingserver: MLFLOW_TRACKING_URI, of standaard een sqlite-bestand in de projectmap
-(mlflow.db, niet gecommit). `python -m src.tracking exporteer` schrijft alle runs naar
+(mlflow.db, niet gecommit). `python -m src.serving.tracking exporteer` schrijft alle runs naar
 resultaten/runs.csv, zodat het bewijs ook zonder MLflow in de repository leesbaar is.
 """
 
 import contextlib
 import json
+import logging
 import os
 import platform
 import subprocess
@@ -25,13 +26,16 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .config import PROJECT
+from ..config import PROJECT, laad_config
+from ..logboek import zet_logging_op
 from .manifest import bestand_hash, versies
 
 VERPLICHT = ["hypothese", "baseline", "alternatieven", "metrics", "beslisregel"]
 STANDAARD_URI = "sqlite:///" + (PROJECT / "mlflow.db").as_posix()
 ARTEFACTEN = PROJECT / "mlartifacts"
 EXPORT = PROJECT / "resultaten" / "runs.csv"
+
+logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)
 
 
 def mlflow():
@@ -51,6 +55,7 @@ def laad_experiment(naam: str) -> dict:
 
 
 def controleer_experiment(exp: dict, naam: str = "experiment") -> None:
+    """Faal als een verplicht veld (hypothese, beslisregel, ...) leeg is."""
     ontbreekt = [sleutel for sleutel in VERPLICHT if not exp.get(sleutel)]
     if ontbreekt:
         raise ValueError(f"{naam}: verplicht vooraf vast te leggen, maar leeg: {ontbreekt}")
@@ -146,6 +151,7 @@ def log_tabel(df: pd.DataFrame, naam: str) -> None:
 
 
 def log_figuur(fig, naam: str) -> None:
+    """Een figuur als artefact bij de actieve MLflow-run."""
     mlflow().log_figure(fig, naam)
 
 
@@ -185,6 +191,7 @@ def exporteer(pad: Path = EXPORT) -> pd.DataFrame:
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["exporteer"]:
-        print(f"{len(exporteer())} runs naar {EXPORT}")
+        zet_logging_op(laad_config(), "tracking")
+        logger.info("%d runs naar %s", len(exporteer()), EXPORT)
     else:
-        raise SystemExit("python -m src.tracking exporteer")
+        raise SystemExit("python -m src.serving.tracking exporteer")

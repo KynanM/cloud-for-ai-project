@@ -23,14 +23,15 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 
 from . import schema
-from .config import PROJECT, invoerkolommen, laad_config
-from .data import OngeldigeDataError, aankomstdatum, laad_data, valideer
+from .config import PROJECT, laad_config
+from .data import OngeldigeDataError, aankomstdatum, laad_data, stop_bij_fout, valideer
+from .kansen import voorspel  # ook bereikbaar als src.predict.voorspel
 from .kenmerken import als_tekst
 from .logboek import zet_logging_op
-from .manifest import controleer
-from .meting import Meting
-from .nachten import met_advies, per_nacht, per_nacht_enkel
+from .nachten import met_advies, per_nacht
 from .scope import BuitenScopeError, controleer_scope
+from .serving.manifest import controleer
+from .serving.meting import Meting
 
 # `Model` is alleen een type-aanduiding (Pipeline of Vuistregel). Voorspellen hoeft de
 # trainingscode niet te laden: de API importeert zo src/train.py niet mee.
@@ -43,12 +44,8 @@ logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__
 
 
 def laad_model(pad: str | Path) -> Model:
+    """Het model dat src.train wegschreef; verwijst naar src.kenmerken, dus die blijft staan."""
     return joblib.load(pad)
-
-
-def voorspel(model: Model, df: pd.DataFrame, cfg: dict) -> np.ndarray:
-    """De kans dat de boeking alsnog geannuleerd wordt of een no-show wordt, één per boeking."""
-    return model.predict_proba(df[invoerkolommen(cfg)])[:, 1]
 
 
 def onbekende_categorieen(model: Model, df: pd.DataFrame, cfg: dict) -> dict[str, list[str]]:
@@ -88,6 +85,8 @@ def adviseer(
 
     Eén rij per hotel-nacht, met het aantal boekingen, het verwachte aantal annulaties, het
     maximum per nacht en k. Met `nacht` alleen die nacht.
+
+    Voor tests en de E1-meting; de opdrachtregel en de API gebruiken voer_job_uit().
     """
     return adviseer_uit_kansen(voorspel(model, df, cfg), instellingen, df, cfg, nacht)
 
@@ -111,6 +110,21 @@ def standaardnacht(df: pd.DataFrame) -> pd.Timestamp:
             f"De aankomstdatum bestaat niet in minstens één rij ({fout}).",
             [{"kolom": "arrival_date_*", "controle": "datum bestaat", "rijen": None}],
         ) from None
+
+
+def jobkenmerken(df: pd.DataFrame, tabel: pd.DataFrame, uitgesloten: pd.DataFrame, as_of) -> dict:
+    """De omvang van een adviesjob, voor de meting: boekingen, boeking-nachten, uitgesloten."""
+    return {
+        "n_boekingen": int(len(df)),
+        "n_boeking_nachten": int(
+            (df["stays_in_weekend_nights"] + df["stays_in_week_nights"]).sum()
+        ),
+        "n_hotels": int(df["hotel"].nunique()),
+        "n_uitvoernachten": int(len(tabel)),
+        "n_uitgesloten": int(len(uitgesloten)),
+        "uitgesloten_per_reden": uitgesloten["reden"].value_counts().to_dict(),
+        "as_of": f"{pd.Timestamp(as_of):%Y-%m-%d}",
+    }
 
 
 def voer_job_uit(
@@ -137,39 +151,25 @@ def voer_job_uit(
         with meting.fase("schema"):
             df = valideer(df, schema.invoer_schema(cfg))
     with meting.fase("scope"):
-        if as_of is None:
+        aangenomen = as_of is None
+        if aangenomen:
             as_of = nacht - pd.Timedelta(days=cfg["label"]["horizon_dagen"])
-            aangenomen = True
-        else:
-            aangenomen = False
         df, uitgesloten = controleer_scope(df, cfg, nacht, as_of, aangenomen=aangenomen)
     with meting.fase("voorspellen"):
         kansen = voorspel(model, df, cfg)
     with meting.fase("aggregeren"):
-        # Eén nacht: niet elk verblijf uitrollen (E9, resultaten/software/e9_aggregatie.csv)
-        nachten = per_nacht_enkel(df, kansen, cfg, nacht)
+        # Eén nacht: per_nacht() rolt dan niet elk verblijf uit (E9, e9_aggregatie.csv)
+        nachten = per_nacht(df, kansen, cfg, begin=nacht, einde=nacht)
     with meting.fase("advies"):
         tabel = met_advies(nachten, instellingen["factor"], instellingen["capaciteit"], cfg)
     with meting.fase("advies_valideren"):
         valideer(tabel, schema.ADVIES, "advies")
-    meting.extra.update(
-        {
-            "n_boekingen": int(len(df)),
-            "n_boeking_nachten": int(
-                (df["stays_in_weekend_nights"] + df["stays_in_week_nights"]).sum()
-            ),
-            "n_hotels": int(df["hotel"].nunique()),
-            "n_uitvoernachten": int(len(tabel)),
-            "n_uitgesloten": int(len(uitgesloten)),
-            "uitgesloten_per_reden": uitgesloten["reden"].value_counts().to_dict(),
-            "as_of": f"{pd.Timestamp(as_of):%Y-%m-%d}",
-        }
-    )
+    meting.extra.update(jobkenmerken(df, tabel, uitgesloten, as_of))
     return Job(tabel, kansen, uitgesloten, pd.Timestamp(as_of))
 
 
-def main(argv: list[str]) -> None:
-    meting = Meting()
+def lees_argumenten(argv: list[str]) -> argparse.Namespace:
+    """De opties van python -m src.predict (zie docs/gebruik.md)."""
     parser = argparse.ArgumentParser(description="Voorspel annulaties en geef het advies k.")
     parser.add_argument("pad", help="csv met de boekingen die op het beslismoment actief zijn")
     parser.add_argument("--zonder-schema", action="store_true", help="alleen voor diagnose")
@@ -185,22 +185,14 @@ def main(argv: list[str]) -> None:
     )
     parser.add_argument("--uitvoer", help="csv waarin het advies per hotel-nacht komt")
     parser.add_argument("--metrics-json", help="json met de tijd per fase en de geheugenpiek")
-    args = parser.parse_args(argv)
-    with meting.fase("config"):
-        cfg = laad_config(args.config)
-        zet_logging_op(cfg, "predict")
-    # laad_config vervangt de modelpaden stil als de variabele gezet is; hier wordt dat zichtbaar
-    if os.environ.get("OVERBOEKING_MODELMAP"):
-        logger.info("Model uit OVERBOEKING_MODELMAP: %s", cfg["model"]["pad"].parent)
+    return parser.parse_args(argv)
 
-    with meting.fase("lezen"):
-        df = laad_data(args.pad, valideer_met=None)
-    with meting.fase("manifest"):
-        manifest = controleer(cfg)
-    logger.info("Run %s, commit %s", manifest["run_id"], manifest["commit"])
-    with meting.fase("model_laden"):
-        model = laad_model(cfg["model"]["pad"])
-        instellingen = laad_advies(cfg["model"]["advies_pad"])
+
+def draai_job(
+    args, df, model, instellingen: dict, cfg: dict, meting: Meting
+) -> tuple[Job, pd.Timestamp]:
+    """Schema, waarschuwingen voor onbekende categorieën, en de job. Een fout in de invoer of de
+    scope stopt met een leesbare melding (ERROR in de log), zonder stacktrace."""
     try:
         # Eerst het schema: een ontbrekende kolom of een onbestaande maand geeft zo de nette
         # melding per controle, niet een fout uit een latere stap.
@@ -223,6 +215,11 @@ def main(argv: list[str]) -> None:
     except (OngeldigeDataError, BuitenScopeError) as fout:
         logger.error("%s", fout)
         raise SystemExit(str(fout)) from None
+    return job, nacht
+
+
+def rapporteer(job: Job, nacht: pd.Timestamp, cfg: dict) -> None:
+    """Het advies per hotel in de log, in de woorden van de revenue manager."""
     tabel, kansen = job.advies, job.kansen
     logger.info(
         "%d boekingen. Gemiddelde kans op annuleren: %.1f%%", len(kansen), 100 * kansen.mean()
@@ -243,9 +240,13 @@ def main(argv: list[str]) -> None:
             rij["k"],
             f" (maximum {rij['maximum']})" if met_maximum else "",
         )
+
+
+def schrijf_uitvoer(args, job: Job, manifest: dict, nacht: pd.Timestamp, meting: Meting) -> None:
+    """Het advies (en de uitgesloten boekingen) naar --uitvoer, de metingen naar --metrics-json."""
     if args.uitvoer:
         with meting.fase("schrijven"):
-            tabel.to_csv(args.uitvoer, index=False)
+            job.advies.to_csv(args.uitvoer, index=False)
             if not job.uitgesloten.empty:
                 job.uitgesloten.to_csv(f"{args.uitvoer}.uitgesloten.csv", index=False)
     if args.metrics_json:
@@ -257,6 +258,30 @@ def main(argv: list[str]) -> None:
             }
         )
         meting.schrijf(args.metrics_json)
+
+
+@stop_bij_fout()
+def main(argv: list[str]) -> None:
+    """python -m src.predict: van een CSV met boekingen naar het advies k, met nette fouten."""
+    meting = Meting()
+    args = lees_argumenten(argv)
+    with meting.fase("config"):
+        cfg = laad_config(args.config)
+        zet_logging_op(cfg, "predict")
+    # laad_config vervangt de modelpaden stil als de variabele gezet is; hier wordt dat zichtbaar
+    if os.environ.get("OVERBOEKING_MODELMAP"):
+        logger.info("Model uit OVERBOEKING_MODELMAP: %s", cfg["model"]["pad"].parent)
+    with meting.fase("lezen"):
+        df = laad_data(args.pad, valideer_met=None)
+    with meting.fase("manifest"):
+        manifest = controleer(cfg)
+    logger.info("Run %s, commit %s", manifest["run_id"], manifest["commit"])
+    with meting.fase("model_laden"):
+        model = laad_model(cfg["model"]["pad"])
+        instellingen = laad_advies(cfg["model"]["advies_pad"])
+    job, nacht = draai_job(args, df, model, instellingen, cfg, meting)
+    rapporteer(job, nacht, cfg)
+    schrijf_uitvoer(args, job, manifest, nacht, meting)
 
 
 if __name__ == "__main__":

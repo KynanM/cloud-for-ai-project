@@ -21,18 +21,16 @@ import pandas as pd
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
 from .config import laad_config
-from .data import bereid_voor, laad_data
+from .data import bereid_voor, laad_data, stop_bij_fout
+from .kansen import voorspel
 from .logboek import zet_logging_op
 from .nachten import (
-    alleen_volledig,
     beoordeel,
     bezetting,
     capaciteit,
-    dekking,
-    per_nacht,
     spreidingsfactor,
 )
-from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
+from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits, volledige_nachten
 
 # Met `python -m` heet deze module "__main__". __spec__.name blijft de echte naam, zodat
 # de logregels altijd zeggen uit welke module ze komen.
@@ -49,82 +47,89 @@ VARIANTEN = [
 
 
 def naam(soort: str, land: bool) -> str:
+    """De naam van een variant in de tabellen en grafieken, bv. "boosting zonder land"."""
     return soort if soort == "vuistregel" else f"{soort} {'met' if land else 'zonder'} land"
 
 
 def met(cfg: dict, soort: str, land: bool) -> dict:
+    """Een kopie van de config met een ander model en het land aan of uit; `cfg` blijft heel."""
     nieuw = copy.deepcopy(cfg)
     nieuw["model"]["soort"] = soort
     nieuw["features"]["gebruik_land"] = land
     return nieuw
 
 
-def kansen(model, deel: pd.DataFrame, cfg: dict) -> np.ndarray:
-    return model.predict_proba(kenmerken_en_label(deel, cfg)[0])[:, 1]
+def per_hotel(metriek, y: np.ndarray, p: np.ndarray, hotels: np.ndarray, h: str) -> float:
+    """`metriek(y, p)` voor één hotel, of over beide samen als `h` "beide" is."""
+    if h == "beide":
+        return metriek(y, p)
+    return metriek(y[hotels == h], p[hotels == h])
+
+
+# Per periode: waarop geleerd en waarop gemeten wordt
+PERIODES = [("validatie", "training", "validatie"), ("test", "hertraining", "test")]
+
+
+def per_groep(meet: pd.DataFrame, y: np.ndarray, p: np.ndarray, periode: str, model: str) -> list:
+    """Voorspeld tegenover echt voor Portugese boekingen en de rest: de controle op het land."""
+    prt = (meet["country"] == "PRT").to_numpy()
+    return [
+        {
+            "periode": periode,
+            "model": model,
+            "groep": groep,
+            "boekingen": int(masker.sum()),
+            "voorspeld": p[masker].sum(),
+            "echt": int(y[masker].sum()),
+            "voorspeld_echt": p[masker].sum() / y[masker].sum(),
+        }
+        for groep, masker in [("PRT", prt), ("rest", ~prt)]
+    ]
+
+
+def evalueer_variant(
+    df: pd.DataFrame, delen: dict, c: dict, cap: dict, bezet: pd.DataFrame, model_naam: str
+) -> tuple[list, list, dict]:
+    """Eén variant op de validatie en de test; de spreidingsfactor komt van de validatie.
+
+    Geeft de beoordelingen, de controle per groep en wat de grafieken nodig hebben.
+    """
+    g = grenzen(c)
+    rijen, groepen, uitkomst = [], [], {}
+    for periode, leer, meet in PERIODES:
+        model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
+        p = voorspel(model, delen[meet], c)
+        begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
+        nachten = volledige_nachten(delen[meet], p, begin, einde, c, df)
+        if periode == "validatie":
+            factor = spreidingsfactor(nachten)
+        y = delen[meet][c["doel"]].to_numpy()
+        tabel = beoordeel(nachten, factor, cap, bezet, c)
+        tabel["factor"] = tabel["hotel"].map(factor)
+        # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
+        # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
+        hotels = delen[meet]["hotel"].to_numpy()
+        tabel["auc"] = [per_hotel(roc_auc_score, y, p, hotels, h) for h in tabel["hotel"]]
+        tabel["brier"] = [per_hotel(brier_score_loss, y, p, hotels, h) for h in tabel["hotel"]]
+        rijen.append(tabel.assign(periode=periode, model=model_naam))
+        groepen += per_groep(delen[meet], y, p, periode, model_naam)
+        uitkomst[periode] = {"y": y, "p": p, "nachten": nachten}
+    uitkomst["factor"] = factor
+    return rijen, groepen, uitkomst
 
 
 def evalueer(df: pd.DataFrame, ruw: pd.DataFrame, cfg: dict) -> dict:
     """Alle varianten, beide periodes. Geeft de tabellen en wat de grafieken nodig hebben."""
     delen = splits(df, cfg)
-    g = grenzen(cfg)
     bezet = bezetting(ruw)
-    cap = capaciteit(bezet, g["training_einde"], cfg["advies"]["capaciteit_percentiel"])
-
+    cap = capaciteit(bezet, grenzen(cfg)["training_einde"], cfg["advies"]["capaciteit_percentiel"])
     rijen, groepen, per_variant = [], [], {}
     for soort, land in VARIANTEN:
-        c = met(cfg, soort, land)
-        uitkomst = {}
-        for periode, leer, meet in [
-            ("validatie", "training", "validatie"),
-            ("test", "hertraining", "test"),
-        ]:
-            model = bouw_pijplijn(c).fit(*kenmerken_en_label(delen[leer], c))
-            p = kansen(model, delen[meet], c)
-            begin, einde = g[f"{periode}_start"], g[f"{periode}_einde"]
-            nachten = alleen_volledig(
-                per_nacht(delen[meet], p, c, begin, einde),
-                dekking(df, begin, einde),
-                c["evaluatie"]["min_dekking"],
-            )
-            if periode == "validatie":
-                factor = spreidingsfactor(nachten)
-            y = delen[meet][c["doel"]].to_numpy()
-            tabel = beoordeel(nachten, factor, cap, bezet, c)
-            tabel["factor"] = tabel["hotel"].map(factor)
-            # Diagnostiek per boeking: niet de ML-metriek uit deel 1. Per hotel apart, en op de
-            # rij "beide" over beide hotels samen (vroeger stond de gepoolde waarde op elke rij).
-            hotels = delen[meet]["hotel"].to_numpy()
-            tabel["auc"] = [
-                roc_auc_score(
-                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
-                )
-                for h in tabel["hotel"]
-            ]
-            tabel["brier"] = [
-                brier_score_loss(
-                    y if h == "beide" else y[hotels == h], p if h == "beide" else p[hotels == h]
-                )
-                for h in tabel["hotel"]
-            ]
-            rijen.append(tabel.assign(periode=periode, model=naam(soort, land)))
-
-            prt = (delen[meet]["country"] == "PRT").to_numpy()
-            for groep, masker in [("PRT", prt), ("rest", ~prt)]:
-                groepen.append(
-                    {
-                        "periode": periode,
-                        "model": naam(soort, land),
-                        "groep": groep,
-                        "boekingen": int(masker.sum()),
-                        "voorspeld": p[masker].sum(),
-                        "echt": int(y[masker].sum()),
-                        "voorspeld_echt": p[masker].sum() / y[masker].sum(),
-                    }
-                )
-            uitkomst[periode] = {"y": y, "p": p, "nachten": nachten}
-        uitkomst["factor"] = factor
-        per_variant[(soort, land)] = uitkomst
-
+        r, gr, per_variant[(soort, land)] = evalueer_variant(
+            df, delen, met(cfg, soort, land), cap, bezet, naam(soort, land)
+        )
+        rijen += r
+        groepen += gr
     volgorde = ["periode", "model", "hotel"]
     tabel = pd.concat(rijen, ignore_index=True)
     tabel = tabel[volgorde + [k for k in tabel.columns if k not in volgorde]]
@@ -168,6 +173,7 @@ def winstcurve(uitkomst: dict, cfg: dict, zekerheden: np.ndarray) -> pd.DataFram
 
 
 def toon(tabel: pd.DataFrame, periode: str) -> None:
+    """Log de vergelijkingstabel van één periode, met korte kolomnamen."""
     kolommen = {
         "model": "model",
         "hotel": "hotel",
@@ -186,7 +192,9 @@ def toon(tabel: pd.DataFrame, periode: str) -> None:
     logger.info("%s\n%s", kop, deel.to_string(index=False, float_format=lambda x: f"{x:.2f}"))
 
 
+@stop_bij_fout()
 def main() -> None:
+    """python -m src.evaluate: alle varianten naast elkaar, tabellen en figuren naar resultaten/."""
     cfg = laad_config()
     zet_logging_op(cfg, "evaluate")
     ruw = laad_data(cfg["data"]["pad"])
@@ -223,7 +231,7 @@ def main() -> None:
     tabel.round(4).to_csv(uit / "evaluatie.csv", index=False)
     groepen.round(4).to_csv(uit / "groepen.csv", index=False)
     curve.round(4).to_csv(uit / "winstcurve.csv", index=False)
-    # Pas hier: wie alleen VARIANTEN of met() nodig heeft (src.experimenten), laadt geen Matplotlib.
+    # Pas hier: wie alleen VARIANTEN of met() nodig heeft (het onderzoek), laadt geen Matplotlib.
     from .figuren import teken_ijking, teken_winstcurve
 
     teken_winstcurve(curve, zekerheid, uit / "winstcurve.png")

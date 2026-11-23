@@ -4,8 +4,8 @@ Elke keuze in het project op één plaats, met dezelfde vier stappen: welke opti
 zeggen, wat gekozen is, en waarom. Alle cijfers zijn opnieuw te maken:
 
 ```bash
-python -m src.audit          # data en contract: resultaten/audit/{filterwaterval,contract,dekking}.csv
-python -m src.experimenten   # vergelijkingen en foutenanalyse: resultaten/audit/*.csv
+python -m src.onderzoek.audit          # data en contract: resultaten/audit/{filterwaterval,contract,dekking}.csv
+python -m src.onderzoek.experimenten   # vergelijkingen en foutenanalyse: resultaten/audit/*.csv
 python -m src.evaluate       # de modellen naast elkaar: resultaten/evaluatie.csv en grafieken
 ```
 
@@ -223,7 +223,7 @@ MAE en lagere AUC: minder data weegt zwaarder dan recentere data. Bewijs: `exper
 | | |
 |---|---|
 | Vraag | het vaste model beslist voor de nacht van 31 maart met de kennis van 30 november ([label_beschikbaarheid.md](label_beschikbaarheid.md)). Verkleint elke maand hertrainen de seizoensbias, zoals het systeem in productie zou kunnen draaien? |
-| Opties | vast model (referentie) · elke maand opnieuw leren op alles wat op het eerste beslismoment van die maand gekend is, met hetzelfde embargo (`hertraingrens()` in `src/experimenten.py`, gelijk aan `grenzen()`). Een boeking krijgt de kans van het model van haar aankomstmaand (contract A) |
+| Opties | vast model (referentie) · elke maand opnieuw leren op alles wat op het eerste beslismoment van die maand gekend is, met hetzelfde embargo (`hertraingrens()` in `src/onderzoek/experimenten.py`, gelijk aan `grenzen()`). Een boeking krijgt de kans van het model van haar aankomstmaand (contract A) |
 | Keuzeregel, vooraf | de variant wint als het 90 %-bootstrapinterval van het verschil in absolute fout per nacht onder 0 ligt én het advies binnen de risicogrens blijft. Gekozen op de validatie |
 | Resultaat validatie | MAE 4,72 → **5,04**, verschil +0,32 (interval **+0,09 tot +0,59**): aantoonbaar slechter. Bias −1,59 → −0,54, AUC 0,695 → 0,672, € per volle nacht 480 → 446, te veel 11 % → 12 % |
 | Per maand (City) | januari gelijk (zelfde model). Februari: bias −3,5 → −0,6, maar MAE 5,8 → 7,1. Maart: bias +1,6 → +3,7, MAE 4,1 → 4,8. Het bijgewerkte model schuift mee met de vorige maand, en het seizoen draait |
@@ -276,7 +276,7 @@ Drie begrippen die niet hetzelfde zijn:
 |---|---|---|---|
 | nominale zekerheid 0,80 | `advies()` in `src/nachten.py` | bij elke voorspelling | ja: k is het grootste aantal met P(minstens k annulaties) ≥ 0,80 |
 | gemeten overschrijding (`te_veel`) | `beoordeel()` in `src/nachten.py` | bij de evaluatie | nee, gemeten |
-| risicogrens 20 % | `drempel()` in `src/experimenten.py`; `beleidspoorten()` in `src/poorten.py` | bij het kiezen van de zekerheid; bij elke training, **per hotel** op de validatie | ja, als releasepoort per hotel (sectie 14). Bij het voorspellen grijpt ze niet in: dat kan pas als de echte annulaties bekend zijn (monitoring, deel 3) |
+| risicogrens 20 % | `drempel()` in `src/onderzoek/experimenten.py`; `beleidspoorten()` in `src/poorten.py` | bij het kiezen van de zekerheid; bij elke training, **per hotel** op de validatie | ja, als releasepoort per hotel (sectie 14). Bij het voorspellen grijpt ze niet in: dat kan pas als de echte annulaties bekend zijn (monitoring, deel 3) |
 
 ### Risico per hotel en per maand
 
@@ -315,7 +315,7 @@ is afgestemd op de drie kwartalen van 2016 (rolling origin) en gemeten op Q1 201
 |---|---|
 | Beslisregel, vooraf | de zekerheid per hotel vervangt 0,80 alleen als ze op de validatie in geen enkele maand van een hotel boven 20 % zit, en de € per volle nacht hoogstens 10 % daalt |
 | Uitkomst | **0,80 blijft**: Resort maart blijft boven 20 % (23 %). Wel een duidelijk inzicht: zes keer minder doorverwezen gasten voor 2 % minder euro's. Dat is een **beleidskeuze voor het hotel**, geen modelkeuze; zie de businessscenario's |
-| Gevolg | het risico per hotel en per maand wordt bewaakt waar het kan: na de nacht, in de monitoring (`src/monitoring.py`, deel 3) |
+| Gevolg | het risico per hotel en per maand wordt bewaakt waar het kan: na de nacht, in de monitoring (`src/serving/monitoring.py`, deel 3) |
 
 ## 14. Poorten vóór het wegschrijven
 
@@ -341,7 +341,7 @@ Waarom per hotel en niet gepoold: op de test zit boosting gepoold op 16 %, City 
 Een gepoolde poort had dat nooit gezien. De poort draait op de validatie (City 6 %); de test kiest
 niets, dus de 22 % kan een model niet tegenhouden, wel de monitoring na de uitrol.
 
-Model, advies en config worden samen weggeschreven met een manifest (`src/manifest.py`). Horen ze
+Model, advies en config worden samen weggeschreven met een manifest (`src/serving/manifest.py`). Horen ze
 niet bij elkaar, of is een beleidsinstelling in de config veranderd na het trainen, dan weigert
 `src.predict` (`tests/test_systeem.py`). Een model dat met `--zonder-poorten` getraind is (alleen
 voor metingen), weigert de API te laden.
@@ -384,8 +384,8 @@ voor metingen), weigert de API te laden.
 |---|---|
 | Opties | CSV-tabellen in git (zoals in deel 2) · MLflow · Weights & Biases |
 | Keuze | **MLflow**, lokaal (sqlite), met daarnaast de CSV's in `resultaten/` en een export van alle runs (`resultaten/runs.csv`) |
-| Waarom | elke run legt automatisch config, commit, data-hash, versies, hypothese en beslisregel vast; `src/tracking.py` weigert een run zonder beslisregel of met niet-gecommitte code. MLflow wordt ook in het vak Deep Learning gebruikt. De registry bewaart elke modelversie met haar poorten (deel 3). De CSV's blijven, omdat de documentatie en de tests in de repository moeten werken zonder MLflow-server |
-| Bewijs | `src/tracking.py`, `configs/experimenten/`, `resultaten/runs.csv` |
+| Waarom | elke run legt automatisch config, commit, data-hash, versies, hypothese en beslisregel vast; `src/serving/tracking.py` weigert een run zonder beslisregel of met niet-gecommitte code. MLflow wordt ook in het vak Deep Learning gebruikt. De registry bewaart elke modelversie met haar poorten (deel 3). De CSV's blijven, omdat de documentatie en de tests in de repository moeten werken zonder MLflow-server |
+| Bewijs | `src/serving/tracking.py`, `configs/experimenten/`, `resultaten/runs.csv` |
 
 ## 19. Inferentiemodus: batch
 
@@ -509,11 +509,11 @@ en de drempel uit de kosten afgeleid, niet uit de curve.
 
 | | |
 |---|---|
-| Service | één JSON-logregel per verzoek: latency, status, uitgesloten per reden, aandeel onbekende categorieën, drift per kolom (`src/api.py`, `logs/api.log`, 30 dagen) |
+| Service | één JSON-logregel per verzoek: latency, status, uitgesloten per reden, aandeel onbekende categorieën, drift per kolom (`src/serving/api.py`, `logs/api.log`, 30 dagen) |
 | Invoerdrift | PSI per verzoek tegen de verdelingen van de hertraining (in het manifest). Een vaste drempel van 0,2 alarmeert elke dag: een nacht-portefeuille wijkt structureel af van alle boekingen (adr: PSI 0,59 op een gewone nacht). Drempel per kolom = max(0,2; 1,5 × de hoogste PSI van een normale validatienacht). Op de 153 testnachten: 0 valse alarmen; adr per verblijf 153 keer gevangen (PSI 5,2 tegen drempel 3,3). Die regel is gekozen nadat ook het 95e percentiel op de replay bekeken was (37 alarmen, zomerprijzen) |
-| Risico na de nacht | `python -m src.monitoring labels` op de replay: City boven 20 % te veel in drie vensters van vier weken (eind mei 25 %, juni-juli 57 %, augustus 23 %). In productie had het alarm eind juni afgegaan |
-| Alarmen | `python -m src.monitoring controleer`: p95 boven de grens, 5xx, onbekende categorieën > 5 %, drift, geen verzoek in 24 uur; één alarm per soort. Demo: `resultaten/monitoring/alerts_demo.jsonl` (drift in adr 5,2; 7,9 % onbekende agents: agents van na februari 2017, een reden om opnieuw te trainen) |
-| Bewijs | `src/monitoring.py`, `tests/test_monitoring.py`, `resultaten/monitoring/` |
+| Risico na de nacht | `python -m src.serving.monitoring labels` op de replay: City boven 20 % te veel in drie vensters van vier weken (eind mei 25 %, juni-juli 57 %, augustus 23 %). In productie had het alarm eind juni afgegaan |
+| Alarmen | `python -m src.serving.monitoring controleer`: p95 boven de grens, 5xx, onbekende categorieën > 5 %, drift, geen verzoek in 24 uur; één alarm per soort. Demo: `resultaten/monitoring/alerts_demo.jsonl` (drift in adr 5,2; 7,9 % onbekende agents: agents van na februari 2017, een reden om opnieuw te trainen) |
+| Bewijs | `src/serving/monitoring.py`, `tests/test_monitoring.py`, `resultaten/monitoring/` |
 
 ## 25. Publiceren en terugdraaien
 
@@ -522,4 +522,4 @@ en de drempel uit de kosten afgeleid, niet uit de curve.
 | Opties | `models/` overschrijven (deel 2) · een registry met versies |
 | Keuze | **MLflow-registry**: elke training een versie met haar poorten als tags; de alias `kampioen` alleen als alle poorten slagen; export naar `models/actief/` via een tijdelijke map en één hernoeming; rollback = de alias terugzetten |
 | Waarom | een crash halverwege liet vroeger een gemengde set achter; nu blijft de vorige versie staan (getest). De API heeft MLflow niet nodig: het image bevat de export |
-| Bewijs | `src/publiceer.py`, `tests/test_publiceer.py`, `python -m src.publiceer --lijst` |
+| Bewijs | `src/serving/publiceer.py`, `tests/test_publiceer.py`, `python -m src.serving.publiceer --lijst` |
