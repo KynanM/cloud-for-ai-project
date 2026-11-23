@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import sys
+from itertools import pairwise
 
 import joblib
 import numpy as np
@@ -155,7 +156,7 @@ def grenzen(cfg: dict) -> dict[str, pd.Timestamp]:
     g["hertraining_einde"] = embargo_einde(g["test_start"], cfg)
 
     volgorde = ["validatie_start", "validatie_einde", "test_start", "test_einde"]
-    if any(g[a] >= g[b] for a, b in zip(volgorde, volgorde[1:], strict=False)):
+    if any(g[a] >= g[b] for a, b in pairwise(volgorde)):
         raise ValueError(f"De periodes in de config staan niet na elkaar: {s}")
     return g
 
