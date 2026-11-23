@@ -94,8 +94,11 @@ structuur van de presentatie en de opmaak van dit rapport in het VIVES-sjabloon 
 (Opus 5.5) in de Claude-app, met toegang tot mijn cursusmap. De hercontrole van 17 november
 gebeurde met Claude Code in de Claude-desktopapp (Opus 5.5), net als de uitvoering van het actieplan
 van 19 tot 21 november. Het onderzoeksplan van de audit
-(`OnderzoekCloudForAI.md`) is opgesteld met Perplexity, op basis van het lesmateriaal. De
-audit-commits van 10 november staan in git op naam van Claude (`858a01c` tot `6c98b5a`).
+(`OnderzoekCloudForAI.md`, niet in de repo) is opgesteld met Perplexity, op basis van het lesmateriaal. De
+audit-commits van 10 november staan in git op naam van Claude (`858a01c` tot `6c98b5a`), net als
+de 12 commits van de vereenvoudiging van 22 november (`bae91e2` tot `aaef8e1`, gemerged via PR #6
+en #7). De opvolging van de audit van 23 november voerde Claude Code (Opus 5.5) uit als agent, op
+de branches `audit-opvolging-deel2` en `audit-refactor-deel2`.
 
 **Hoe ik werkte.** Het plan voor deel 2 werd gemaakt door Claude, maar ik review en controleer
 grondig en pas aan waar nodig. Op basis van feedback heb ik aanpassingen gedaan aan het plan, ben
@@ -118,6 +121,7 @@ ik het resultaat na, koos ik bij open vragen, en gaf ik pas dan de volgende stap
 | audit van 10 november | het onderzoeksplan uitvoeren: besliscontract en dekking meten, de europroxy narekenen, één eerlijke vergelijkingsrunner, foutenanalyse, gerichte experimenten met een bootstrap, manifest, documenten in `docs/` | overgenomen: de dekkingsregel, de vuistregel met alle historiek, 100 iteraties, 0,80 behouden, het maximum weghalen |
 | hercontrole van 17 november | het onderzoeksplan toetsen aan de repository en het lesmateriaal, alles opnieuw draaien, verouderde cijfers rechtzetten, het notebook herstellen, `tol` van logreg vastleggen, elke maand hertrainen testen, een test die de cijfers in de tekst bewaakt, dit rapport bijwerken | deel 3 nog niet uitvoeren, de rest van het plan wel |
 | actieplan van 19 tot 21 november | een actieplan uit de gap-analyse schrijven en per fase uitvoeren en controleren: de claims in dit rapport rechtzetten, robuustheid testen (rolling origin, bootstrap met blokken van 7 dagen, risico per hotel en maand), MLflow-tracking, de softwaremetriek meten, CI op GitHub | de grenzen van de softwaremetriek, lokaal draaien, MLflow, Hugging Face voor deel 3, elke fase pas vrijgeven na controle |
+| vereenvoudiging van 22 november | een vereenvoudigingsplan opstellen en uitvoeren: de toegelaten categorieën op één plek, `predict.py` los van `train.py`, rekenen (`evaluate.py`) en tekenen (`figuren.py`) gescheiden, de E9-meting hersteld, de README als voordeur met drie gidsen, de documentatie gelijk met de code, een eindcontrole | de merge van PR #6 en #7 op 22 november |
 
 **Waar de AI mijn plan bijstuurde.** De AI merkte op dat het land waarschijnlijk een lek is, en
 legde de cijfers voor in plaats van het zelf te schrappen. Ik besliste het land uit te zetten. De
@@ -138,8 +142,7 @@ omdat de solver vóór het optimum stopte; met `tol: 1.0e-6` ligt het resultaat 
 actieplan zette de AI één tijd in de tekst die niet gemeten was (15,2 in plaats van 8,0 ms), en
 vinkte ze twee taken af die niet volledig waren; het eerste zag de AI zelf bij het nalezen, het
 tweede kwam boven bij een controle die ik vroeg. Alle fouten
-werden gevonden door de uitvoer te controleren, en hersteld. Zelf vond ik: het uitsluiten van de
-land-feature.
+werden gevonden door de uitvoer te controleren, en hersteld.
 
 **Hoe het resultaat gecontroleerd is.** Ik heb `pytest`, `ruff check .` en `ruff format --check .`
 zelf gedraaid, net als `python -m src.train`, `python -m src.predict` en `python -m src.evaluate`,
@@ -148,7 +151,7 @@ en de cijfers in de README en in dit rapport nagelezen tegen `resultaten/` en de
 `requirements.txt` (125 tests groen) en zijn de cijfers nagelezen tegen
 `docs/bewijsregister.csv` (`docs/archief/audit_scope.md`, "Hercontrole"). Sinds 19 november draait elke
 push op GitHub Actions: ruff, de training met haar poorten en alle tests (281 groen op 20
-november), vanuit een lege omgeving.
+november), vanuit een lege omgeving. Op 23 november: 290 groen.
 
 **Wat ik ervan leerde.** Ik leerde gestructureerd werken volgens de regels en de werkwijze die we
 in de les kregen, en die opvolgen: logging in plaats van print. En soms is de baseline al sterk in
