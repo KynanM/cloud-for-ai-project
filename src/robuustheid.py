@@ -50,6 +50,7 @@ from .figuren import (  # noqa: E402
     teken_rolling,
 )
 from .folds import folds  # noqa: E402
+from .kansen import voorspel  # noqa: E402
 from .logboek import zet_logging_op  # noqa: E402
 from .nachten import (  # noqa: E402
     beoordeel,
@@ -57,7 +58,7 @@ from .nachten import (  # noqa: E402
     spreidingsfactor,
 )
 from .poorten import slo_p95_ms  # noqa: E402
-from .predict import voer_job_uit, voorspel  # noqa: E402
+from .predict import voer_job_uit  # noqa: E402
 from .tracking import experimentrun, laad_experiment, log_figuur, log_metrics, log_tabel  # noqa: E402
 from .train import bouw_pijplijn, kenmerken_en_label, volledige_nachten  # noqa: E402
 

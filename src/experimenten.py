@@ -42,6 +42,7 @@ from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
 from .config import laad_config
 from .data import aankomstdatum, bereid_voor, laad_data, stop_bij_fout
 from .evaluate import VARIANTEN, met, naam, zekerheden_winstcurve
+from .kansen import voorspel
 from .logboek import zet_logging_op
 from .nachten import (
     alleen_volledig,
@@ -52,7 +53,6 @@ from .nachten import (
     per_nacht,
     spreidingsfactor,
 )
-from .predict import voorspel
 from .train import bouw_pijplijn, grenzen, kenmerken_en_label, splits
 
 logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__)

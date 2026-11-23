@@ -23,8 +23,9 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 
 from . import schema
-from .config import PROJECT, invoerkolommen, laad_config
+from .config import PROJECT, laad_config
 from .data import OngeldigeDataError, aankomstdatum, laad_data, stop_bij_fout, valideer
+from .kansen import voorspel  # ook bereikbaar als src.predict.voorspel
 from .kenmerken import als_tekst
 from .logboek import zet_logging_op
 from .manifest import controleer
@@ -45,11 +46,6 @@ logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__
 def laad_model(pad: str | Path) -> Model:
     """Het model dat src.train wegschreef; verwijst naar src.kenmerken, dus die blijft staan."""
     return joblib.load(pad)
-
-
-def voorspel(model: Model, df: pd.DataFrame, cfg: dict) -> np.ndarray:
-    """De kans dat de boeking alsnog geannuleerd wordt of een no-show wordt, één per boeking."""
-    return model.predict_proba(df[invoerkolommen(cfg)])[:, 1]
 
 
 def onbekende_categorieen(model: Model, df: pd.DataFrame, cfg: dict) -> dict[str, list[str]]:
