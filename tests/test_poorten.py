@@ -3,6 +3,7 @@
 import logging
 
 import pandas as pd
+import pytest
 
 from src.poorten import Poort, beleidspoorten, ml_poorten, softwarepoorten
 
@@ -39,6 +40,7 @@ def test_ml_poorten(cfg):
     }
 
 
+@pytest.mark.traag
 def test_softwarepoort_meet_de_latency(cfg, tmp_path):
     bestand = tmp_path / "model.joblib"
     bestand.write_bytes(b"x" * 1024)

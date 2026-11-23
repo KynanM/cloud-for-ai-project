@@ -103,6 +103,9 @@ hebben over (*skipped*):
 .venv/bin/python -m pytest
 ```
 
+Voor een snelle controle (±10 s, zonder training, MLflow, API en opdrachtregel):
+`.venv/bin/python -m pytest -m "not traag"`. Zonder `-m` draait alles.
+
 ## Waar staat wat?
 
 Om deel 2 te begrijpen, lees je eerst deze bestanden, in deze volgorde:

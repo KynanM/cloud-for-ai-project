@@ -13,6 +13,9 @@ from src.config import laad_config
 from src.train import bouw_en_bewaar
 from tests.test_systeem import config_in
 
+# Elke test hier traint en schrijft naar MLflow: buiten de snelle set (pytest -m "not traag")
+pytestmark = pytest.mark.traag
+
 
 @pytest.fixture(scope="module")
 def omgeving(tmp_path_factory, ruw):

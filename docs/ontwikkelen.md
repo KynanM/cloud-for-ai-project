@@ -45,6 +45,9 @@ foutgedrag- en enkele monitoringtests. Pytest meldt dat niet als fout, dus kijk 
 regel: staat er `skipped`, dan heeft er iets niet gedraaid.
 `python -m pytest -rs` toont waarom.
 
+De marker `traag` (in `pytest.ini`) zet de tests apart die trainen, MLflow of de API gebruiken of
+de opdrachtregel starten. `python -m pytest -m "not traag"` draait de rest in ±10 s.
+
 `ruff format` controleert ook de codeblokken in Markdown.
 
 ## Trainen en van model wisselen

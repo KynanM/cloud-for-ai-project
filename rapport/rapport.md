@@ -153,7 +153,7 @@ en de cijfers in de README en in dit rapport nagelezen tegen `resultaten/` en de
 `requirements.txt` (125 tests groen) en zijn de cijfers nagelezen tegen
 `docs/bewijsregister.csv` (`docs/archief/audit_scope.md`, "Hercontrole"). Sinds 19 november draait elke
 push op GitHub Actions: ruff, de training met haar poorten en alle tests (281 groen op 20
-november), vanuit een lege omgeving. Op 23 november: 290 groen.
+november), vanuit een lege omgeving. Op 23 november: 291 groen.
 
 **Wat ik ervan leerde.** Ik leerde gestructureerd werken volgens de regels en de werkwijze die we
 in de les kregen, en die opvolgen: logging in plaats van print. En soms is de baseline al sterk in

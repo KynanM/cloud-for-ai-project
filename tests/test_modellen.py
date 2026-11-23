@@ -14,6 +14,9 @@ from src.kenmerken import land_als_groep
 from src.predict import voorspel
 from src.train import bouw_pijplijn, kenmerken_en_label, splits
 
+# Elke test hier traint logreg en boosting, met en zonder land: buiten de snelle set
+pytestmark = pytest.mark.traag
+
 SOORTEN = ["vuistregel", "logreg", "boosting"]
 
 
