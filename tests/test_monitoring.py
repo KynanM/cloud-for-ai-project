@@ -10,6 +10,10 @@ import pytest
 
 from src.monitoring import controleer, drift, main, psi, referentie, risico_na_de_nacht
 
+# Deel 3: drift en alarmen; één test start de API. Alleen deel 2: pytest -m "not deel3"
+pytestmark = pytest.mark.deel3
+pytest.importorskip("httpx")  # staat alleen in de dev-lock
+
 
 @pytest.fixture(scope="module")
 def ref(df):

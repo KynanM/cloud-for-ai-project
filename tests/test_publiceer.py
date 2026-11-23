@@ -14,7 +14,8 @@ from src.train import bouw_en_bewaar
 from tests.test_systeem import config_in
 
 # Elke test hier traint en schrijft naar MLflow: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]  # deel 3: MLflow-registry en export
+pytest.importorskip("mlflow")  # staat alleen in de dev-lock
 
 
 @pytest.fixture(scope="module")

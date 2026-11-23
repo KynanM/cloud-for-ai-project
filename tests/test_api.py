@@ -10,14 +10,19 @@ import typing
 
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
 
-from src import schema
-from src.data import laad_data
-from src.predict import laad_advies, laad_model, voer_job_uit
+# TestClient heeft httpx nodig, en dat staat alleen in de dev-lock: zonder httpx overslaan
+pytest.importorskip("httpx")
 
-# Elke test hier laadt de API en start een proces: buiten de snelle set (pytest -m "not traag")
-pytestmark = pytest.mark.traag
+from fastapi.testclient import TestClient  # noqa: E402
+
+from src import schema  # noqa: E402
+from src.data import laad_data  # noqa: E402
+from src.predict import laad_advies, laad_model, voer_job_uit  # noqa: E402
+
+# Elke test hier laadt de API en start een proces: buiten de snelle set (pytest -m "not traag").
+# Deel 3: buiten pytest -m "not deel3"
+pytestmark = [pytest.mark.traag, pytest.mark.deel3]
 
 NACHT = "2017-08-15"
 AS_OF = "2017-07-16"

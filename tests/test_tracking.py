@@ -8,6 +8,9 @@ import yaml
 from src.config import PROJECT
 from src.tracking import VERPLICHT, controleer_experiment, plat
 
+# Deel 3: experimenten in MLflow. Alleen deel 2: pytest -m "not deel3"
+pytestmark = pytest.mark.deel3
+
 GELDIG = {
     "hypothese": "h",
     "baseline": "b",

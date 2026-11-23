@@ -11,6 +11,9 @@ import pytest
 
 from benchmarks import gate
 
+# Deel 3: de performancegate van de softwaremetriek. Alleen deel 2: pytest -m "not deel3"
+pytestmark = pytest.mark.deel3
+
 
 @pytest.fixture
 def poort(tmp_path, monkeypatch):
