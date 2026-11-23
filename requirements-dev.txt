@@ -1,0 +1,13 @@
+# Ontwikkelen: de tests (ook die van deel 3), MLflow, de experimenten, benchmarks en het notebook.
+#   pip install -r requirements-dev.txt
+# Exact, met hashes (zo installeert de CI): requirements-dev.lock, gemaakt met
+#   uv pip compile requirements-dev.txt --universal --python-version 3.13 --generate-hashes -o requirements-dev.lock
+-r requirements.txt
+mlflow==3.18.0
+httpx==0.28.1
+pytest==9.2.0
+pytest-benchmark==5.3.1
+ruff==0.17.4
+# Voor het exploratienotebook
+ipykernel==7.4.0
+nbconvert==7.17.2

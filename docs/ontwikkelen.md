@@ -8,18 +8,21 @@ Voor wie aan de code werkt. Voorbeelden gebruiken `python`; neem de Python uit j
 python -m pip install --require-hashes -r requirements-dev.lock
 ```
 
-| Bestand | Wat |
-|---|---|
-| `requirements.in` | de runtime: wat de API en `src.predict` nodig hebben, met vaste versies (`==`) |
-| `requirements-dev.in` | daarbovenop: MLflow, Matplotlib, pytest, ruff, notebook |
-| `requirements.lock`, `requirements-dev.lock` | alle pakketten, ook de onrechtstreekse, met versie en hash. Gemaakt met `uv pip compile` |
-| `requirements.txt` | een verwijzing naar `requirements-dev.in`, voor wie `pip install -r requirements.txt` gewoon is. Vergrendelt alleen de directe pakketten |
+| Bestand | Wat | Wie gebruikt het |
+|---|---|---|
+| `requirements.txt` | deel 2: trainen, evalueren, voorspellen en de tests van deel 2 (`-r requirements-api.txt` + Matplotlib) | de lector: `pip install -r requirements.txt` |
+| `requirements-api.txt` | de webservice: wat `src.api` en `src.predict` nodig hebben, zonder Matplotlib | de bron van `requirements.lock` |
+| `requirements.lock` | `requirements-api.txt` met alle onrechtstreekse pakketten, versies en hashes | het image (en de Space) |
+| `requirements-dev.txt` | `-r requirements.txt` + MLflow, httpx, pytest, ruff, het notebook | ontwikkelen |
+| `requirements-dev.lock` | `requirements-dev.txt`, exact en met hashes | de CI, de README |
 
-Het image installeert `requirements.lock`, de CI `requirements-dev.lock`. Een pakket toevoegen:
-in het `.in`-bestand, dan de lockfile opnieuw maken, bijvoorbeeld:
+Matplotlib staat niet in het image: met Matplotlib groeit het van 670 naar 794 MB, en de API
+tekent niets. Elke directe versie staat met `==` vast. Een pakket toevoegen: in het `.txt`-bestand,
+dan beide lockfiles opnieuw maken (dezelfde opdracht staat bovenaan elke lockfile):
 
 ```bash
-uv pip compile --generate-hashes requirements-dev.in -o requirements-dev.lock
+uv pip compile requirements-api.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
+uv pip compile requirements-dev.txt --universal --python-version 3.13 --generate-hashes -o requirements-dev.lock
 ```
 
 ## Stijl en tests
