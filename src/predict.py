@@ -43,6 +43,7 @@ logger = logging.getLogger(__spec__.name if __name__ == "__main__" else __name__
 
 
 def laad_model(pad: str | Path) -> Model:
+    """Het model dat src.train wegschreef; verwijst naar src.kenmerken, dus die blijft staan."""
     return joblib.load(pad)
 
 
@@ -172,6 +173,7 @@ def voer_job_uit(
 
 @stop_bij_fout()
 def main(argv: list[str]) -> None:
+    """python -m src.predict: van een CSV met boekingen naar het advies k, met nette fouten."""
     meting = Meting()
     parser = argparse.ArgumentParser(description="Voorspel annulaties en geef het advies k.")
     parser.add_argument("pad", help="csv met de boekingen die op het beslismoment actief zijn")

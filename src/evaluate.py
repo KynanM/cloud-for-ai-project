@@ -47,10 +47,12 @@ VARIANTEN = [
 
 
 def naam(soort: str, land: bool) -> str:
+    """De naam van een variant in de tabellen en grafieken, bv. "boosting zonder land"."""
     return soort if soort == "vuistregel" else f"{soort} {'met' if land else 'zonder'} land"
 
 
 def met(cfg: dict, soort: str, land: bool) -> dict:
+    """Een kopie van de config met een ander model en het land aan of uit; `cfg` blijft heel."""
     nieuw = copy.deepcopy(cfg)
     nieuw["model"]["soort"] = soort
     nieuw["features"]["gebruik_land"] = land
@@ -155,6 +157,7 @@ def winstcurve(uitkomst: dict, cfg: dict, zekerheden: np.ndarray) -> pd.DataFram
 
 
 def toon(tabel: pd.DataFrame, periode: str) -> None:
+    """Log de vergelijkingstabel van één periode, met korte kolomnamen."""
     kolommen = {
         "model": "model",
         "hotel": "hotel",
@@ -175,6 +178,7 @@ def toon(tabel: pd.DataFrame, periode: str) -> None:
 
 @stop_bij_fout()
 def main() -> None:
+    """python -m src.evaluate: alle varianten naast elkaar, tabellen en figuren naar resultaten/."""
     cfg = laad_config()
     zet_logging_op(cfg, "evaluate")
     ruw = laad_data(cfg["data"]["pad"])

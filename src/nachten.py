@@ -270,6 +270,7 @@ def beoordeel(
     n["doorverwezen"] = np.maximum(n["k"] - n["echt"], 0)
 
     def samenvatting(groep: pd.DataFrame) -> pd.Series:
+        """Eén rij van de beoordeling: fout, risico en euro's over de nachten van `groep`."""
         vol = groep[groep["vol"]]
         te_veel = groep["echt"] < groep["k"]
         tekort = np.maximum(groep["k"] - groep["echt"], 0)
