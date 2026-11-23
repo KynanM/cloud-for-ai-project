@@ -83,7 +83,7 @@ benchmarks.
 | `python -m src.onderzoek.experimenten` | het bewijs achter elke keuze | `resultaten/audit/` |
 | `python -m src.onderzoek.robuustheid` | risico per hotel en maand, bootstrap, rolling origin, complexiteit | `resultaten/audit/`, `resultaten/figuren/` |
 | `python -m src.onderzoek.business` | businessscenario's, ROI, MAE tegenover euro's | `resultaten/audit/`, `resultaten/figuren/` |
-| `python -m src.figuren` | de figuren van de softwaremetriek | `resultaten/figuren/` |
+| `python -m src.serving.figuren` | de figuren van de softwaremetriek en de deployment | `resultaten/figuren/` |
 | `python -m benchmarks.workloads` | de vaste werklasten voor de benchmarks | `benchmarks/workloads/*.csv` (niet gecommit) en `resultaten/software/workloads.json` |
 | `python -m benchmarks.bench` | de softwaremetriek | `resultaten/software/` |
 | `python -m benchmarks.experimenten_software e1` (of `e9`, `modus`, `artefact`, `modellen`) | software-experimenten met vooraf vastgelegde beslisregel | `resultaten/software/` |

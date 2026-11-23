@@ -92,7 +92,7 @@ src/                   kern (deel 2): inlezen, controleren, trainen, evalueren, 
   kansen.py            voorspel(): van model en boekingen naar kansen, voor trainen en voorspellen
   nachten.py           van kansen per boeking naar advies k per hotel-nacht, en de euro's
   evaluate.py          alle modellen naast elkaar, per hotel-nacht
-  figuren.py           alle grafieken; evaluate.py tekent ermee, net als het onderzoek
+  figuren.py           de grafieken van deel 2 en het onderzoek; evaluate.py tekent ermee
   predict.py           model laden, manifest controleren, voer_job_uit(), de opdrachtregel
   scope.py             het toepassingsdomein; data.schoon_op() en predict.py delen die grens
   logboek.py           logging naar het scherm en naar logs/<opdracht>.log, voor elke opdracht
@@ -107,6 +107,7 @@ src/onderzoek/         onderzoek en verantwoording (extra, geen eis van deel 2)
 
 src/serving/           serving en opereren (deel 3)
   api.py               POST /advies, POST /kansen, GET /health (FastAPI)
+  figuren.py           de figuren van de softwaremetriek en de deployment
   manifest.py          model, advies, config en data aan één run binden
   meting.py            tijd per fase en geheugenpiek van een adviesjob
   monitoring.py        drift per verzoek, risico na de nacht, alarmen
